@@ -354,6 +354,14 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.registerCoreCommands()
 	d.RegisterBuiltinExt()
 	d.loads()
+	if d.migrateDiceRandomGMConfig() {
+		d.MarkModified()
+	}
+	if d.Config.DiceRandomGMEnabled {
+		if err := d.EnableDiceRandomGM(); err != nil && d.Logger != nil {
+			d.Logger.Warnf("[随机源] 启用国密随机源失败: %v", err)
+		}
+	}
 	if err := d.ActivateDiceRandomMode(); err != nil && d.Logger != nil {
 		d.Logger.Warnf("[随机源] 激活配置模式失败，已使用 PCG 回退: %v", err)
 	}

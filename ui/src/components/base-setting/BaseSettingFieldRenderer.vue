@@ -68,7 +68,7 @@
         filterable
         clearable
         :tag="field.allowCustomValue"
-        @update:value="updateFieldValue(fieldKey, $event)"
+        @update:value="updateSelect"
       />
 
       <div v-else-if="field.kind === 'number-pair'" class="number-pair">
@@ -205,6 +205,26 @@ function updateBoolean(value: boolean) {
       negativeText: '取消',
       closable: false,
       onPositiveClick: () => updateFieldValue(key, value),
+    });
+    return;
+  }
+  updateFieldValue(key, value);
+}
+
+function updateSelect(value: unknown) {
+  const key = fieldKey.value;
+  if (!key) return;
+  if (value === 'gm' && !props.model.diceRandomGMEnabled && props.field.confirmMessage) {
+    dialog.warning({
+      title: '启用国密随机源',
+      content: props.field.confirmMessage,
+      positiveText: '启用',
+      negativeText: '取消',
+      closable: false,
+      onPositiveClick: () => {
+        emit('updateField', 'diceRandomGMEnabled', true);
+        updateFieldValue(key, value);
+      },
     });
     return;
   }

@@ -170,6 +170,7 @@ func (s *Service) buildValue() BaseSettingValueResp {
 		LogSizeNoticeCount:       s.dice.Config.LogSizeNoticeCount,
 		PlayerNameWrapEnable:     s.dice.Config.PlayerNameWrapEnable,
 		DiceRandomMode:           string(dice.NormalizeDiceRandomMode(s.dice.Config.DiceRandomMode)),
+		DiceRandomGMEnabled:      s.dice.Config.DiceRandomGMEnabled,
 		OnlyLogCommandInGroup:    s.dice.Config.OnlyLogCommandInGroup,
 		OnlyLogCommandInPrivate:  s.dice.Config.OnlyLogCommandInPrivate,
 		RateLimitEnabled:         s.dice.Config.RateLimitEnabled,
@@ -349,8 +350,25 @@ func (s *Service) applyPatch(patch BaseSettingPatch) error {
 	if patch.MailPassword != nil && *patch.MailPassword != "" && *patch.MailPassword != mailPasswordMasked {
 		config.MailPassword = *patch.MailPassword
 	}
+	gmEnabled := config.DiceRandomGMEnabled
+	if patch.DiceRandomGMEnabled != nil {
+		if !*patch.DiceRandomGMEnabled {
+			return huma.Error400BadRequest("关闭国密源请执行 .randalgo set gm off 后重启海豹")
+		}
+		if !gmEnabled {
+			if err := s.dice.EnableDiceRandomGM(); err != nil {
+				return huma.Error400BadRequest("启用国密源失败: " + err.Error())
+			}
+			gmEnabled = true
+			config.DiceRandomGMEnabled = true
+		}
+	}
 	if patch.DiceRandomMode != nil {
-		config.DiceRandomMode = string(dice.NormalizeDiceRandomMode(*patch.DiceRandomMode))
+		mode := dice.NormalizeDiceRandomMode(*patch.DiceRandomMode)
+		if mode == dice.DiceRandomModeGM && !gmEnabled {
+			return huma.Error400BadRequest("国密源默认禁用。启用后需要约 32MB 常驻内存，用于采集系统熵并保证 SM3 随机数的随机性和不可预测性。请在界面上确认启用国密源。")
+		}
+		config.DiceRandomMode = string(mode)
 	}
 
 	s.dice.Config = config
@@ -376,7 +394,7 @@ func (s *Service) applyPatch(patch BaseSettingPatch) error {
 		s.dm.UIPasswordHash = *patch.UIPassword
 		s.dm.AccessTokens = dice.SyncMap[string, bool]{}
 	}
-	if patch.DiceRandomMode != nil {
+	if patch.DiceRandomMode != nil || patch.DiceRandomGMEnabled != nil {
 		if err := s.dice.ActivateDiceRandomMode(); err != nil && s.dice.Logger != nil {
 			s.dice.Logger.Warnf("[随机源] 应用管理界面随机模式失败，已使用 PCG 回退: %v", err)
 		}
