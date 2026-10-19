@@ -50,7 +50,7 @@ func newTestService(t *testing.T) *Service {
 		PendingQuits: new(dice.SyncMap[string, *dice.PendingQuitInfo]),
 	}
 	dm := &dice.DiceManager{
-		Dice: []*dice.Dice{d},
+		Dice: d,
 	}
 	d.Parent = dm
 	return NewService(dm)

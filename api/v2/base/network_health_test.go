@@ -18,7 +18,7 @@ func TestNetworkHealthUsesInstanceProbes(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			dm := &dice.DiceManager{}
-			dm.Dice = []*dice.Dice{{Parent: dm}}
+			dm.Dice = &dice.Dice{Parent: dm}
 			svc := NewBaseService(dm)
 			svc.signURLs = func(_ *dice.Dice) []string {
 				if withSign {

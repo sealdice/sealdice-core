@@ -25,7 +25,7 @@ func newTestService(t *testing.T, containerMode bool) (*Service, *dice.Dice) {
 		PendingQuits: new(dice.SyncMap[string, *dice.PendingQuitInfo]),
 	}
 	dm := &dice.DiceManager{
-		Dice:          []*dice.Dice{d},
+		Dice:          d,
 		ContainerMode: containerMode,
 	}
 	d.Parent = dm

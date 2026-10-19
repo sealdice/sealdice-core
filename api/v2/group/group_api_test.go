@@ -55,7 +55,7 @@ func newTestGroupService(t *testing.T) *GroupService {
 		PendingQuits: new(dice.SyncMap[string, *dice.PendingQuitInfo]),
 	}
 	dm := &dice.DiceManager{
-		Dice:        []*dice.Dice{d},
+		Dice:        d,
 		JustForTest: true,
 	}
 	d.Parent = dm

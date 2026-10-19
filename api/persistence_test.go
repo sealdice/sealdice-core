@@ -30,7 +30,7 @@ func persistenceDice(t *testing.T) *dice.Dice {
 		TextMapHelpInfo: dice.TextTemplateWithHelpDict{},
 	}
 	d.Config.BanList = &dice.BanListInfo{Map: new(dice.SyncMap[string, *dice.BanListInfoItem])}
-	dm = &dice.DiceManager{Dice: []*dice.Dice{d}}
+	dm = &dice.DiceManager{Dice: d}
 	dm.AccessTokens.Store("persistence-test", true)
 	d.Parent, myDice = dm, d
 	return d

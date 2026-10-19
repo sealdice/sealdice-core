@@ -19,7 +19,7 @@ func minimalDM(t *testing.T) *dice.DiceManager {
 	d.BaseConfig.Name = "uploadgw-test"
 	d.BaseConfig.DataDir = dir
 	d.Config = dice.NewConfig(d)
-	dm := &dice.DiceManager{Dice: []*dice.Dice{d}}
+	dm := &dice.DiceManager{Dice: d}
 	d.Parent = dm
 	return dm
 }

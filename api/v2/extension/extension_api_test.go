@@ -197,7 +197,7 @@ func newTestExtensionService(t *testing.T, backendURL string) (*Service, *dice.D
 		PendingQuits: new(dice.SyncMap[string, *dice.PendingQuitInfo]),
 	}
 
-	dm := &dice.DiceManager{Dice: []*dice.Dice{testDice}}
+	dm := &dice.DiceManager{Dice: testDice}
 	testDice.Parent = dm
 
 	testDice.PackageManager = dice.NewPackageManager(testDice)

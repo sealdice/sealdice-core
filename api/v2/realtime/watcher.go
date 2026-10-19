@@ -81,7 +81,7 @@ func (w *StateWatcher) Scan() {
 }
 
 func (w *StateWatcher) dice() *dice.Dice {
-	if w.dm == nil || len(w.dm.Dice) == 0 {
+	if w.dm == nil {
 		return nil
 	}
 	return w.dm.GetDice()

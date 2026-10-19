@@ -72,7 +72,7 @@ func newTestService(t *testing.T) (*Service, func()) {
 	d.UIEndpoint.UserID = "UI:1001"
 	d.UIEndpoint.Platform = "UI"
 	d.UIEndpoint.Session = d.ImSession
-	dm := &dice.DiceManager{Dice: []*dice.Dice{d}}
+	dm := &dice.DiceManager{Dice: d}
 	d.Parent = dm
 	return NewService(dm), func() {
 		d.AttrsManager.Stop()

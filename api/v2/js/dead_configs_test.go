@@ -14,7 +14,7 @@ func newDeadConfigService(t *testing.T) (*dice.DiceManager, *dice.Dice, *Service
 	filename := filepath.Join(t.TempDir(), "plugins.json")
 	dm := &dice.DiceManager{}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice = []*dice.Dice{d}
+	dm.Dice = d
 	d.ConfigManager = dice.NewConfigManager(filename)
 	d.Config.JsEnable = true
 	d.JsExtRegistry = new(dice.SyncMap[string, *dice.ExtInfo])
@@ -87,7 +87,7 @@ func TestDeadConfigsRequireInitializedJsRegistry(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "plugins.json")
 	dm := &dice.DiceManager{}
 	d := &dice.Dice{Parent: dm}
-	dm.Dice = []*dice.Dice{d}
+	dm.Dice = d
 	d.ConfigManager = dice.NewConfigManager(filename)
 	d.Config.JsEnable = true
 	registerTestPlugin(t, d, "anything")
