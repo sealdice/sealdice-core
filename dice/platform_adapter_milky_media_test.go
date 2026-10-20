@@ -14,17 +14,10 @@ import (
 
 func newMilkyLocalImage(t *testing.T) (string, *message.FileElement) {
 	t.Helper()
-	// Keep the fixture on the working directory's drive for relative-path tests.
-	dir, err := os.MkdirTemp(".", "milky-image-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Error(err)
-		}
-	})
-	filename := filepath.Join(dir, "本地 图片,#&.png")
+	// Keep relative paths on the same Windows drive as the test's working
+	// directory. Chdir restores cwd before TempDir removes the fixture.
+	t.Chdir(t.TempDir())
+	filename := "本地 图片,#&.png"
 	if err := os.WriteFile(filename, []byte("local image test data"), 0o600); err != nil {
 		t.Fatal(err)
 	}
