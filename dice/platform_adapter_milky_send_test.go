@@ -201,8 +201,9 @@ func TestPlatformAdapterMilkySendsSupportedPartsOfMixedMessage(t *testing.T) {
 			if hookMessage.MessageType != test.messageType || hookMessage.GroupID != test.wantGroupID {
 				t.Errorf("hook destination = (%q, %q), want (%q, %q)", hookMessage.MessageType, hookMessage.GroupID, test.messageType, test.wantGroupID)
 			}
-			if hookMessage.Message != text || hookMessage.RawID != int64(321) {
-				t.Errorf("hook message = (%q, %d), want (%q, 321)", hookMessage.Message, hookMessage.RawID, text)
+			// The unsupported shake segment was not sent, so history must omit it.
+			if hookMessage.Message != "前缀后缀" || hookMessage.RawID != int64(321) {
+				t.Errorf("hook message = (%q, %d), want (%q, 321)", hookMessage.Message, hookMessage.RawID, "前缀后缀")
 			}
 		})
 	}
@@ -236,5 +237,8 @@ func TestPlatformAdapterMilkyPreservesGroupPoke(t *testing.T) {
 	}
 	if hookMessage.MessageType != "group" || hookMessage.GroupID != "QQ-Group:20020" || hookMessage.RawID != int64(0) {
 		t.Errorf("hook message = (%q, %q, %d), want (%q, %q, 0)", hookMessage.MessageType, hookMessage.GroupID, hookMessage.RawID, "group", "QQ-Group:20020")
+	}
+	if hookMessage.Message != "[CQ:poke,qq=30030]" {
+		t.Errorf("hook text = %q, want the sent nudge", hookMessage.Message)
 	}
 }

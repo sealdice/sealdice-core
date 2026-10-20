@@ -68,7 +68,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
-	elements := ParseMessageToMilky(msg)
+	elements, included := parseMilkyMessage(msg)
 	if len(elements) == 0 {
 		log.Warnf("Skipping Milky group message to %s: no supported message elements", groupID)
 		return
@@ -81,7 +81,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToGroup(ctx *MsgContext, groupID stri
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
-		Segment:     msg,
+		Segment:     milkySentSegments(msg, included),
 		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
@@ -98,7 +98,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID stri
 		log.Errorf("Invalid user ID %s: %v", userID, err)
 		return
 	}
-	elements := ParseMessageToMilky(msg)
+	elements, included := parseMilkyMessage(msg)
 	if len(elements) == 0 {
 		log.Warnf("Skipping Milky private message to %s: no supported message elements", userID)
 		return
@@ -111,7 +111,7 @@ func (pa *PlatformAdapterMilky) SendSegmentToPerson(ctx *MsgContext, userID stri
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "private",
-		Segment:     msg,
+		Segment:     milkySentSegments(msg, included),
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -708,9 +708,17 @@ func (pa *PlatformAdapterMilky) SetEnable(enable bool) {
 }
 
 func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement {
+	elements, _ := parseMilkyMessage(send)
+	return elements
+}
+
+// parseMilkyMessage returns the wire payload and which source segments it
+// represents, so send hooks and history never report discarded elements.
+func parseMilkyMessage(send []message.IMessageElement) ([]milky.IMessageElement, []bool) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	var elements []milky.IMessageElement
-	for _, elem := range send {
+	included := make([]bool, len(send))
+	for index, elem := range send {
 		switch e := elem.(type) {
 		case *message.TextElement:
 			elements = append(elements, &milky.TextElement{Text: e.Content})
@@ -727,44 +735,58 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 			elements = append(elements, &milky.ImageElement{URI: uri, Summary: summary, SubType: "normal"})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
-			if uid, err := strconv.ParseInt(e.Target, 10, 64); err == nil {
-				elements = append(elements, &milky.AtElement{UserID: uid})
+			uid, err := strconv.ParseInt(e.Target, 10, 64)
+			if err != nil {
+				continue
 			}
+			elements = append(elements, &milky.AtElement{UserID: uid})
 		case *message.ReplyElement:
-			if seq, err := strconv.ParseInt(e.ReplySeq, 10, 64); err == nil {
-				elements = append(elements, &milky.ReplyElement{MessageSeq: seq})
+			seq, err := strconv.ParseInt(e.ReplySeq, 10, 64)
+			if err != nil {
+				continue
 			}
+			elements = append(elements, &milky.ReplyElement{MessageSeq: seq})
 		case *message.RecordElement:
-			log.Debugf("Record: %s", e.File.URL)
+			if e == nil || e.File == nil || e.File.URL == "" {
+				continue
+			}
 			elements = append(elements, &milky.RecordElement{URI: e.File.URL})
 		case *message.PokeElement:
 			continue
 		default:
 			log.Warnf("Unsupported message element type: %T", elem)
+			continue
 		}
+		included[index] = true
 	}
-	return elements
+	return elements, included
 }
 
-func buildMilkyForwardElement(nodes []forwardNode) (*milky.ForwardElement, error) {
+// buildMilkyForwardElement also returns the nodes as actually sent, for history.
+func buildMilkyForwardElement(nodes []forwardNode) (*milky.ForwardElement, []forwardNode, error) {
 	if len(nodes) == 0 {
-		return nil, errors.New("forward message has no nodes")
+		return nil, nil, errors.New("forward message has no nodes")
 	}
 
 	messages := make([]milky.OutgoingForwardedMessage, 0, len(nodes))
+	sentNodes := make([]forwardNode, 0, len(nodes))
 	for index, node := range nodes {
 		userID, err := strconv.ParseInt(strings.TrimSpace(node.Data.Uin), 10, 64)
 		if err != nil || userID <= 0 {
-			return nil, fmt.Errorf("forward node %d has invalid user ID %q", index, node.Data.Uin)
+			return nil, nil, fmt.Errorf("forward node %d has invalid user ID %q", index, node.Data.Uin)
 		}
 		if strings.TrimSpace(node.Data.Content) == "" {
-			return nil, fmt.Errorf("forward node %d has empty content", index)
+			return nil, nil, fmt.Errorf("forward node %d has empty content", index)
 		}
 
-		segments := ParseMessageToMilky(message.ConvertStringMessage(node.Data.Content))
+		source := message.ConvertStringMessage(node.Data.Content)
+		segments, included := parseMilkyMessage(source)
 		if len(segments) == 0 {
-			return nil, fmt.Errorf("forward node %d has no supported message segments", index)
+			return nil, nil, fmt.Errorf("forward node %d has no supported message segments", index)
 		}
+		sentNode := node
+		sentNode.Data.Content = milkySentText(node.Data.Content, source, included)
+		sentNodes = append(sentNodes, sentNode)
 		messages = append(messages, milky.OutgoingForwardedMessage{
 			UserID:     userID,
 			SenderName: node.Data.Name,
@@ -772,7 +794,7 @@ func buildMilkyForwardElement(nodes []forwardNode) (*milky.ForwardElement, error
 		})
 	}
 
-	return &milky.ForwardElement{Messages: messages}, nil
+	return &milky.ForwardElement{Messages: messages}, sentNodes, nil
 }
 
 func (pa *PlatformAdapterMilky) recordForwardMessageSent(ctx *MsgContext, messageType string, targetID string, nodes []forwardNode, messageSeq int64) {
@@ -808,7 +830,7 @@ func (pa *PlatformAdapterMilky) SendGroupForwardMsg(ctx *MsgContext, groupID str
 		log.Errorf("Invalid group ID %s for Milky forward message", groupID)
 		return false
 	}
-	forward, err := buildMilkyForwardElement(nodes)
+	forward, sentNodes, err := buildMilkyForwardElement(nodes)
 	if err != nil {
 		log.Errorf("Failed to build Milky group forward message: %v", err)
 		return false
@@ -824,7 +846,7 @@ func (pa *PlatformAdapterMilky) SendGroupForwardMsg(ctx *MsgContext, groupID str
 		return false
 	}
 
-	pa.recordForwardMessageSent(ctx, "group", groupID, nodes, ret.MessageSeq)
+	pa.recordForwardMessageSent(ctx, "group", groupID, sentNodes, ret.MessageSeq)
 	return true
 }
 
@@ -840,7 +862,7 @@ func (pa *PlatformAdapterMilky) SendPrivateForwardMsg(ctx *MsgContext, userID st
 		log.Errorf("Invalid user ID %s for Milky forward message", userID)
 		return false
 	}
-	forward, err := buildMilkyForwardElement(nodes)
+	forward, sentNodes, err := buildMilkyForwardElement(nodes)
 	if err != nil {
 		log.Errorf("Failed to build Milky private forward message: %v", err)
 		return false
@@ -856,14 +878,14 @@ func (pa *PlatformAdapterMilky) SendPrivateForwardMsg(ctx *MsgContext, userID st
 		return false
 	}
 
-	pa.recordForwardMessageSent(ctx, "private", userID, nodes, ret.MessageSeq)
+	pa.recordForwardMessageSent(ctx, "private", userID, sentNodes, ret.MessageSeq)
 	return true
 }
 
 func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text string, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	send := message.ConvertStringMessage(text)
-	elements := ParseMessageToMilky(send)
+	elements, included := parseMilkyMessage(send)
 	id, err := strconv.ParseInt(ExtractQQUserID(uid), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid user ID %s: %v", uid, err)
@@ -881,7 +903,7 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "private",
-		Message:     text,
+		Message:     milkySentText(text, send, included),
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,
 			Nickname: pa.EndPoint.Nickname,
@@ -893,14 +915,14 @@ func (pa *PlatformAdapterMilky) SendToPerson(ctx *MsgContext, uid string, text s
 func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, text string, flag string) {
 	log := zap.S().Named(logger.LogKeyAdapter)
 	send := message.ConvertStringMessage(text)
-	elements := ParseMessageToMilky(send)
+	elements, included := parseMilkyMessage(send)
 	id, err := strconv.ParseInt(ExtractQQGroupID(groupID), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid group ID %s: %v", groupID, err)
 		return
 	}
 	nudgeTargets := make([]int64, 0)
-	for _, element := range send {
+	for index, element := range send {
 		poke, ok := element.(*message.PokeElement)
 		if !ok {
 			continue
@@ -911,6 +933,7 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 			continue
 		}
 		nudgeTargets = append(nudgeTargets, userID)
+		included[index] = true // Sent separately as a group nudge.
 	}
 	if len(elements) == 0 && len(nudgeTargets) == 0 {
 		log.Warnf("Skipping Milky group message to %s: no supported message elements", groupID)
@@ -936,7 +959,7 @@ func (pa *PlatformAdapterMilky) SendToGroup(ctx *MsgContext, groupID string, tex
 	pa.EndPoint.Session.OnMessageSend(ctx, &Message{
 		Platform:    "QQ",
 		MessageType: "group",
-		Message:     text,
+		Message:     milkySentText(text, send, included),
 		GroupID:     groupID,
 		Sender: SenderBase{
 			UserID:   pa.EndPoint.UserID,

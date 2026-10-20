@@ -48,13 +48,17 @@ func TestMilkyLocalFileURIPlatforms(t *testing.T) {
 		{name: "escaped filename", uri: "file:///E:/%E5%9B%BE%20%231%25%2C.png", os: "windows", want: "file://E:/%E5%9B%BE%20%231%25%2C.png"},
 		{name: "localhost drive", uri: "file://localhost/E:/dice/image.png", os: "windows", want: "file://E:/dice/image.png"},
 		{name: "already adapted", uri: "file://E:/dice/image.png", os: "windows", want: "file://E:/dice/image.png"},
-		{name: "UNC authority", uri: "file://server/share/image.png", os: "windows", want: "file://server/share/image.png"},
+		{name: "UNC authority", uri: "file://server/share/image.png", os: "windows", want: "file:////server/share/image.png"},
+		{name: "UNC escaped path", uri: "file://server/share/%E5%9B%BE%20%231.png", os: "windows", want: "file:////server/share/%E5%9B%BE%20%231.png"},
+		{name: "Windows localhost path", uri: "file://localhost/images/image.png", os: "windows", want: "file:///images/image.png"},
 		{name: "UNC path", uri: "file:////server/share/image.png", os: "windows", want: "file:////server/share/image.png"},
 		{name: "no drive", uri: "file:///images/image.png", os: "windows", want: "file:///images/image.png"},
 		{name: "not a drive letter", uri: "file:///1:/images/image.png", os: "windows", want: "file:///1:/images/image.png"},
 		{name: "drive-relative path", uri: "file:///E:image.png", os: "windows", want: "file:///E:image.png"},
 		{name: "Linux absolute", uri: "file:///opt/dice/image.png", os: "linux", want: "file:///opt/dice/image.png"},
 		{name: "macOS absolute", uri: "file:///Users/dice/image.png", os: "darwin", want: "file:///Users/dice/image.png"},
+		{name: "Linux localhost", uri: "file://localhost/opt/dice/image.png", os: "linux", want: "file:///opt/dice/image.png"},
+		{name: "macOS localhost", uri: "file://LOCALHOST/Users/dice/%E5%9B%BE.png", os: "darwin", want: "file:///Users/dice/%E5%9B%BE.png"},
 		{name: "Linux colon in path", uri: "file:///E:/dice/image.png", os: "linux", want: "file:///E:/dice/image.png"},
 		{name: "macOS colon in path", uri: "file:///E:/dice/image.png", os: "darwin", want: "file:///E:/dice/image.png"},
 	}
@@ -67,6 +71,16 @@ func TestMilkyLocalFileURIPlatforms(t *testing.T) {
 			again, err := milkyLocalFileURI(got, test.os)
 			if err != nil || again != got {
 				t.Fatalf("second conversion = %q, %v; want unchanged %q", again, err, got)
+			}
+		})
+	}
+}
+
+func TestMilkyLocalFileURIRejectsRemoteHostsWithoutUNC(t *testing.T) {
+	for _, goos := range []string{"linux", "darwin"} {
+		t.Run(goos, func(t *testing.T) {
+			if got, err := milkyLocalFileURI("file://server/share/image.png", goos); err == nil || got != "" {
+				t.Fatalf("local URI = %q, %v; want empty URI and an error", got, err)
 			}
 		})
 	}
@@ -160,11 +174,16 @@ func TestMilkyImageURIDoesNotReadImageData(t *testing.T) {
 	}
 }
 
-func TestMilkyImageURIPreservesRemoteResources(t *testing.T) {
+func TestMilkyImageURIPreservesNonFileResources(t *testing.T) {
 	for _, uri := range []string{
 		"http://example.com/image.png",
 		"https://example.com/image.png?a=1&b=2,3",
 		"base64://aGVsbG8=",
+		"data:image/png;base64,aGVsbG8=",
+		"resource://image/123",
+		"files:///unknown-scheme.png",
+		// Non-local references are left for the protocol server to resolve.
+		"missing-image.png",
 	} {
 		t.Run(uri, func(t *testing.T) {
 			for _, image := range []*message.ImageElement{
@@ -183,7 +202,6 @@ func TestMilkyImageURIPreservesRemoteResources(t *testing.T) {
 }
 
 func TestMilkyImageURIRejectsInvalidResources(t *testing.T) {
-	filename, _ := newMilkyLocalImage(t)
 	tests := []struct {
 		name  string
 		image *message.ImageElement
@@ -191,8 +209,6 @@ func TestMilkyImageURIRejectsInvalidResources(t *testing.T) {
 		{name: "nil image"},
 		{name: "empty image", image: &message.ImageElement{}},
 		{name: "empty file", image: &message.ImageElement{File: &message.FileElement{}}},
-		{name: "missing bare path", image: &message.ImageElement{URL: filename + ".missing"}},
-		{name: "unsupported scheme", image: &message.ImageElement{URL: "files:///missing.png"}},
 		{name: "invalid escape", image: &message.ImageElement{URL: "file:///image%xx.png"}},
 		{name: "query", image: &message.ImageElement{URL: "file:///image.png?x=1"}},
 		{name: "fragment", image: &message.ImageElement{URL: "file:///image.png#part"}},
