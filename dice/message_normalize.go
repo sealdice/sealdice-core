@@ -28,7 +28,8 @@ func NormalizeIncomingMessage(msg *Message) {
 
 	if len(msg.Segment) == 0 && msg.Message != "" {
 		if platformUsesCQSyntax(msg.Platform) {
-			msg.Segment = message.ConvertStringMessage(msg.Message)
+			// 入站只做语法解析：协议端负责资源获取，不能在这里 Stat/下载图片。
+			msg.Segment = message.ConvertStringMessage(msg.Message, message.WithResourceMode(message.ResourceInbound))
 		} else {
 			// 非 CQ 平台的字符串不含 CQ 码，保持为单个文本段，
 			// 用户输入的字面 [CQ:...] 不能被当成真实消息元素。
@@ -75,39 +76,11 @@ func segmentToCompatibilityText(elem message.IMessageElement) string {
 	case *message.FaceElement:
 		return fmt.Sprintf("[CQ:face,id=%s]", e.FaceID)
 	case *message.FileElement:
-		// 与旧 extractResultFromSegments 一致：本地文件引用优先于 URL。
-		file := e.File
-		if file == "" {
-			file = e.URL
-		}
-		if file == "" {
-			return ""
-		}
-		return fmt.Sprintf("[CQ:file,file=%s]", file)
+		return mediaCompatibilityText("file", e, "")
 	case *message.ImageElement:
-		url := e.URL
-		if url == "" && e.File != nil {
-			url = e.File.URL
-			if url == "" {
-				url = e.File.File
-			}
-		}
-		if url == "" {
-			return ""
-		}
-		return fmt.Sprintf("[CQ:image,file=%s]", url)
+		return mediaCompatibilityText("image", e.File, e.URL)
 	case *message.RecordElement:
-		if e.File == nil {
-			return ""
-		}
-		file := e.File.URL
-		if file == "" {
-			file = e.File.File
-		}
-		if file == "" {
-			return ""
-		}
-		return fmt.Sprintf("[CQ:record,file=%s]", file)
+		return mediaCompatibilityText("record", e.File, "")
 	case *message.ReplyElement:
 		if _, err := strconv.Atoi(e.ReplySeq); err != nil {
 			return ""
@@ -118,12 +91,43 @@ func segmentToCompatibilityText(elem message.IMessageElement) string {
 	case *message.PokeElement:
 		return fmt.Sprintf("[CQ:poke,qq=%s]", e.Target)
 	case *message.DefaultElement:
-		var params []string
+		args := map[string]string{}
 		for key, value := range gjson.ParseBytes(e.Data).Map() {
-			params = append(params, fmt.Sprintf("%s=%s", key, value))
+			args[key] = value.String()
 		}
-		return fmt.Sprintf("[CQ:%s,%s]", e.RawType, strings.Join(params, ","))
+		return (&message.CQCommand{Type: e.RawType, Args: args}).Compile()
 	default:
 		return ""
 	}
+}
+
+// mediaCompatibilityText 还原媒体 CQ 码。优先使用入站保存的原始参数，
+// 保证 file/url/subType/cache 等参数不丢失；没有原始参数时按 File → URL
+// 的顺序选择可发送引用（与旧行为一致）。
+func mediaCompatibilityText(cqType string, file *message.FileElement, fallbackURL string) string {
+	if file != nil && len(file.RawParams) > 0 {
+		return (&message.CQCommand{Type: cqType, Args: file.RawParams}).Compile()
+	}
+
+	args := map[string]string{}
+	ref := ""
+	if file != nil {
+		ref = file.File
+		if ref == "" {
+			ref = file.URL
+		}
+	}
+	if ref == "" {
+		ref = fallbackURL
+	}
+	if ref != "" {
+		args["file"] = ref
+	}
+	if fallbackURL != "" && fallbackURL != ref {
+		args["url"] = fallbackURL
+	}
+	if len(args) == 0 {
+		return ""
+	}
+	return (&message.CQCommand{Type: cqType, Args: args}).Compile()
 }

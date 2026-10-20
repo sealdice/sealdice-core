@@ -2,6 +2,7 @@
 package dice
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -93,6 +94,95 @@ func TestNormalizeIncomingMessageNonCQPlatformKeepsText(t *testing.T) {
 	}
 	if !msg.segmentSynthesized {
 		t.Fatal("expected synthesized marker")
+	}
+}
+
+// 入站图片带协议端 file 引用时不能被当作本地文件解析/丢弃，参数要完整保留。
+func TestNormalizeIncomingMessageKeepsOpaqueImageParams(t *testing.T) {
+	const (
+		rawFile = "3B71E9799730D77111FD3EA5E4076773.jpg"
+		rawURL  = "https://multimedia.example.invalid/download?appid=1&sign=abc"
+	)
+	msg := &Message{
+		Platform: "QQ",
+		Message: fmt.Sprintf(
+			"[CQ:image,file=%s,url=%s,subType=1,cache=0]",
+			rawFile, message.EscapeCQParam(rawURL),
+		),
+	}
+	NormalizeIncomingMessage(msg)
+
+	if len(msg.Segment) != 1 {
+		t.Fatalf("segment count = %d, want 1 (%#v)", len(msg.Segment), msg.Segment)
+	}
+	img, ok := msg.Segment[0].(*message.ImageElement)
+	if !ok {
+		t.Fatalf("segment type = %T, want *ImageElement", msg.Segment[0])
+	}
+	if img.File == nil || img.File.File != rawFile {
+		t.Fatalf("File = %#v, want %q", img.File, rawFile)
+	}
+	if img.File.URL != rawURL || img.URL != rawURL {
+		t.Fatalf("URL = %q / %q, want %q", img.File.URL, img.URL, rawURL)
+	}
+
+	compat := MessageSegmentsToCompatibilityText(msg.Segment)
+	cq := CQParse(compat)
+	if cq.Type != "image" {
+		t.Fatalf("compat CQ type = %q, want image (%q)", cq.Type, compat)
+	}
+	if cq.Args["file"] != rawFile {
+		t.Fatalf("compat file = %q, want %q (%q)", cq.Args["file"], rawFile, compat)
+	}
+	if got := message.UnescapeCQParam(cq.Args["url"]); got != rawURL {
+		t.Fatalf("compat url = %q, want %q (%q)", got, rawURL, compat)
+	}
+	if cq.Args["subType"] != "1" || cq.Args["cache"] != "0" {
+		t.Fatalf("compat extra params lost: %#v (%q)", cq.Args, compat)
+	}
+}
+
+func TestCommandParseNewPreservesOpaqueImageFile(t *testing.T) {
+	const rawFile = "3B71E9799730D77111FD3EA5E4076773.jpg"
+	d, session, ep := newParserTestSession()
+	ctx := &MsgContext{Session: session, EndPoint: ep, Dice: d}
+
+	msg := &Message{Platform: "QQ", Message: ".img [CQ:image,file=" + rawFile + "]"}
+	NormalizeIncomingMessage(msg)
+
+	cmdArgs := CommandParseNew(ctx, msg)
+	if cmdArgs == nil {
+		t.Fatal("CommandParseNew returned nil")
+	}
+	if !strings.Contains(cmdArgs.CleanArgs, "[CQ:image,file="+rawFile+"]") {
+		t.Fatalf("CleanArgs lost opaque image file: %q", cmdArgs.CleanArgs)
+	}
+	if strings.Contains(cmdArgs.CleanArgs, "找不到") {
+		t.Fatalf("opaque image file was treated as a missing local file: %q", cmdArgs.CleanArgs)
+	}
+}
+
+func TestMessageSegmentsToCompatibilityTextPreservesImageParams(t *testing.T) {
+	img := &message.ImageElement{
+		File: &message.FileElement{
+			File: "hash.jpg",
+			URL:  "https://example.invalid/a.png?x=1&y=2",
+			RawParams: map[string]string{
+				"file":    "hash.jpg",
+				"url":     "https://example.invalid/a.png?x=1&y=2",
+				"subType": "1",
+				"cache":   "0",
+			},
+		},
+		URL: "https://example.invalid/a.png?x=1&y=2",
+	}
+	text := MessageSegmentsToCompatibilityText([]message.IMessageElement{img})
+	cq := CQParse(text)
+	if cq.Type != "image" || cq.Args["file"] != "hash.jpg" || cq.Args["subType"] != "1" || cq.Args["cache"] != "0" {
+		t.Fatalf("compat params lost: %#v (%q)", cq.Args, text)
+	}
+	if got := message.UnescapeCQParam(cq.Args["url"]); got != "https://example.invalid/a.png?x=1&y=2" {
+		t.Fatalf("compat url = %q (%q)", got, text)
 	}
 }
 
