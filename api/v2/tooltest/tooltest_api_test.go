@@ -271,6 +271,36 @@ func TestUpdateProfileChangesPlayerAndGroupMetadata(t *testing.T) {
 	}
 }
 
+func TestMessagesAfterReturnsIncrementalMessagesWithoutClearing(t *testing.T) {
+	svc, _ := newTestService(t)
+	svc.emit(dice.HTTPTestMessage{ID: "first", MessageType: "private"})
+	svc.emit(dice.HTTPTestMessage{ID: "second", MessageType: "group"})
+
+	items, latest, reset := svc.MessagesAfter(0)
+	if !reset || latest != 2 || len(items) != 2 {
+		t.Fatalf("MessagesAfter(0) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+	if items[0].Seq != 1 || items[1].Seq != 2 {
+		t.Fatalf("sequence = %d, %d; want 1, 2", items[0].Seq, items[1].Seq)
+	}
+
+	items, latest, reset = svc.MessagesAfter(1)
+	if reset || latest != 2 || len(items) != 1 || items[0].ID != "second" || items[0].Seq != 2 {
+		t.Fatalf("MessagesAfter(1) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+
+	items, latest, reset = svc.MessagesAfter(2)
+	if reset || latest != 2 || len(items) != 0 {
+		t.Fatalf("MessagesAfter(2) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+
+	// 读取不会清空缓冲区，后续轮询仍可从头取到消息。
+	items, _, _ = svc.MessagesAfter(0)
+	if len(items) != 2 {
+		t.Fatalf("messages were cleared by polling: %+v", items)
+	}
+}
+
 func TestGetPendingMessagesReturnsAndClearsQueue(t *testing.T) {
 	svc, adapter := newTestService(t)
 	adapter.RecentMessage = []dice.HTTPSimpleMessage{

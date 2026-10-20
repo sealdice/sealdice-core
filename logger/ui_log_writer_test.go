@@ -33,6 +33,37 @@ func TestUIWriterBroadcastsParsedLogItemsToSubscribers(t *testing.T) {
 	}
 }
 
+func TestUIWriterSnapshotAfterUsesMonotonicSequence(t *testing.T) {
+	writer := logger.NewUIWriter()
+	writer.LogLimit = 2
+	for _, msg := range []string{"first", "second", "third"} {
+		_, _ = writer.Write([]byte(`{"level":"info","module":"core","time":"2026-05-17T12:34:56.000Z+0800","msg":"` + msg + `"}`))
+	}
+
+	items, latest, reset := writer.SnapshotAfter(0)
+	if !reset || latest != 3 || len(items) != 2 {
+		t.Fatalf("SnapshotAfter(0) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+	if items[0].Seq != 2 || items[1].Seq != 3 {
+		t.Fatalf("retained sequence = %d, %d; want 2, 3", items[0].Seq, items[1].Seq)
+	}
+
+	items, latest, reset = writer.SnapshotAfter(1)
+	if reset || latest != 3 || len(items) != 2 || items[0].Seq != 2 || items[1].Seq != 3 {
+		t.Fatalf("SnapshotAfter(1) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+
+	items, latest, reset = writer.SnapshotAfter(2)
+	if reset || latest != 3 || len(items) != 1 || items[0].Seq != 3 {
+		t.Fatalf("SnapshotAfter(2) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+
+	items, latest, reset = writer.SnapshotAfter(3)
+	if reset || latest != 3 || len(items) != 0 {
+		t.Fatalf("SnapshotAfter(3) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+}
+
 func TestUIWriterSnapshotIsDetachedFromInternalItems(t *testing.T) {
 	writer := logger.NewUIWriter()
 	_, _ = writer.Write([]byte(`{"level":"info","module":"core","time":"2026-05-17T12:34:56.000Z+0800","msg":"first"}`))

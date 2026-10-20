@@ -49,6 +49,10 @@ class FakeEventSource {
     this.onopen?.call(this as unknown as EventSource, new Event('open'));
   }
 
+  emitError(): void {
+    this.onerror?.call(this as unknown as EventSource, new Event('error'));
+  }
+
   emitMessage(type: string, data: unknown): void {
     const handlers = this.listeners.get(type);
     if (!handlers) return;
@@ -83,6 +87,7 @@ describe('realtime client store', () => {
     store.disconnect();
     store.$dispose();
     clearAccessToken();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -100,7 +105,140 @@ describe('realtime client store', () => {
     expect(FakeEventSource.instances).toHaveLength(1);
   });
 
-  it('uses EventSource as the only realtime transport when a token is available', async () => {
+  it('falls back to polling with cursors when SSE fails', async () => {
+    vi.useFakeTimers();
+    setAccessToken('token-realtime');
+    const store = useRealtimeClientStore(appPinia);
+    store.ensureInitialized();
+    finishAuthInitialization();
+    await nextTick();
+
+    const source = FakeEventSource.instances[0]!;
+    const snapshots: unknown[] = [];
+    const appends: unknown[] = [];
+    const toolMessages: unknown[] = [];
+    store.subscribeRealtimeEvent('logs/snapshot', payload => snapshots.push(payload));
+    store.subscribeRealtimeEvent('logs/append', payload => appends.push(payload));
+    store.subscribeRealtimeEvent('tooltest/message', payload => toolMessages.push(payload));
+
+    const pollItem = (logSeq: number, withAppend: boolean) => ({
+      logs: {
+        items: [{ seq: logSeq, level: 'info', module: 'core', ts: 1, msg: `log-${logSeq}` }],
+        latestSeq: logSeq,
+        reset: !withAppend,
+      },
+      connections: { items: [] },
+      toolMessages: {
+        items: [{ seq: logSeq, id: `tool-${logSeq}`, messageType: 'private' }],
+        latestSeq: logSeq,
+        reset: !withAppend,
+      },
+      timestamp: 1,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ item: pollItem(1, false) }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ item: pollItem(2, true) }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    source.emitError();
+    await vi.waitFor(() => expect(store.connected).toBe(true));
+
+    expect(store.activeTransport).toBe('polling');
+    expect(snapshots).toHaveLength(1);
+    expect(toolMessages).toHaveLength(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('afterLogSeq=0');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('afterToolSeq=0');
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    expect(appends).toHaveLength(1);
+    expect(toolMessages).toHaveLength(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('afterLogSeq=1');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('afterToolSeq=1');
+  });
+
+  it('replays missed events through polling before switching back to SSE', async () => {
+    vi.useFakeTimers();
+    setAccessToken('token-realtime');
+    const store = useRealtimeClientStore(appPinia);
+    store.ensureInitialized();
+    finishAuthInitialization();
+    await nextTick();
+
+    const source = FakeEventSource.instances[0]!;
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        item: {
+          logs: { items: [], latestSeq: 0, reset: false },
+          connections: { items: [] },
+          toolMessages: { items: [], latestSeq: 0, reset: false },
+          timestamp: 1,
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    source.emitError();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(store.activeTransport).toBe('polling');
+
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(FakeEventSource.instances).toHaveLength(2);
+
+    FakeEventSource.instances[1]!.emitOpen();
+    await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
+    expect(store.connected).toBe(true);
+  });
+
+  it('stops retrying SSE after three consecutive failures', async () => {
+    vi.useFakeTimers();
+    setAccessToken('token-realtime');
+    const store = useRealtimeClientStore(appPinia);
+    store.ensureInitialized();
+    finishAuthInitialization();
+    await nextTick();
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        item: {
+          logs: { items: [], latestSeq: 0, reset: false },
+          connections: { items: [] },
+          toolMessages: { items: [], latestSeq: 0, reset: false },
+          timestamp: 1,
+        },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    FakeEventSource.instances[0]!.emitError();
+    await vi.waitFor(() => expect(store.activeTransport).toBe('polling'));
+
+    for (let attempt = 1; attempt < 3; attempt += 1) {
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(FakeEventSource.instances).toHaveLength(attempt + 1);
+      FakeEventSource.instances[attempt]!.emitError();
+    }
+
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(FakeEventSource.instances).toHaveLength(3);
+    expect(store.activeTransport).toBe('polling');
+  });
+
+  it('uses EventSource as the primary realtime transport when a token is available', async () => {
     setAccessToken('token-realtime');
 
     const store = useRealtimeClientStore(appPinia);

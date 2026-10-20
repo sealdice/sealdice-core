@@ -79,11 +79,13 @@ export const useBaseLogStreamStore = defineStore('base-log-stream', () => {
   }
 
   const connected = computed(() => realtimeStore.connected);
+  const transport = computed(() => realtimeStore.activeTransport);
   const errorText = computed(() => (realtimeStore.hasError ? '日志连接异常' : ''));
 
   return {
     logs,
     connected,
+    transport,
     errorText,
     applySnapshot,
     applyAppend,

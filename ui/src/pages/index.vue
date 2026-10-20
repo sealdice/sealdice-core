@@ -119,7 +119,13 @@
         <div class="log-title">
           <h2>运行日志</h2>
           <n-tag :type="logStream.connected ? 'success' : 'warning'" size="small" round>
-            {{ logStream.connected ? '实时连接中' : '未连接' }}
+            {{
+              logStream.transport === 'polling'
+                ? '轮询'
+                : logStream.transport === 'sse'
+                  ? 'SSE'
+                  : '未连接'
+            }}
           </n-tag>
         </div>
         <div class="log-controls">

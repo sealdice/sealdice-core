@@ -18,6 +18,8 @@ import (
 const (
 	privateMode = "private"
 	groupMode   = "group"
+
+	toolTestRecentLimit = 200
 )
 
 type Service struct {
@@ -28,9 +30,13 @@ type Service struct {
 	lastPrivateExecTime int64
 	lastGroupExecTime   int64
 
-	now      func() time.Time
-	dispatch func(ep *dice.EndPointInfo, msg *dice.Message)
-	publish  func(name string, payload any)
+	now       func() time.Time
+	dispatch  func(ep *dice.EndPointInfo, msg *dice.Message)
+	publisher func(name string, payload any)
+
+	msgMu          sync.Mutex
+	nextMessageSeq uint64
+	recentMessages []dice.HTTPTestMessage
 }
 
 const toolTestMessageEvent = "tooltest/message"
@@ -69,8 +75,50 @@ func NewService(dm *dice.DiceManager) *Service {
 		}
 		s.dice.ImSession.Execute(ep, msg, false)
 	}
-	s.publish = func(_ string, _ any) {}
+	s.publisher = func(_ string, _ any) {}
 	return s
+}
+
+// emit 为测试消息分配单调递增序号，并保存到可轮询的环形缓冲区。
+// 信封与 SSE 推送使用同一条消息副本，保证两条通道顺序一致。
+func (s *Service) emit(item dice.HTTPTestMessage) {
+	s.msgMu.Lock()
+	defer s.msgMu.Unlock()
+
+	s.nextMessageSeq++
+	item.Seq = s.nextMessageSeq
+	s.recentMessages = append(s.recentMessages, item)
+	if len(s.recentMessages) > toolTestRecentLimit {
+		s.recentMessages = s.recentMessages[len(s.recentMessages)-toolTestRecentLimit:]
+	}
+	if s.publisher != nil {
+		// 在锁内发布，保证 SSE 与轮询看到的消息顺序一致。
+		s.publisher(toolTestMessageEvent, item)
+	}
+}
+
+// MessagesAfter 返回 Seq 大于 afterSeq 的测试消息，不会清空缓冲区。
+// reset 为 true 时表示游标已超出保留窗口（或服务重启），调用方应重新建立游标。
+func (s *Service) MessagesAfter(afterSeq uint64) (items []dice.HTTPTestMessage, latestSeq uint64, reset bool) {
+	s.msgMu.Lock()
+	defer s.msgMu.Unlock()
+
+	latestSeq = s.nextMessageSeq
+	if afterSeq == 0 {
+		return append([]dice.HTTPTestMessage(nil), s.recentMessages...), latestSeq, true
+	}
+	if afterSeq > latestSeq {
+		return nil, latestSeq, true
+	}
+	if len(s.recentMessages) > 0 && afterSeq+1 < s.recentMessages[0].Seq {
+		return append([]dice.HTTPTestMessage(nil), s.recentMessages...), latestSeq, true
+	}
+
+	start := 0
+	for start < len(s.recentMessages) && s.recentMessages[start].Seq <= afterSeq {
+		start++
+	}
+	return append([]dice.HTTPTestMessage(nil), s.recentMessages[start:]...), latestSeq, false
 }
 
 func (s *Service) Dice() *dice.Dice {
@@ -177,7 +225,7 @@ func (s *Service) PostMessage(_ context.Context, req *PostMessageReq) (*SimpleIt
 	}
 
 	s.bindAdapter()
-	s.publish(toolTestMessageEvent, dice.HTTPTestMessage{
+	s.emit(dice.HTTPTestMessage{
 		ID:             fmt.Sprintf("ui-input-%d", time.Now().UnixNano()),
 		MessageType:    mode,
 		ConversationID: conversationID(mode, senderID, groupID),
@@ -403,10 +451,10 @@ type eventPublisher interface {
 
 func (s *Service) SetPublisher(publisher eventPublisher) {
 	if publisher == nil {
-		s.publish = func(_ string, _ any) {}
+		s.publisher = func(_ string, _ any) {}
 		return
 	}
-	s.publish = publisher.Publish
+	s.publisher = publisher.Publish
 	s.bindAdapter()
 }
 
@@ -418,11 +466,11 @@ func (s *Service) bindAdapter() {
 	if !ok || adapter == nil {
 		return
 	}
-	if s.publish == nil {
-		s.publish = func(_ string, _ any) {}
+	if s.publisher == nil {
+		s.publisher = func(_ string, _ any) {}
 	}
 	adapter.OnMessage = func(item dice.HTTPTestMessage) {
-		s.publish(toolTestMessageEvent, item)
+		s.emit(item)
 	}
 }
 
