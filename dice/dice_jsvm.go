@@ -149,7 +149,9 @@ func (d *Dice) JsInit() {
 			if !ok {
 				return
 			}
-			(&d.Config).BanList.DeleteByID(d, id)
+			if err := d.Config.BanList.DeleteByID(d, id); err != nil {
+				panic(vm.NewGoError(err))
+			}
 		})
 		_ = ban.Set("getList", func() []BanListInfoItem {
 			var list []BanListInfoItem

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
+	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
@@ -312,6 +313,44 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	_ = cm.save()
 }
 
+// RemovePluginConfig 删除整个插件的配置，用于清理死配置（插件已不存在但配置仍在）。
+// 注意与 UnregisterConfig 的区别：UnregisterConfig 只按 keys 删除单个配置项，
+// 不传 keys 时不会删除任何内容；这里按插件名整体移除并停止其定时任务。
+func (cm *ConfigManager) RemovePluginConfig(pluginName string) error {
+	return cm.RemovePluginConfigs([]string{pluginName})
+}
+
+// RemovePluginConfigs 原子删除多个插件配置，写盘失败时恢复内存状态。
+func (cm *ConfigManager) RemovePluginConfigs(pluginNames []string) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+
+	removed := make(map[string]*PluginConfig, len(pluginNames))
+	for _, pluginName := range pluginNames {
+		if plugin, ok := cm.Plugins[pluginName]; ok {
+			removed[pluginName] = plugin
+			delete(cm.Plugins, pluginName)
+		}
+	}
+	if len(removed) == 0 {
+		return nil
+	}
+	if err := cm.save(); err != nil {
+		for pluginName, plugin := range removed {
+			cm.Plugins[pluginName] = plugin
+		}
+		return err
+	}
+	for _, plugin := range removed {
+		for _, config := range plugin.Configs {
+			if strings.HasPrefix(config.Type, "task:") && config.task != nil {
+				config.task.Off()
+			}
+		}
+	}
+	return nil
+}
+
 func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) error {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
@@ -341,6 +380,87 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) er
 		cm.Plugins[pluginName] = plugin
 	}
 	return cm.save()
+}
+
+var ErrInvalidPluginConfig = errors.New("插件配置无效")
+
+// SetConfigs validates a plugin patch before applying it and persists it once.
+func (cm *ConfigManager) SetConfigs(pluginName string, values map[string]interface{}) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	return cm.setConfigsLocked(pluginName, values)
+}
+
+// ResetConfigs uses the same validation and persistence boundary as a save.
+func (cm *ConfigManager) ResetConfigs(pluginName string, keys []string) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	plugin := cm.Plugins[pluginName]
+	if plugin == nil {
+		return fmt.Errorf("%w: 插件 %q 不存在", ErrInvalidPluginConfig, pluginName)
+	}
+	values := make(map[string]interface{}, len(keys))
+	for _, key := range keys {
+		item := plugin.Configs[key]
+		if item == nil {
+			return fmt.Errorf("%w: 配置项 %q 不存在", ErrInvalidPluginConfig, key)
+		}
+		values[key] = item.DefaultValue
+	}
+	return cm.setConfigsLocked(pluginName, values)
+}
+
+func (cm *ConfigManager) setConfigsLocked(pluginName string, values map[string]interface{}) error {
+	plugin := cm.Plugins[pluginName]
+	if plugin == nil {
+		return fmt.Errorf("%w: 插件 %q 不存在", ErrInvalidPluginConfig, pluginName)
+	}
+	previous := make(map[string]interface{}, len(values))
+	for key, value := range values {
+		item := plugin.Configs[key]
+		if item == nil {
+			return fmt.Errorf("%w: 配置项 %q 不存在", ErrInvalidPluginConfig, key)
+		}
+		if item.Type == "task:cron" || item.Type == "task:daily" {
+			expr, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("%w: %q 必须是字符串", ErrInvalidPluginConfig, key)
+			}
+			var err error
+			if item.Type == "task:daily" {
+				_, err = parseTaskTime(expr)
+			} else {
+				_, err = cron.ParseStandard(expr)
+			}
+			if err != nil {
+				return fmt.Errorf("%w: %q: %w", ErrInvalidPluginConfig, key, err)
+			}
+			if item.task != nil && item.task.taskType != strings.TrimPrefix(item.Type, "task:") {
+				return fmt.Errorf("%w: %q 定时任务类型不一致", ErrInvalidPluginConfig, key)
+			}
+		}
+		previous[key] = item.Value
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	for key, value := range values {
+		plugin.Configs[key].Value = value
+	}
+	if err := cm.save(); err != nil {
+		for key, value := range previous {
+			plugin.Configs[key].Value = value
+		}
+		return err
+	}
+	for key, value := range values {
+		item := plugin.Configs[key]
+		if (item.Type == "task:cron" || item.Type == "task:daily") && item.task != nil {
+			// Type and expression were validated before persistence; reset cannot fail now.
+			_ = item.task.reset(value.(string))
+		}
+	}
+	return nil
 }
 
 func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
@@ -387,22 +507,15 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 }
 
 func (cm *ConfigManager) save() error {
-	file, err := os.OpenFile(cm.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	data, err := json.MarshalIndent(cm.Plugins, "", "\t")
 	if err != nil {
 		return err
 	}
-	defer func(file *os.File) {
-		_ = file.Close()
-	}(file)
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "\t")
-	err = encoder.Encode(cm.Plugins)
-	if err != nil {
-		return err
+	perm := os.FileMode(0o644)
+	if info, statErr := os.Stat(cm.filename); statErr == nil {
+		perm = info.Mode().Perm()
 	}
-
-	return nil
+	return writeFileAtomically(cm.filename, append(data, '\n'), perm)
 }
 
 func (cm *ConfigManager) Load() error {
@@ -2057,7 +2170,7 @@ func setupTextTemplate(d *Dice) {
 	// 加载硬盘设置
 	loadTextTemplate(d, "configs/text-template.yaml")
 
-	d.SaveText()
+	_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 	d.GenerateTextMap()
 }
 
@@ -2132,6 +2245,11 @@ func (d *Dice) loads() {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err3)
 		}
+		var gmField struct {
+			DiceRandomGMEnabled *bool `yaml:"diceRandomGMEnabled"`
+		}
+		_ = yaml.Unmarshal(data, &gmField)
+		hasGMField := gmField.DiceRandomGMEnabled != nil
 
 		// 有一些配置项被用 jsbind 导出了，只能先留在 Dice 不迁移了
 		dNew := Dice{}
@@ -2178,7 +2296,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2209,7 +2327,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2225,7 +2343,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2244,7 +2362,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2259,10 +2377,13 @@ func (d *Dice) loads() {
 			}
 			SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 			d.GenerateTextMap()
-			d.SaveText()
+			_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 		})
 
 		d.Config = config
+		if d.migrateDiceRandomGMConfig(hasGMField) {
+			d.MarkModified()
+		}
 		d.Logger.Info("serve.yaml loaded")
 	} else {
 		d.Logger.Info("serve.yaml not found")
@@ -2423,17 +2544,19 @@ func (d *Dice) loadAdvanced() {
 	d.AdvancedConfig = advancedConfig
 }
 
-func (d *Dice) SaveText() {
+func (d *Dice) SaveText() error {
 	buf, err := marshalTextTemplate(d.TextMapRaw)
 	if err != nil {
 		d.Logger.Error("Dice.SaveText", err)
-		return
+		return err
 	}
 
 	newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
 	if err := saveTextTemplateFile(newFn, buf); err != nil {
 		d.Logger.Error("Dice.SaveText", err)
+		return err
 	}
+	return nil
 }
 
 func marshalTextTemplate(texts TextTemplateWithWeightDict) (buf []byte, err error) {

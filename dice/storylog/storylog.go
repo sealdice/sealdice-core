@@ -40,6 +40,7 @@ type UploadEnv struct {
 	UniformID string
 	GroupID   string
 	Token     string
+	Force     bool
 
 	lines  []*model.LogOneItem
 	data   *[]byte
