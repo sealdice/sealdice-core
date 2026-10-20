@@ -1,4 +1,5 @@
-import type { AsyncBuffer } from 'hyparquet';
+import { parquetMetadataAsync, parquetReadObjects, type AsyncBuffer } from 'hyparquet';
+import { compressors } from 'hyparquet-compressors';
 import type { StoryPainterLogItem } from './types';
 
 export type StoryPainterParquetColumn =
@@ -44,10 +45,6 @@ const defaultColumns: StoryPainterParquetColumn[] = [
 export async function createStoryPainterParquetDataset(
   blob: Blob
 ): Promise<StoryPainterParquetDataset> {
-  const [{ parquetMetadataAsync, parquetReadObjects }, { compressors }] = await Promise.all([
-    import('hyparquet'),
-    import('hyparquet-compressors'),
-  ]);
   const asyncBuffer = blobAsyncBuffer(blob);
   const metadata = await parquetMetadataAsync(asyncBuffer, {});
   const numRows = toNumber(metadata.num_rows, 0);

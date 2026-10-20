@@ -231,7 +231,16 @@
     >
       <template v-if="currentStorePackage">
         <n-descriptions bordered label-placement="left" :column="2">
-          <n-descriptions-item label="名称">{{ currentStorePackage.name }}</n-descriptions-item>
+          <n-descriptions-item label="名称">
+            <n-flex align="center" size="small">
+              <StorePackageIcon
+                :name="currentStorePackage.name"
+                :icon-url="getStorePackageIconUrl(currentStorePackage)"
+                :content="currentStorePackage.contents?.[0]"
+              />
+              <span>{{ currentStorePackage.name }}</span>
+            </n-flex>
+          </n-descriptions-item>
           <n-descriptions-item label="包 ID">{{ currentStorePackage.id }}</n-descriptions-item>
           <n-descriptions-item label="版本">{{ currentStorePackage.version }}</n-descriptions-item>
           <n-descriptions-item label="作者">{{
@@ -315,7 +324,16 @@
 
           <template v-else-if="previewStoreTarget">
             <n-descriptions bordered label-placement="left" :column="2">
-              <n-descriptions-item label="名称">{{ previewStoreTarget.name }}</n-descriptions-item>
+              <n-descriptions-item label="名称">
+                <n-flex align="center" size="small">
+                  <StorePackageIcon
+                    :name="previewStoreTarget.name"
+                    :icon-url="getStorePackageIconUrl(previewStoreTarget)"
+                    :content="previewStoreTarget.contents?.[0]"
+                  />
+                  <span>{{ previewStoreTarget.name }}</span>
+                </n-flex>
+              </n-descriptions-item>
               <n-descriptions-item label="包 ID">{{ previewStoreTarget.id }}</n-descriptions-item>
               <n-descriptions-item label="目标版本">{{
                 previewStoreTarget.version
@@ -424,6 +442,7 @@ import {
 import { isTestModeApiError, getTestModeBlockMessage } from '@/features/testMode/state';
 import PackageDetailDrawer from '@/components/package/PackageDetailDrawer.vue';
 import PackageFileTree from '@/components/package/PackageFileTree.vue';
+import StorePackageIcon from '@/components/package/StorePackageIcon.vue';
 import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.vue';
 import PackageInstalledDataView from '@/components/package/PackageInstalledDataView.vue';
 import PackageStoreDataView from '@/components/package/PackageStoreDataView.vue';
@@ -439,6 +458,7 @@ import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
 import ResultToolbar from '@/components/shared/ResultToolbar.vue';
 import { resolvePackageManagerTab } from '@/features/package/navigation';
+import { getStorePackageIconUrl } from '@/features/package/storeAssets';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import TipBox from '@/components/shared/TipBox.vue';
 import { notifyError } from '@/features/feedback/notifyError';

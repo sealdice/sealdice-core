@@ -9,18 +9,22 @@ import {
 } from './errors';
 
 it.each([
-  [401, '', true],
-  [401, '/sd-api/v2/base/login', false],
-  [400, '', false],
-  [403, '', false],
-  [422, '', false],
-  [404, '', true],
-  [500, '', true],
-  [0, '', true],
-])('按状态 %i 和路径 %s 分配错误展示责任', (status, pathname, global) => {
+  [401, false],
+  [400, false],
+  [403, false],
+  [422, false],
+  [404, true],
+  [500, true],
+  [0, true],
+])('按状态 %i 分配错误展示责任', (status, global) => {
   const error = new ApiError({ status, statusText: '错误', data: { detail: '具体原因' } });
-  expect(needsGlobalApiFeedback(error, pathname)).toBe(global);
+  expect(needsGlobalApiFeedback(error)).toBe(global);
   expect(error.message).toBe('具体原因');
+});
+
+it('401 交给解锁弹窗处理，不再重复弹全局错误框', () => {
+  const error = new ApiError({ status: 401, statusText: 'Unauthorized', data: null });
+  expect(needsGlobalApiFeedback(error)).toBe(false);
 });
 
 it('测试模式错误交给业务层，不按普通 500 弹窗', () => {

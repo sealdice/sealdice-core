@@ -13,7 +13,7 @@ import {
 } from './errors';
 
 export { ApiError } from './errors';
-export type GlobalApiFeedback = (error: ApiError, clearSession: () => void) => void;
+export type GlobalApiFeedback = (error: ApiError) => void;
 let feedback: GlobalApiFeedback | undefined;
 let disposeClient: (() => void) | undefined;
 
@@ -69,18 +69,16 @@ export function setupApiClient(onGlobalError?: GlobalApiFeedback): () => void {
       });
       const requestToken = axiosError?.config ? requestTokens.get(axiosError.config) : undefined;
       const pathname = getRequestPathname(axiosError?.config);
-      const clearCurrentSession = () => {
-        if (shouldClearSessionForRequest(requestToken, auth.token)) clearSession();
-      };
       if (apiError.status === 401 && pathname !== '/sd-api/v2/base/login') {
         if (!shouldClearSessionForRequest(requestToken, auth.token)) {
           markApiErrorHandled(apiError); // 过期请求既不清理新会话，也不显示误导提示。
           return Promise.reject(apiError);
         }
         clearSession();
+        markApiErrorHandled(apiError); // 解锁弹窗已接管重新登录，页面无需再提示。
       }
-      if (!auth.isInitializing && needsGlobalApiFeedback(apiError, pathname) && feedback) {
-        feedback(apiError, clearCurrentSession);
+      if (!auth.isInitializing && needsGlobalApiFeedback(apiError) && feedback) {
+        feedback(apiError);
         markApiErrorHandled(apiError);
       }
       return Promise.reject(apiError);
@@ -97,7 +95,7 @@ export function setupApiClient(onGlobalError?: GlobalApiFeedback): () => void {
 
 // SSE 与 HTTP 共用应用提供的网络故障展示，不引入第二套 UI 单例。
 export function reportNetworkError(): void {
-  feedback?.(new ApiError({ status: 0, statusText: '网络连接异常', data: null }), () => {});
+  feedback?.(new ApiError({ status: 0, statusText: '网络连接异常', data: null }));
 }
 
 function getRequestPathname(config?: AxiosRequestConfig): string {

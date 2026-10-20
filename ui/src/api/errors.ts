@@ -64,12 +64,11 @@ export function shouldClearSessionForRequest(
   return token !== undefined && token === currentToken;
 }
 
-export function needsGlobalApiFeedback(error: ApiError, pathname = ''): boolean {
+export function needsGlobalApiFeedback(error: ApiError): boolean {
   const data =
     error.data && typeof error.data === 'object' ? (error.data as Record<string, unknown>) : {};
   if (error.code === TEST_MODE_ERROR_CODE || data.testMode === true) return false;
-  return (
-    (error.status === 401 && pathname !== '/sd-api/v2/base/login') ||
-    [0, 404, 500].includes(error.status)
-  );
+  // 401 会清理会话并触发 AppUnlockDialog，由解锁弹窗统一引导重新登录，
+  // 不再额外弹出一次“身份信息/Unauthorized”对话框。
+  return [0, 404, 500].includes(error.status);
 }

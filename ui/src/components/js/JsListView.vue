@@ -30,6 +30,7 @@
           <template #meta>
             <n-checkbox
               :checked="allSelected"
+              :indeterminate="someSelected"
               :disabled="!hasItems"
               aria-label="全选当前页插件"
               @update:checked="toggleSelectAll"
@@ -64,13 +65,19 @@
           <template v-for="item in items" :key="item.filename">
             <FoldableCard
               class="js-plugin-card"
+              :class="{ 'js-plugin-card--selected': isSelected(item.filename) }"
               :default-fold="true"
               :err-title="item.filename"
               :err-text="item.errText"
             >
               <template #title>
                 <n-flex align="center">
-                  <n-checkbox v-model:checked="item.pitch" :aria-label="`选择插件 ${item.name}`" />
+                  <n-checkbox
+                    :checked="isSelected(item.filename)"
+                    size="large"
+                    :aria-label="`选择插件 ${item.name}`"
+                    @update:checked="checked => toggleSelected(item.filename, checked)"
+                  />
                   <n-switch
                     v-model:value="item.enable"
                     :disabled="item.errText !== ''"
@@ -282,6 +289,7 @@ import { storeToRefs } from 'pinia';
 import { useUploadStore } from '@/features/upload/store';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { type JsUpdateDiff, useJsList } from '@/features/js/useJsList';
+import { useJsSelection } from '@/features/js/useJsSelection';
 import { useThemeStore } from '@/features/theme/store';
 import { notifyError } from '@/features/feedback/notifyError';
 
@@ -298,10 +306,6 @@ const emit = defineEmits<{
 const message = useMessage();
 const dialog = useDialog();
 const { isDark } = storeToRefs(useThemeStore());
-
-interface JsInfoExt extends JsInfoType {
-  pitch?: boolean;
-}
 
 const listQuery = reactive({
   page: 1,
@@ -414,13 +418,20 @@ watch(
   }
 );
 
-const items = computed<JsInfoExt[]>(() =>
-  (listQueryResult.data.value?.data ?? []).map(item => ({ ...item, pitch: false }))
+const items = computed<JsInfoType[]>(() =>
+  (listQueryResult.data.value?.data ?? []).map(item => ({ ...item }))
 );
 const total = computed(() => listQueryResult.data.value?.total ?? 0);
 const hasItems = computed(() => items.value.length > 0);
-const selectedCount = computed(() => items.value.filter(item => item.pitch).length);
-const allSelected = computed(() => hasItems.value && items.value.every(item => item.pitch));
+const {
+  isSelected,
+  selectedCount,
+  allSelected,
+  someSelected,
+  toggleSelected,
+  toggleSelectAll,
+  clearSelected,
+} = useJsSelection(items);
 const showPagination = computed(() =>
   shouldShowListPagination({
     total: total.value,
@@ -458,7 +469,7 @@ async function uploadPlugin(options: UploadCustomRequestOptions) {
   options.onFinish();
 }
 
-async function handleCheckUpdate(item: JsInfoExt) {
+async function handleCheckUpdate(item: JsInfoType) {
   diffLoading.value = true;
   try {
     diffData.value = await checkUpdate(item.filename);
@@ -483,7 +494,7 @@ async function handleApplyUpdate() {
   }
 }
 
-async function handleDelete(item: JsInfoExt) {
+async function handleDelete(item: JsInfoType) {
   dialog.warning({
     title: item.official ? '确认卸载' : '确认删除',
     content: item.official
@@ -504,7 +515,7 @@ async function handleDelete(item: JsInfoExt) {
   });
 }
 
-async function toggleEnable(item: JsInfoExt, enable: boolean) {
+async function toggleEnable(item: JsInfoType, enable: boolean) {
   try {
     if (enable) {
       await enableMutation.mutateAsync(item.name);
@@ -521,7 +532,7 @@ async function toggleEnable(item: JsInfoExt, enable: boolean) {
 }
 
 async function delSelected() {
-  const selected = items.value.filter(i => i.pitch);
+  const selected = items.value.filter(item => isSelected(item.filename));
   if (!selected.length) return;
   dialog.warning({
     title: '批量删除',
@@ -536,6 +547,7 @@ async function delSelected() {
           // continue
         }
       }
+      clearSelected();
       message.success('删除完成，请手动重载后生效');
       emit('markNeedReload');
       await invalidateList();
@@ -549,12 +561,6 @@ function resetFilters() {
   listQuery.sortOrder = 'asc';
   listQuery.page = 1;
   void listQueryResult.refetch();
-}
-
-function toggleSelectAll(checked: boolean) {
-  items.value.forEach(item => {
-    item.pitch = checked;
-  });
 }
 </script>
 
@@ -662,6 +668,16 @@ function toggleSelectAll(checked: boolean) {
 
 .js-plugin-card {
   width: 100%;
+  transition:
+    border-color var(--sd-transition-fast),
+    background-color var(--sd-transition-fast),
+    box-shadow var(--sd-transition-fast);
+}
+
+.js-plugin-card--selected {
+  border-color: var(--sd-primary-border);
+  background: var(--sd-primary-soft);
+  box-shadow: 0 0 0 1px var(--sd-primary-border);
 }
 
 .js-pagination-block {
