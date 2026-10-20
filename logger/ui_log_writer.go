@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"go.uber.org/zap/zapcore"
+
+	"sealdice-core/utils/epoch"
 )
 
 const (
@@ -49,28 +51,29 @@ func (l *UIWriter) Snapshot() []*LogItem {
 }
 
 // SnapshotAfter 返回 Seq 大于 afterSeq 的日志。
-// reset 为 true 时表示 afterSeq 已不在保留窗口内（或客户端尚未建立游标），
-// 调用方应使用返回的完整保留日志替换本地状态。
-func (l *UIWriter) SnapshotAfter(afterSeq uint64) (items []*LogItem, latestSeq uint64, reset bool) {
+// reset 为 true 时表示 afterSeq 已不在保留窗口内、序号来自旧进程，
+// 或客户端尚未建立游标；调用方应使用返回的完整保留日志替换本地状态。
+func (l *UIWriter) SnapshotAfter(afterSeq uint64, afterEpoch string) (items []*LogItem, latestSeq uint64, currentEpoch string, reset bool) {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 
 	latestSeq = l.nextSeq
-	if afterSeq == 0 {
-		return copyLogItems(l.Items), latestSeq, true
+	currentEpoch = epoch.Current()
+	if afterSeq == 0 || afterEpoch != currentEpoch {
+		return copyLogItems(l.Items), latestSeq, currentEpoch, true
 	}
 	if afterSeq > latestSeq {
-		return nil, latestSeq, true
+		return copyLogItems(l.Items), latestSeq, currentEpoch, true
 	}
 	if len(l.Items) > 0 && afterSeq+1 < l.Items[0].Seq {
-		return copyLogItems(l.Items), latestSeq, true
+		return copyLogItems(l.Items), latestSeq, currentEpoch, true
 	}
 
 	start := 0
 	for start < len(l.Items) && l.Items[start].Seq <= afterSeq {
 		start++
 	}
-	return copyLogItems(l.Items[start:]), latestSeq, false
+	return copyLogItems(l.Items[start:]), latestSeq, currentEpoch, false
 }
 
 func copyLogItems(items []*LogItem) []*LogItem {

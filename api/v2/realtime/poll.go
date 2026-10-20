@@ -8,16 +8,18 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/logger"
 	"sealdice-core/model/common/response"
+	"sealdice-core/utils/epoch"
 )
 
 // ToolMessageProvider 提供带序号的指令测试消息，供轮询降级使用。
 type ToolMessageProvider interface {
-	MessagesAfter(afterSeq uint64) (items []dice.HTTPTestMessage, latestSeq uint64, reset bool)
+	MessagesAfter(afterSeq uint64, afterEpoch string) (items []dice.HTTPTestMessage, latestSeq uint64, currentEpoch string, reset bool)
 }
 
 type PollRequest struct {
 	AfterLogSeq  uint64 `query:"afterLogSeq" doc:"已收到的最后一条日志序号"`
 	AfterToolSeq uint64 `query:"afterToolSeq" doc:"已收到的最后一条测试消息序号"`
+	AfterEpoch   string `query:"afterEpoch" doc:"服务进程标识"`
 }
 
 type PollLogs struct {
@@ -36,6 +38,7 @@ type PollData struct {
 	Logs         PollLogs                `json:"logs"`
 	Connections  IMConnectionListPayload `json:"connections"`
 	ToolMessages PollToolMessages        `json:"toolMessages"`
+	Epoch        string                  `json:"epoch"`
 	Timestamp    int64                   `json:"timestamp"`
 }
 
@@ -56,12 +59,13 @@ func (s *Server) Poll(_ context.Context, req *PollRequest) (*response.ItemRespon
 	}
 
 	data := PollData{
+		Epoch:     epoch.Current(),
 		Timestamp: time.Now().Unix(),
 	}
 
 	d := primaryDice(s.dm)
 	if d != nil && d.LogWriter != nil {
-		items, latestSeq, reset := d.LogWriter.SnapshotAfter(req.AfterLogSeq)
+		items, latestSeq, _, reset := d.LogWriter.SnapshotAfter(req.AfterLogSeq, req.AfterEpoch)
 		data.Logs = PollLogs{Items: items, LatestSeq: latestSeq, Reset: reset}
 	} else {
 		data.Logs.Reset = true
@@ -79,7 +83,7 @@ func (s *Server) Poll(_ context.Context, req *PollRequest) (*response.ItemRespon
 	toolMessages := s.toolMessages
 	s.mu.Unlock()
 	if toolMessages != nil {
-		items, latestSeq, reset := toolMessages.MessagesAfter(req.AfterToolSeq)
+		items, latestSeq, _, reset := toolMessages.MessagesAfter(req.AfterToolSeq, req.AfterEpoch)
 		data.ToolMessages = PollToolMessages{Items: items, LatestSeq: latestSeq, Reset: reset}
 	} else {
 		data.ToolMessages.Reset = true

@@ -73,6 +73,22 @@ class FakeWebSocket {
   close = vi.fn();
 }
 
+function emptyPollResponse() {
+  return {
+    status: 200,
+    ok: true,
+    json: async () => ({
+      item: {
+        epoch: 'test-epoch',
+        logs: { items: [], latestSeq: 0, reset: false },
+        connections: { items: [] },
+        toolMessages: { items: [], latestSeq: 0, reset: false },
+        timestamp: 1,
+      },
+    }),
+  };
+}
+
 describe('realtime client store', () => {
   beforeEach(() => {
     auth.isInitializing = true;
@@ -80,6 +96,7 @@ describe('realtime client store', () => {
     FakeWebSocket.urls = [];
     vi.stubGlobal('EventSource', FakeEventSource);
     vi.stubGlobal('WebSocket', FakeWebSocket);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(emptyPollResponse()));
   });
 
   afterEach(() => {
@@ -105,7 +122,9 @@ describe('realtime client store', () => {
     expect(FakeEventSource.instances).toHaveLength(1);
   });
 
-  it('falls back to polling with cursors when SSE fails', async () => {
+  it('polls with cursors and sends the token in the Authorization header', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(emptyPollResponse());
+    vi.stubGlobal('fetch', fetchMock);
     vi.useFakeTimers();
     setAccessToken('token-realtime');
     const store = useRealtimeClientStore(appPinia);
@@ -113,7 +132,6 @@ describe('realtime client store', () => {
     finishAuthInitialization();
     await nextTick();
 
-    const source = FakeEventSource.instances[0]!;
     const snapshots: unknown[] = [];
     const appends: unknown[] = [];
     const toolMessages: unknown[] = [];
@@ -122,6 +140,7 @@ describe('realtime client store', () => {
     store.subscribeRealtimeEvent('tooltest/message', payload => toolMessages.push(payload));
 
     const pollItem = (logSeq: number, withAppend: boolean) => ({
+      epoch: 'test-epoch',
       logs: {
         items: [{ seq: logSeq, level: 'info', module: 'core', ts: 1, msg: `log-${logSeq}` }],
         latestSeq: logSeq,
@@ -135,28 +154,32 @@ describe('realtime client store', () => {
       },
       timestamp: 1,
     });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        status: 200,
-        ok: true,
-        json: async () => ({ item: pollItem(1, false) }),
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        ok: true,
-        json: async () => ({ item: pollItem(2, true) }),
-      });
-    vi.stubGlobal('fetch', fetchMock);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      json: async () => ({ item: pollItem(1, false) }),
+    });
+    fetchMock.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      json: async () => ({ item: pollItem(2, true) }),
+    });
 
-    source.emitError();
-    await vi.waitFor(() => expect(store.connected).toBe(true));
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
     expect(store.activeTransport).toBe('polling');
     expect(snapshots).toHaveLength(1);
     expect(toolMessages).toHaveLength(1);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('afterLogSeq=0');
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('afterToolSeq=0');
+    const firstURL = String(fetchMock.mock.calls[0]?.[0]);
+    expect(firstURL).toContain('afterLogSeq=0');
+    expect(firstURL).toContain('afterToolSeq=0');
+    expect(firstURL).not.toContain('token=');
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: expect.objectContaining({ Authorization: 'Bearer token-realtime' }),
+    });
 
     await vi.advanceTimersByTimeAsync(1000);
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -176,22 +199,7 @@ describe('realtime client store', () => {
     await nextTick();
 
     const source = FakeEventSource.instances[0]!;
-    const fetchMock = vi.fn().mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => ({
-        item: {
-          logs: { items: [], latestSeq: 0, reset: false },
-          connections: { items: [] },
-          toolMessages: { items: [], latestSeq: 0, reset: false },
-          timestamp: 1,
-        },
-      }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
     source.emitError();
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     expect(store.activeTransport).toBe('polling');
 
     await vi.advanceTimersByTimeAsync(16000);
@@ -200,6 +208,63 @@ describe('realtime client store', () => {
     FakeEventSource.instances[1]!.emitOpen();
     await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
     expect(store.connected).toBe(true);
+  });
+
+  it('recovers log sequence gaps through polling and ignores stale snapshots', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(emptyPollResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
+    setAccessToken('token-realtime');
+    const store = useRealtimeClientStore(appPinia);
+    store.ensureInitialized();
+    finishAuthInitialization();
+    await nextTick();
+    const source = FakeEventSource.instances[0]!;
+
+    const appends: unknown[] = [];
+    const snapshots: unknown[] = [];
+    store.subscribeRealtimeEvent('logs/append', payload => appends.push(payload));
+    store.subscribeRealtimeEvent('logs/snapshot', payload => snapshots.push(payload));
+
+    source.emitOpen();
+    await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: async () => ({
+        item: {
+          epoch: 'test-epoch',
+          logs: {
+            items: [
+              { seq: 2, level: 'info', module: 'core', ts: 1, msg: 'log-2' },
+              { seq: 3, level: 'info', module: 'core', ts: 1, msg: 'log-3' },
+            ],
+            latestSeq: 3,
+            reset: false,
+          },
+          connections: { items: [] },
+          toolMessages: { items: [], latestSeq: 0, reset: false },
+          timestamp: 1,
+        },
+      }),
+    });
+
+    source.emitMessage('logs/append', {
+      item: { seq: 1, level: 'info', module: 'core', ts: 1, msg: 'log-1' },
+    });
+    source.emitMessage('logs/append', {
+      item: { seq: 3, level: 'info', module: 'core', ts: 1, msg: 'log-3' },
+    });
+    await vi.waitFor(() => expect(appends).toHaveLength(3));
+
+    const messages = appends.map(payload => (payload as { item: { msg: string } }).item.msg);
+    expect(messages).toEqual(['log-1', 'log-2', 'log-3']);
+
+    source.emitMessage('logs/snapshot', {
+      items: [{ seq: 2, level: 'info', module: 'core', ts: 1, msg: 'stale' }],
+    });
+    expect(snapshots).toHaveLength(0);
   });
 
   it('stops retrying SSE after three consecutive failures', async () => {
@@ -255,6 +320,10 @@ describe('realtime client store', () => {
     expect(FakeEventSource.instances[0]?.url).toBe(
       'http://127.0.0.1/sd-api/v2/realtime/sse?token=token-realtime'
     );
-    expect(store.activeTransport).toBe('sse');
+    expect(store.activeTransport).toBe('polling');
+
+    FakeEventSource.instances[0]!.emitOpen();
+    await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
+    expect(store.connected).toBe(true);
   });
 });

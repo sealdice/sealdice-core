@@ -13,6 +13,7 @@ import (
 	apiv2 "sealdice-core/api/v2"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
+	"sealdice-core/utils/epoch"
 )
 
 func TestInitV2RouterDoesNotExposeLegacyRealtimeWebSocketRoute(t *testing.T) {
@@ -44,7 +45,7 @@ func TestRealtimePollRouteReturnsLogDelta(t *testing.T) {
 		t.Fatalf("writer snapshot = %d, want 2", len(got))
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/sd-api/v2/realtime/poll?afterLogSeq=1&token=token-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/sd-api/v2/realtime/poll?afterLogSeq=1&afterEpoch="+epoch.Current()+"&token=token-1", nil)
 	rec := httptest.NewRecorder()
 	app.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

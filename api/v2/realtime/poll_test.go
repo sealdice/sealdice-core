@@ -6,6 +6,7 @@ import (
 
 	realtime "sealdice-core/api/v2/realtime"
 	"sealdice-core/dice"
+	"sealdice-core/utils/epoch"
 )
 
 type fakeToolMessages struct {
@@ -14,8 +15,8 @@ type fakeToolMessages struct {
 	reset     bool
 }
 
-func (f fakeToolMessages) MessagesAfter(_ uint64) ([]dice.HTTPTestMessage, uint64, bool) {
-	return f.items, f.latestSeq, f.reset
+func (f fakeToolMessages) MessagesAfter(_ uint64, _ string) ([]dice.HTTPTestMessage, uint64, string, bool) {
+	return f.items, f.latestSeq, "test-epoch", f.reset
 }
 
 func TestPollReturnsLogDeltaAndConnectionSnapshot(t *testing.T) {
@@ -38,7 +39,7 @@ func TestPollReturnsLogDeltaAndConnectionSnapshot(t *testing.T) {
 		latestSeq: 2,
 	})
 
-	resp, err := srv.Poll(context.Background(), &realtime.PollRequest{AfterLogSeq: 1, AfterToolSeq: 1})
+	resp, err := srv.Poll(context.Background(), &realtime.PollRequest{AfterLogSeq: 1, AfterToolSeq: 1, AfterEpoch: epoch.Current()})
 	if err != nil {
 		t.Fatalf("Poll returned error: %v", err)
 	}
@@ -67,7 +68,8 @@ func TestPollRequestsSnapshotWhenCursorIsUnset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Poll returned error: %v", err)
 	}
-	if !resp.Body.Item.Logs.Reset || len(resp.Body.Item.Logs.Items) != 1 {
+	if !resp.Body.Item.Logs.Reset || len(resp.Body.Item.Logs.Items) != 1 ||
+		resp.Body.Item.Logs.Items[0].Seq != 1 || resp.Body.Item.Logs.Items[0].Msg != "first" {
 		t.Fatalf("unexpected logs: %+v", resp.Body.Item.Logs)
 	}
 }

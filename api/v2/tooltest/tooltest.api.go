@@ -13,6 +13,7 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
+	"sealdice-core/utils/epoch"
 )
 
 const (
@@ -98,27 +99,29 @@ func (s *Service) emit(item dice.HTTPTestMessage) {
 }
 
 // MessagesAfter 返回 Seq 大于 afterSeq 的测试消息，不会清空缓冲区。
-// reset 为 true 时表示游标已超出保留窗口（或服务重启），调用方应重新建立游标。
-func (s *Service) MessagesAfter(afterSeq uint64) (items []dice.HTTPTestMessage, latestSeq uint64, reset bool) {
+// reset 为 true 时表示游标已超出保留窗口、序号来自旧进程，
+// 或客户端尚未建立游标，调用方应重新建立游标。
+func (s *Service) MessagesAfter(afterSeq uint64, afterEpoch string) (items []dice.HTTPTestMessage, latestSeq uint64, currentEpoch string, reset bool) {
 	s.msgMu.Lock()
 	defer s.msgMu.Unlock()
 
 	latestSeq = s.nextMessageSeq
-	if afterSeq == 0 {
-		return append([]dice.HTTPTestMessage(nil), s.recentMessages...), latestSeq, true
+	currentEpoch = epoch.Current()
+	if afterSeq == 0 || afterEpoch != currentEpoch {
+		return append([]dice.HTTPTestMessage(nil), s.recentMessages...), latestSeq, currentEpoch, true
 	}
 	if afterSeq > latestSeq {
-		return nil, latestSeq, true
+		return append([]dice.HTTPTestMessage(nil), s.recentMessages...), latestSeq, currentEpoch, true
 	}
 	if len(s.recentMessages) > 0 && afterSeq+1 < s.recentMessages[0].Seq {
-		return append([]dice.HTTPTestMessage(nil), s.recentMessages...), latestSeq, true
+		return append([]dice.HTTPTestMessage(nil), s.recentMessages...), latestSeq, currentEpoch, true
 	}
 
 	start := 0
 	for start < len(s.recentMessages) && s.recentMessages[start].Seq <= afterSeq {
 		start++
 	}
-	return append([]dice.HTTPTestMessage(nil), s.recentMessages[start:]...), latestSeq, false
+	return append([]dice.HTTPTestMessage(nil), s.recentMessages[start:]...), latestSeq, currentEpoch, false
 }
 
 func (s *Service) Dice() *dice.Dice {
