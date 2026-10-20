@@ -19,6 +19,7 @@ type milkyForwardRequest struct {
 		Type string `json:"type"`
 		Data struct {
 			Text       string `json:"text"`
+			URI        string `json:"uri"`
 			UserID     int64  `json:"user_id"`
 			MessageSeq int64  `json:"message_seq"`
 			Messages   []struct {
@@ -29,6 +30,7 @@ type milkyForwardRequest struct {
 					Type string `json:"type"`
 					Data struct {
 						Text string `json:"text"`
+						URI  string `json:"uri"`
 					} `json:"data"`
 				} `json:"segments"`
 			} `json:"messages"`

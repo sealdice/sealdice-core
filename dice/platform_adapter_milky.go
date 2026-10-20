@@ -715,8 +715,16 @@ func ParseMessageToMilky(send []message.IMessageElement) []milky.IMessageElement
 		case *message.TextElement:
 			elements = append(elements, &milky.TextElement{Text: e.Content})
 		case *message.ImageElement:
-			log.Debugf("Image: %s", e.URL)
-			elements = append(elements, &milky.ImageElement{URI: e.URL, Summary: e.File.File, SubType: "normal"})
+			uri, err := milkyImageURI(e)
+			if err != nil {
+				log.Warnf("Skipping Milky image: %v", err)
+				continue
+			}
+			var summary string
+			if e.File != nil {
+				summary = e.File.File
+			}
+			elements = append(elements, &milky.ImageElement{URI: uri, Summary: summary, SubType: "normal"})
 		case *message.AtElement:
 			log.Debugf("At user: %s", e.Target)
 			if uid, err := strconv.ParseInt(e.Target, 10, 64); err == nil {
