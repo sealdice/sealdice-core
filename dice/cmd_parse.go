@@ -381,6 +381,9 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 		projection.ResolvePlaceholders(projection.Text, commandSegmentCompatText),
 		"\r\n", "\n",
 	)
+	// RawText 保留原始兼容文本（含 @），与旧 Execute 的契约一致；
+	// 解析则使用剥离 @ 后的投影文本 rawCmd。
+	rawText := strings.ReplaceAll(msg.Message, "\r\n", "\n")
 
 	atUID := computeAtUID(ctx.EndPoint, msg)
 	if msg.segmentSynthesized && !segmentsContainAt(msg.Segment) {
@@ -434,7 +437,7 @@ func (cmdArgs *CmdArgs) commandParseNew(ctx *MsgContext, msg *Message, isParseEx
 		return nil // restText 为空（如消息只有一个前缀 "."）
 	}
 
-	return buildCmdArgs(cmdArgs, matched, restText, rawCmd, specialExecuteTimes, prefixStr, msg.Platform, isSpaceBeforeArgs)
+	return buildCmdArgs(cmdArgs, matched, restText, rawText, specialExecuteTimes, prefixStr, msg.Platform, isSpaceBeforeArgs)
 }
 
 // projectCommandSegmentsToText 从第一个文本段开始投影命令文本，并跳过 @ 段

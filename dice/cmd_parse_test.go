@@ -107,6 +107,10 @@ func TestCommandParseNewStringAtKeepsQQBotDetection(t *testing.T) {
 	if cmdArgs.Command != "r" {
 		t.Fatalf("Command = %q, want r", cmdArgs.Command)
 	}
+	// RawText 必须保留原始命令文本（含 @），与旧 Execute 行为一致。
+	if !strings.Contains(cmdArgs.RawText, "[CQ:at,qq=2854196301]") {
+		t.Fatalf("RawText lost mention: %q", cmdArgs.RawText)
+	}
 }
 
 func TestCommandParseNewPreservesNonTextSegmentProjection(t *testing.T) {
@@ -178,8 +182,41 @@ func TestCommandParseNewAtAllIsNotAMention(t *testing.T) {
 	if len(cmdArgs.At) != 0 {
 		t.Fatalf("At count = %d, want 0 for qq=all", len(cmdArgs.At))
 	}
+	if cmdArgs.AmIBeMentioned {
+		t.Fatal("@全体不应置 AmIBeMentioned")
+	}
+	if cmdArgs.AmIBeMentionedFirst {
+		t.Fatal("@全体不应置 AmIBeMentionedFirst")
+	}
 	if cmdArgs.SomeoneBeMentionedButNotMe {
 		t.Fatal("@全体不应置 SomeoneBeMentionedButNotMe")
+	}
+}
+
+// 非 CQ 平台用户输入的字面 [CQ:at,...] 必须保持为纯文本，
+// 不能被归一化成真实 @（旧 AtParse 对这些平台不识别 CQ 语法）。
+func TestCommandParseNewNonCQPlatformKeepsLiteralCQAsText(t *testing.T) {
+	d := &Dice{CommandPrefix: DefaultConfig.CommandPrefix}
+	d.CmdMap = CmdMapCls{"img": &CmdItemInfo{}}
+	session := &IMSession{Parent: d}
+	ep := &EndPointInfo{EndPointInfoBase: EndPointInfoBase{UserID: "DISCORD:1000", Platform: "DISCORD"}}
+	ctx := &MsgContext{Session: session, EndPoint: ep, Dice: d}
+
+	msg := &Message{Platform: "DISCORD", Message: ".img [CQ:at,qq=1000] tail"}
+	NormalizeIncomingMessage(msg)
+
+	cmdArgs := CommandParseNew(ctx, msg)
+	if cmdArgs == nil {
+		t.Fatal("CommandParseNew returned nil")
+	}
+	if len(cmdArgs.At) != 0 {
+		t.Fatalf("At count = %d, want 0 for literal CQ text on non-CQ platform", len(cmdArgs.At))
+	}
+	if cmdArgs.AmIBeMentioned {
+		t.Fatal("literal CQ text must not mark the bot as mentioned")
+	}
+	if !strings.Contains(cmdArgs.CleanArgs, "[CQ:at,qq=1000]") {
+		t.Fatalf("CleanArgs lost literal CQ text: %q", cmdArgs.CleanArgs)
 	}
 }
 
@@ -205,6 +242,9 @@ func TestCommandParseNewFallsBackToPlatformAtParse(t *testing.T) {
 	}
 	if cmdArgs.Command != "r" {
 		t.Fatalf("Command = %q, want r", cmdArgs.Command)
+	}
+	if !strings.Contains(cmdArgs.RawText, "tg://user?id=1000") {
+		t.Fatalf("RawText lost platform mention: %q", cmdArgs.RawText)
 	}
 }
 

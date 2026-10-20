@@ -13,6 +13,9 @@ import (
 // an invisible placeholder, so command parsing can operate on a string without
 // losing images, faces, replies, etc. Placeholders can later be resolved back
 // to compatibility text (for example CQ codes) or back to segments.
+//
+// 字面文本中的 \x1f 以成对转义（\x1f -> \x1f\x1f）写入投影，因此用户输入
+// 不可能构成合法的占位符令牌，令牌与字面文本不会混淆。
 type SegmentText struct {
 	Text         string
 	Placeholders map[int]IMessageElement
@@ -23,6 +26,20 @@ const (
 	segmentPlaceholderSuffix = "\x1f"
 )
 
+func escapeSegmentText(s string) string {
+	if !strings.ContainsRune(s, '\x1f') {
+		return s
+	}
+	return strings.ReplaceAll(s, "\x1f", "\x1f\x1f")
+}
+
+func unescapeSegmentText(s string) string {
+	if !strings.Contains(s, "\x1f\x1f") {
+		return s
+	}
+	return strings.ReplaceAll(s, "\x1f\x1f", "\x1f")
+}
+
 // ProjectSegmentsToText projects segments to text, preserving non-text
 // segments in Placeholders.
 func ProjectSegmentsToText(segments []IMessageElement) SegmentText {
@@ -31,7 +48,7 @@ func ProjectSegmentsToText(segments []IMessageElement) SegmentText {
 
 	for idx, elem := range segments {
 		if text, ok := elem.(*TextElement); ok {
-			builder.WriteString(text.Content)
+			builder.WriteString(escapeSegmentText(text.Content))
 			continue
 		}
 
@@ -46,8 +63,9 @@ func ProjectSegmentsToText(segments []IMessageElement) SegmentText {
 	return SegmentText{Text: builder.String(), Placeholders: placeholders}
 }
 
-// ToSegments rebuilds the original segment list. Unknown placeholders are kept
-// as literal text, so user-authored placeholder-looking text is not consumed.
+// ToSegments rebuilds the original segment list. Literal user text that merely
+// looks like a placeholder is preserved as text; unknown placeholders are kept
+// as-is.
 func (st SegmentText) ToSegments() []IMessageElement {
 	if st.Text == "" {
 		return nil
@@ -65,6 +83,13 @@ func (st SegmentText) ToSegments() []IMessageElement {
 	}
 
 	for i := 0; i < len(st.Text); {
+		// 成对的 \x1f 是转义后的字面文本，优先于占位符前缀判断。
+		if st.Text[i] == '\x1f' && i+1 < len(st.Text) && st.Text[i+1] == '\x1f' {
+			text.WriteByte('\x1f')
+			i += 2
+			continue
+		}
+
 		if !strings.HasPrefix(st.Text[i:], segmentPlaceholderPrefix) {
 			r, size := utf8.DecodeRuneInString(st.Text[i:])
 			text.WriteRune(r)
@@ -75,10 +100,8 @@ func (st SegmentText) ToSegments() []IMessageElement {
 		start := i + len(segmentPlaceholderPrefix)
 		end := strings.Index(st.Text[start:], segmentPlaceholderSuffix)
 		if end < 0 {
-			r, size := utf8.DecodeRuneInString(st.Text[i:])
-			text.WriteRune(r)
-			i += size
-			continue
+			text.WriteString(unescapeSegmentText(st.Text[i:]))
+			break
 		}
 		end += start
 
@@ -100,14 +123,25 @@ func (st SegmentText) ToSegments() []IMessageElement {
 }
 
 // ResolvePlaceholders replaces known placeholders in text with resolve(elem).
-// Unknown placeholders are kept as-is.
+// Literal user text that merely looks like a placeholder is preserved as-is.
 func (st SegmentText) ResolvePlaceholders(text string, resolve func(IMessageElement) string) string {
-	if len(st.Placeholders) == 0 || resolve == nil || !strings.Contains(text, segmentPlaceholderPrefix) {
+	if resolve == nil {
 		return text
+	}
+	// 没有占位符（或文本中不出现前缀）时，所有 \x1f 都是转义的字面文本。
+	if len(st.Placeholders) == 0 || !strings.Contains(text, segmentPlaceholderPrefix) {
+		return unescapeSegmentText(text)
 	}
 
 	var builder strings.Builder
 	for i := 0; i < len(text); {
+		// 成对的 \x1f 是转义后的字面文本，优先于占位符前缀判断。
+		if text[i] == '\x1f' && i+1 < len(text) && text[i+1] == '\x1f' {
+			builder.WriteByte('\x1f')
+			i += 2
+			continue
+		}
+
 		if !strings.HasPrefix(text[i:], segmentPlaceholderPrefix) {
 			r, size := utf8.DecodeRuneInString(text[i:])
 			builder.WriteRune(r)
@@ -118,7 +152,7 @@ func (st SegmentText) ResolvePlaceholders(text string, resolve func(IMessageElem
 		start := i + len(segmentPlaceholderPrefix)
 		end := strings.Index(text[start:], segmentPlaceholderSuffix)
 		if end < 0 {
-			builder.WriteString(text[i:])
+			builder.WriteString(unescapeSegmentText(text[i:]))
 			break
 		}
 		end += start

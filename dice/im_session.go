@@ -1048,9 +1048,11 @@ func (s *IMSession) executeCore(ep *EndPointInfo, msg *Message, runInSync bool) 
 			}
 		}
 
-		// 已存在的群也要刷新群名（旧 ExecuteNew 的行为）。
-		if groupInfo != nil && msg.GroupName != "" {
+		// 已存在的群也要刷新群名（旧 ExecuteNew 的行为）；
+		// 名字实际变化时标记脏数据，避免保存流程跳过该群导致旧名入库。
+		if groupInfo != nil && msg.GroupName != "" && groupInfo.GroupName != msg.GroupName {
 			groupInfo.GroupName = msg.GroupName
+			groupInfo.MarkDirty(d)
 		}
 
 		atUID := computeAtUID(ep, msg)
@@ -1102,6 +1104,9 @@ func (s *IMSession) executeCore(ep *EndPointInfo, msg *Message, runInSync bool) 
 			mctx.CommandID = getNextCommandID()
 		}
 
+		// 日志文本统一脱敏：去掉媒体 URL 的查询串（签名/访问令牌）。
+		logText := redactURLQueries(msg.Message)
+
 		// 收到群 test(1111) 内 XX(222) 的消息: 好看 (1232611291)
 		if msg.MessageType == "group" {
 			if mctx.CommandID != 0 {
@@ -1110,7 +1115,7 @@ func (s *IMSession) executeCore(ep *EndPointInfo, msg *Message, runInSync bool) 
 					mctx.IsCurGroupBotOn = true
 				}
 
-				log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+				log.Infof("收到群(%s)内<%s>(%s)的指令: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, logText)
 			} else {
 				doLog := true
 				if d.Config.OnlyLogCommandInGroup {
@@ -1124,7 +1129,7 @@ func (s *IMSession) executeCore(ep *EndPointInfo, msg *Message, runInSync bool) 
 					}
 				}
 				if doLog {
-					log.Infof("收到群(%s)内<%s>(%s)的消息: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+					log.Infof("收到群(%s)内<%s>(%s)的消息: %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, logText)
 					// fmt.Printf("消息长度 %v 内容 %v \n", len(msg.Message), []byte(msg.Message))
 				}
 			}
@@ -1145,13 +1150,13 @@ func (s *IMSession) executeCore(ep *EndPointInfo, msg *Message, runInSync bool) 
 					log.Infof(
 						"拒绝处理命中敏感词「%s」的内容「%s」- 来自群(%s)内<%s>(%s)",
 						strings.Join(words, "|"),
-						msg.Message, msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID,
+						logText, msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID,
 					)
 				} else {
 					log.Infof(
 						"拒绝处理命中敏感词「%s」的内容「%s」- 来自<%s>(%s)",
 						strings.Join(words, "|"),
-						msg.Message,
+						logText,
 						msg.Sender.Nickname,
 						msg.Sender.UserID,
 					)
@@ -1162,9 +1167,9 @@ func (s *IMSession) executeCore(ep *EndPointInfo, msg *Message, runInSync bool) 
 
 		if msg.MessageType == "private" {
 			if mctx.CommandID != 0 {
-				log.Infof("收到<%s>(%s)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+				log.Infof("收到<%s>(%s)的私聊指令: %s", msg.Sender.Nickname, msg.Sender.UserID, logText)
 			} else if !d.Config.OnlyLogCommandInPrivate {
-				log.Infof("收到<%s>(%s)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+				log.Infof("收到<%s>(%s)的私聊消息: %s", msg.Sender.Nickname, msg.Sender.UserID, logText)
 			}
 		}
 		// Note(Szzrain): 赋值临时变量，不然有些地方没法用
@@ -1285,11 +1290,12 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 			if text != "" {
 				ReplyToSender(mctx, msg, text)
 			}
+			logText := redactURLQueries(msg.Message)
 			if msg.MessageType == "group" {
 				log.Infof(
 					"拒绝处理命中敏感词「%s」的指令「%s」- 来自群(%s)内<%s>(%s)",
 					strings.Join(words, "|"),
-					msg.Message,
+					logText,
 					msg.GroupID,
 					msg.Sender.Nickname,
 					msg.Sender.UserID,
@@ -1298,7 +1304,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 				log.Infof(
 					"拒绝处理命中敏感词「%s」的指令「%s」- 来自<%s>(%s)",
 					strings.Join(words, "|"),
-					msg.Message,
+					logText,
 					msg.Sender.Nickname,
 					msg.Sender.UserID,
 				)
@@ -1313,7 +1319,7 @@ func (s *IMSession) PreTriggerCommand(mctx *MsgContext, msg *Message, cmdArgs *C
 		if mctx.MessageType == "group" {
 			// fmt.Println("YYYYYYYYY", myuid, mctx.Group != nil)
 			if mctx.Group.IsBot(msg.Sender.UserID, msg.Sender.IsRobot) {
-				log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, msg.Message)
+				log.Infof("忽略指令(机器人): 来自群(%s)内<%s>(%s): %s", msg.GroupID, msg.Sender.Nickname, msg.Sender.UserID, redactURLQueries(msg.Message))
 				return
 			}
 			// 当其他机器人被@，不回应

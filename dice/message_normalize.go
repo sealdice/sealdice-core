@@ -2,6 +2,7 @@ package dice
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -9,6 +10,8 @@ import (
 
 	"sealdice-core/message"
 )
+
+var urlWithQueryRe = regexp.MustCompile(`(https?://[^\s\[\]]+?)\?[^\s\[\]]*`)
 
 // NormalizeIncomingMessage makes Message.Segment the canonical representation
 // and keeps Message as a compatibility view.
@@ -24,7 +27,13 @@ func NormalizeIncomingMessage(msg *Message) {
 	}
 
 	if len(msg.Segment) == 0 && msg.Message != "" {
-		msg.Segment = message.ConvertStringMessage(msg.Message)
+		if platformUsesCQSyntax(msg.Platform) {
+			msg.Segment = message.ConvertStringMessage(msg.Message)
+		} else {
+			// 非 CQ 平台的字符串不含 CQ 码，保持为单个文本段，
+			// 用户输入的字面 [CQ:...] 不能被当成真实消息元素。
+			msg.Segment = []message.IMessageElement{&message.TextElement{Content: msg.Message}}
+		}
 		msg.segmentSynthesized = true
 	}
 
@@ -33,7 +42,22 @@ func NormalizeIncomingMessage(msg *Message) {
 	}
 }
 
+// platformUsesCQSyntax 报告入站字符串消息使用 CQ 码语法的平台
+// （onebot11 系：gocq / onebot / walleq / lagrange）。
+// 其余平台（TG、Discord、KOOK 等）的 @ 与富媒体使用各自的原生语法。
+func platformUsesCQSyntax(platform string) bool {
+	return platform == "QQ"
+}
+
 // MessageSegmentsToCompatibilityText renders segments as legacy CQ text.
+// redactURLQueries 去掉 URL 查询串（签名/访问令牌等凭据），用于消息日志脱敏。
+func redactURLQueries(s string) string {
+	if !strings.ContainsRune(s, '?') {
+		return s
+	}
+	return urlWithQueryRe.ReplaceAllString(s, "$1?...")
+}
+
 func MessageSegmentsToCompatibilityText(segments []message.IMessageElement) string {
 	var builder strings.Builder
 	for _, elem := range segments {
@@ -51,9 +75,10 @@ func segmentToCompatibilityText(elem message.IMessageElement) string {
 	case *message.FaceElement:
 		return fmt.Sprintf("[CQ:face,id=%s]", e.FaceID)
 	case *message.FileElement:
-		file := e.URL
+		// 与旧 extractResultFromSegments 一致：本地文件引用优先于 URL。
+		file := e.File
 		if file == "" {
-			file = e.File
+			file = e.URL
 		}
 		if file == "" {
 			return ""
