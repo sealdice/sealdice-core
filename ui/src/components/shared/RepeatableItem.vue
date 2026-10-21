@@ -1,5 +1,8 @@
 <template>
-  <article class="sd-repeatable-item" role="listitem">
+  <article
+    :class="['sd-repeatable-item', { 'sd-repeatable-item--inline': inline }]"
+    role="listitem"
+  >
     <header
       v-if="title || showEnabled || removable || $slots.leading || $slots.actions"
       class="sd-repeatable-item__header"
@@ -56,6 +59,7 @@ withDefaults(
     enabled?: boolean;
     enabledLabel?: string;
     disabled?: boolean;
+    inline?: boolean;
   }>(),
   {
     title: '',
@@ -65,6 +69,7 @@ withDefaults(
     enabled: true,
     enabledLabel: '启用此项',
     disabled: false,
+    inline: false,
   }
 );
 
@@ -110,9 +115,54 @@ const emit = defineEmits<{
   min-width: 0;
 }
 
+/* 单字段子项：标题、控件、删除操作收在一行，避免无意义的纵向留白。 */
+.sd-repeatable-item--inline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sd-space-md);
+  padding-block: var(--sd-space-xs);
+}
+
+.sd-repeatable-item--inline .sd-repeatable-item__header {
+  display: contents;
+}
+
+.sd-repeatable-item--inline .sd-repeatable-item__heading {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.sd-repeatable-item--inline .sd-repeatable-item__body {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.sd-repeatable-item--inline .sd-repeatable-item__actions {
+  grid-column: 3;
+  grid-row: 1;
+  margin-left: 0;
+}
+
 @media (max-width: 640px) {
   .sd-repeatable-item__header {
     align-items: flex-start;
+  }
+
+  .sd-repeatable-item--inline {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--sd-space-xs);
+    padding-block: var(--sd-space-sm);
+  }
+
+  .sd-repeatable-item--inline .sd-repeatable-item__header {
+    display: flex;
+  }
+
+  .sd-repeatable-item--inline .sd-repeatable-item__body {
+    width: 100%;
   }
 }
 </style>

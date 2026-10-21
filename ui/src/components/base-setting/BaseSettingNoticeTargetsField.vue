@@ -12,17 +12,15 @@
       @remove="removeTarget(index)"
     >
       <div class="notice-target-fields">
-        <label class="notice-target-field">
-          <n-text depth="3" class="notice-target-field__label">ID</n-text>
+        <RepeatableFieldRow class="notice-target-field notice-target-field--id" label="ID">
           <n-input
             class="notice-target-id"
             :value="target.id"
             placeholder="平台:账号或群组 ID"
             @update:value="updateTarget(index, { id: $event })"
           />
-        </label>
-        <label class="notice-target-field">
-          <n-text depth="3" class="notice-target-field__label">通知项</n-text>
+        </RepeatableFieldRow>
+        <RepeatableFieldRow class="notice-target-field notice-target-field--types" label="通知项">
           <n-select
             class="notice-target-types"
             :value="target.noticeTypes"
@@ -32,7 +30,7 @@
             max-tag-count="responsive"
             @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
           />
-        </label>
+        </RepeatableFieldRow>
       </div>
     </RepeatableItem>
   </RepeatableList>
@@ -40,6 +38,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import RepeatableFieldRow from '@/components/settings-panel/RepeatableFieldRow.vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
 import {
@@ -94,33 +93,25 @@ function removeTarget(index: number) {
 
 <style scoped>
 .notice-target-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--sd-space-sm);
-  container-type: inline-size;
-}
-
-.notice-target-field {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sd-space-sm);
+  gap: var(--sd-space-md) var(--sd-space-lg);
 }
 
-.notice-target-field__label {
-  font-size: 0.85rem;
+.notice-target-field--id {
+  flex: 0 1 22.5rem;
+  min-width: min(100%, 14rem);
+}
+
+.notice-target-field--types {
+  flex: 1 1 22rem;
+  max-width: 34rem;
+  min-width: min(100%, 16rem);
 }
 
 .notice-target-id,
 .notice-target-types {
-  min-width: 0;
-}
-
-@container (max-width: 420px) {
-  .notice-target-field {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--sd-space-xs);
-  }
+  width: 100%;
 }
 </style>
