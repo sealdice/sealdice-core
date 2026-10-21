@@ -134,14 +134,21 @@
           <n-checkbox v-model:checked="displayReverse">最新在前</n-checkbox>
           <n-checkbox v-model:checked="autoRefresh">保持刷新</n-checkbox>
           <n-button size="small" secondary @click="logStream.reconnect">重连</n-button>
-          <n-button size="small" type="primary" secondary @click="scrollToLatestLog">
+          <n-button
+            size="small"
+            type="primary"
+            secondary
+            :disabled="!logOverflow || logAtLatest"
+            :aria-label="logAtLatest ? '已在最新日志' : '跳到最新一条日志'"
+            @click="scrollToLatestLog"
+          >
             <template #icon>
               <n-icon>
                 <i-tabler-chevron-up v-if="displayReverse" />
                 <i-tabler-chevron-down v-else />
               </n-icon>
             </template>
-            最新日志
+            {{ logAtLatest ? '已是最新' : '跳到最新' }}
           </n-button>
         </div>
       </div>
@@ -171,7 +178,7 @@
 </template>
 
 <script setup lang="tsx">
-import { computed, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 import { filesize } from 'filesize';
@@ -248,6 +255,9 @@ const networkTargets = [
 ];
 const logsContainer = useTemplateRef<HTMLElement>('logsContainer');
 const logTable = useTemplateRef<DataTableInst>('logTable');
+const logOverflow = ref(false);
+const logAtLatest = ref(true);
+let logScrollElement: HTMLElement | null = null;
 const logStream = useBaseLogStreamStore();
 logStream.ensureInitialized();
 const networkHealth = computed(() =>
@@ -316,7 +326,7 @@ function getWebsiteHealthOK(target: string): boolean {
   return isNetworkHealthTargetOK(networkHealth.value, target);
 }
 
-// 「最新日志」始终跳到最新那一条：倒序显示时它在顶部，正序显示时在尾部。
+// 「跳到最新」始终跳到最新那一条：倒序显示时它在顶部，正序显示时在尾部。
 // 走表格实例的 scrollTo，因为虚拟滚动下真正的滚动元素是内部的 .v-vl，
 // .n-data-table-base-table-body 只是外层 scrollbar 包装，对它 scrollTo 不会生效。
 function scrollToLatestLog() {
@@ -342,6 +352,38 @@ function getLogScrollElement(): HTMLElement | null {
     root.querySelector<HTMLElement>('.n-data-table-base-table-body')
   );
 }
+
+function updateLogScrollState() {
+  const element = getLogScrollElement();
+  if (element !== logScrollElement) {
+    logScrollElement?.removeEventListener('scroll', updateLogScrollState);
+    logScrollElement = element;
+    logScrollElement?.addEventListener('scroll', updateLogScrollState, { passive: true });
+  }
+
+  if (!element) {
+    logOverflow.value = false;
+    logAtLatest.value = true;
+    return;
+  }
+
+  const maxScrollTop = element.scrollHeight - element.clientHeight;
+  logOverflow.value = maxScrollTop > 1;
+  logAtLatest.value =
+    maxScrollTop <= 1 ||
+    (displayReverse.value ? element.scrollTop <= 1 : element.scrollTop >= maxScrollTop - 1);
+}
+
+async function refreshLogScrollState() {
+  await nextTick();
+  requestAnimationFrame(updateLogScrollState);
+}
+
+watch([logData, displayReverse, isMobile], refreshLogScrollState, { flush: 'post' });
+onMounted(refreshLogScrollState);
+onBeforeUnmount(() => {
+  logScrollElement?.removeEventListener('scroll', updateLogScrollState);
+});
 
 type LogLevelTone = 'neutral' | 'info' | 'warning' | 'error';
 
