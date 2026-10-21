@@ -13,8 +13,8 @@ github.com/Masterminds/semver/v3 v3.5.0 h1:kQceYJfbupGfZOKZQg0kou0DgAKhzDg2NZPAw
 github.com/Masterminds/semver/v3 v3.5.0/go.mod h1:4V+yj/TJE1HU9XfppCwVMZq3I84lprf4nC11bSS5beM=
 github.com/Milly/go-base2048 v0.1.0 h1:7ZgpCR3cjcAAVqIo+B8Q3P1+VFHRS8zilzAq062rUUk=
 github.com/Milly/go-base2048 v0.1.0/go.mod h1:kl6eYBwGnoIjv8k9UmgS+bekm6870ojptcVnT11e3jE=
-github.com/PaienNate/botgo v0.0.0-20261020004452-7c45d18df6b9 h1:+bgjkJy53KZ0rpdH07GUMTKrab6SprlpF6bxHu3d9Bc=
-github.com/PaienNate/botgo v0.0.0-20261020004452-7c45d18df6b9/go.mod h1:tqZjFBT70IYLDErU41aaHbqqlLIy2qalnhopT2wUk+o=
+github.com/PaienNate/botgo v0.0.0-20261021093040-21cbba3d67d6 h1:eHohr0TKNYXmyujynaoyxRZNpS041DIqgnuEGTtdvSA=
+github.com/PaienNate/botgo v0.0.0-20261021093040-21cbba3d67d6/go.mod h1:tqZjFBT70IYLDErU41aaHbqqlLIy2qalnhopT2wUk+o=
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231 h1:t9hBFiDTfo4OfIpphUe/VNLOq55AaBf8g7X2bEfwaf4=
 github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231/go.mod h1:wQTmPSYoaXtXfBysiJ9XiLwVnoCdlNHwuxYfxO4I4uo=
 github.com/PaienNate/pineutil v1.1.1 h1:Qt1OWuU2eXgRR/TryI9im9a2/Bl8kLzCdURn+Z6USvQ=
