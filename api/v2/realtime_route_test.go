@@ -1,6 +1,7 @@
 package v2_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	apiv2 "sealdice-core/api/v2"
 	"sealdice-core/dice"
 	"sealdice-core/logger"
+	"sealdice-core/utils/epoch"
 )
 
 func TestInitV2RouterDoesNotExposeLegacyRealtimeWebSocketRoute(t *testing.T) {
@@ -28,6 +30,45 @@ func TestInitV2RouterDoesNotExposeLegacyRealtimeWebSocketRoute(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestRealtimePollRouteReturnsLogDelta(t *testing.T) {
+	app := echo.New()
+	api := humaecho.New(app, huma.DefaultConfig("Sealdice API", "2.0.0"))
+	dm := newRealtimeRouteDiceManager()
+	apiv2.InitV2Router(api, dm)
+
+	_, _ = dm.GetDice().LogWriter.Write([]byte(`{"level":"info","module":"core","time":"2026-05-17T12:34:56.000Z+0800","msg":"first"}`))
+	_, _ = dm.GetDice().LogWriter.Write([]byte(`{"level":"info","module":"core","time":"2026-05-17T12:34:57.000Z+0800","msg":"second"}`))
+	if got := dm.GetDice().LogWriter.Snapshot(); len(got) != 2 {
+		t.Fatalf("writer snapshot = %d, want 2", len(got))
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/sd-api/v2/realtime/poll?afterLogSeq=1&afterEpoch="+epoch.Current()+"&token=token-1", nil)
+	rec := httptest.NewRecorder()
+	app.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Item struct {
+			Logs struct {
+				Items []struct {
+					Seq uint64 `json:"seq"`
+					Msg string `json:"msg"`
+				}
+				LatestSeq uint64 `json:"latestSeq"`
+				Reset     bool   `json:"reset"`
+			} `json:"logs"`
+		} `json:"item"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	logs := body.Item.Logs
+	if logs.Reset || logs.LatestSeq != 2 || len(logs.Items) != 1 || logs.Items[0].Seq != 2 || logs.Items[0].Msg != "second" {
+		t.Fatalf("unexpected poll logs: %+v", logs)
 	}
 }
 
