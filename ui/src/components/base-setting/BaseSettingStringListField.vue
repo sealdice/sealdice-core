@@ -3,11 +3,13 @@
     <RepeatableItem
       v-for="(item, index) in rows"
       :key="index"
-      :title="`前缀 ${index + 1}`"
       inline
       remove-label="删除该前缀"
       @remove="removeRow(index)"
     >
+      <template #leading>
+        <span class="setting-string-list-index">前缀 {{ index + 1 }}</span>
+      </template>
       <div class="setting-string-list-control">
         <n-input
           :ref="instance => setInputRef(index, instance)"
@@ -79,6 +81,14 @@ async function addItem() {
 </script>
 
 <style scoped>
+/* 子项序号是附属信息，使用弱化排版，避免与上方字段标签争夺层级。 */
+.setting-string-list-index {
+  color: var(--sd-text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .setting-string-list-control {
   width: 8rem;
   max-width: 100%;
