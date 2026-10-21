@@ -20,8 +20,16 @@
           <li v-for="row in rows" :key="rowKey(row)" class="store-compact-item">
             <div class="store-compact-item__heading">
               <div class="store-compact-item__identity">
-                <strong>{{ row.name }}</strong>
-                <span>{{ row.id }} · {{ row.version }}</span>
+                <StorePackageIcon
+                  :name="row.name"
+                  :icon-url="getStorePackageIconUrl(row)"
+                  :content="row.contents?.[0]"
+                  :size="40"
+                />
+                <div class="store-compact-item__text">
+                  <strong>{{ row.name }}</strong>
+                  <span>{{ row.id }} · {{ row.version }}</span>
+                </div>
               </div>
               <n-tag size="small" :type="row.installed ? 'success' : 'default'" :bordered="false">
                 {{ row.installed ? '已安装' : '未安装' }}
@@ -66,8 +74,10 @@
 <script setup lang="tsx">
 import { NButton, NTag, type DataTableColumns } from 'naive-ui';
 import type { StorePackage } from '@/api';
+import StorePackageIcon from '@/components/package/StorePackageIcon.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import ResponsiveDataView from '@/components/shared/ResponsiveDataView.vue';
+import { getStorePackageIconUrl } from '@/features/package/storeAssets';
 
 defineProps<{
   rows: StorePackage[];
@@ -91,10 +101,17 @@ const columns: DataTableColumns<StorePackage> = [
     minWidth: 260,
     render: row => (
       <div class="store-name-cell">
-        <strong>{row.name}</strong>
-        <span>
-          {row.id} · {row.version}
-        </span>
+        <StorePackageIcon
+          name={row.name}
+          iconUrl={getStorePackageIconUrl(row)}
+          content={row.contents?.[0]}
+        />
+        <div class="store-name-main">
+          <strong>{row.name}</strong>
+          <span>
+            {row.id} · {row.version}
+          </span>
+        </div>
       </div>
     ),
   },
@@ -155,12 +172,20 @@ const columns: DataTableColumns<StorePackage> = [
 .store-compact-item__identity {
   display: flex;
   min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+:deep(.store-name-main),
+.store-compact-item__text {
+  display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: 0.2rem;
 }
 
-:deep(.store-name-cell span),
-.store-compact-item__identity span {
+:deep(.store-name-main span),
+.store-compact-item__text span {
   color: var(--sd-text-secondary);
   font-size: 0.78rem;
   overflow-wrap: anywhere;

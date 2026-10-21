@@ -339,6 +339,7 @@ import StoryBackup from '@/components/story/StoryBackup.vue';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 
+import { copyText } from '@/features/clipboard/copyText';
 import { cloneSearchFormValues } from '@/features/searchForm/viewModel';
 import { storyInfoQueryKey } from '@/features/story/model';
 import { summarizeStoryLogs } from '@/features/story/model';
@@ -731,7 +732,7 @@ function handleLogAction(key: string, log: LogView) {
 
 async function copyLink(url: string) {
   try {
-    await navigator.clipboard.writeText(url);
+    await copyText(url);
     message.success('已复制链接到剪贴板');
   } catch (error) {
     notifyError(error, message, '复制失败，请手动复制');

@@ -28,37 +28,60 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
               'Master 解锁码',
               'unlock-code',
               ['master', '解锁码', '抢占', '骰主'],
-              { readonly: true }
+              {
+                readonly: true,
+                hint: '用于误操作或被抢占 Master。执行该指令可直接获取 Master 权限并踢掉其他所有人，指令有效期 20 分钟。',
+              }
             ),
-            field('dice-masters', 'diceMasters', 'Master 列表', 'master-list', [
-              '骰主',
-              'master列表',
-              '管理权限',
-            ]),
+            field(
+              'dice-masters',
+              'diceMasters',
+              'Master 列表',
+              'master-list',
+              ['骰主', 'master列表', '管理权限'],
+              {
+                hint: '单行格式：QQ:12345。也可添加群 ID，在指定的群中所有人均视为拥有 Master 权限。',
+              }
+            ),
           ],
         },
         {
           id: 'notice-mail',
           title: '通知与邮件',
           fields: [
-            field('notice-ids', 'noticeIds', '消息通知列表', 'notice-targets', [
-              '通知列表',
-              '通知ID',
-              '邮件通知目标',
-              '通知分类',
-            ]),
-            field('mail-enable', 'mailEnable', '邮箱通知', 'boolean', ['邮件', '邮件通知']),
-            field('mail-from', 'mailFrom', '发件邮箱', 'text', ['邮箱', '发件人']),
+            field(
+              'notice-ids',
+              'noticeIds',
+              '消息通知列表',
+              'notice-targets',
+              ['通知列表', '通知ID', '邮件通知目标', '通知分类'],
+              {
+                hint: '每项可独立启用并选择通知分类。支持 QQ:、QQ-Group:、QQ-CH-Group:、Mail: 等前缀；Mail: 类型不支持禁用或分类筛选。',
+              }
+            ),
+            field('mail-enable', 'mailEnable', '邮箱通知', 'boolean', ['邮件', '邮件通知'], {
+              hint: '为处理某些平台通知频繁引起的问题，启用后只会通过邮件进行通知。',
+            }),
+            field('mail-from', 'mailFrom', '发件邮箱', 'text', ['邮箱', '发件人'], {
+              hint: '特别提醒：QQ 号被冻结后，对应账号的邮箱也无法使用。',
+            }),
             field(
               'mail-password',
               'mailPassword',
               '邮箱密钥',
               'password',
               ['邮箱密钥', '授权码', '邮箱密码'],
-              { sensitive: true }
+              {
+                sensitive: true,
+                hint: '不一定是邮箱密码，例如 QQ 邮箱需要在设置界面生成授权码。',
+              }
             ),
-            field('mail-smtp', 'mailSmtp', 'SMTP 地址', 'text', ['smtp', '邮箱服务器']),
-            field('mail-test', '', '发送测试邮件', 'action', ['测试邮件', '验证邮件']),
+            field('mail-smtp', 'mailSmtp', 'SMTP 地址', 'text', ['smtp', '邮箱服务器'], {
+              hint: '例如 smtp.qq.com。',
+            }),
+            field('mail-test', '', '发送测试邮件', 'action', ['测试邮件', '验证邮件'], {
+              hint: '向通知列表发送测试邮件，便于检查邮件相关配置。',
+            }),
           ],
         },
       ],
@@ -81,22 +104,38 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
             },
           ],
           fields: [
-            field('trust-only-mode', 'trustOnlyMode', '私骰模式', 'boolean', ['私骰', '信任用户']),
-            field('bot-ext-free-switch', 'botExtFreeSwitch', '允许自由开关', 'boolean', [
-              '自由开关',
-              'bot on',
-              'ext on',
-            ]),
-            field('text-cmd-trust-only', 'textCmdTrustOnly', '限制 .text 指令', 'boolean', [
-              '.text',
-              '信任限制',
-            ]),
+            field('trust-only-mode', 'trustOnlyMode', '私骰模式', 'boolean', ['私骰', '信任用户'], {
+              hint: '只允许信任用户拉入群聊。',
+            }),
+            field(
+              'bot-ext-free-switch',
+              'botExtFreeSwitch',
+              '允许自由开关',
+              'boolean',
+              ['自由开关', 'bot on', 'ext on'],
+              {
+                hint: '默认开启。允许任何人执行 bot on/off 和 ext on/off，否则只有邀请者、管理员和 Master 可以操作。',
+              }
+            ),
+            field(
+              'text-cmd-trust-only',
+              'textCmdTrustOnly',
+              '限制 .text 指令',
+              'boolean',
+              ['.text', '信任限制'],
+              {
+                hint: '默认开启。开启后只有 Master 和信任用户可使用 .text 指令。如果不了解这个指令，建议保持开启。',
+              }
+            ),
             field(
               'ignore-unaddressed-bot',
               'ignoreUnaddressedBotCmd',
               '忽略 .bot 裸指令',
               'boolean',
-              ['.bot', '裸指令']
+              ['.bot', '裸指令'],
+              {
+                hint: '默认关闭。开启后在群聊中只有 @骰子 才会响应 .bot。',
+              }
             ),
             field(
               'dice-random-mode',
@@ -123,6 +162,7 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
               'boolean',
               ['玩家名外框', '名称外框', '刷屏防护'],
               {
+                hint: '默认开启。建议保持开启，防止用户改名为指令（如 .bot）并利用播报唤醒其他骰子造成刷屏。',
                 confirmMessage:
                   '不推荐：用户可能会改名为 .bot/.dismiss 等指令，并利用骰点播报让群内其他骰子刷屏，确定要关闭吗？',
               }
@@ -133,17 +173,36 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
           id: 'message',
           title: '消息与日志',
           fields: [
-            field('alive-notice-enable', 'aliveNoticeEnable', '存活确认', 'boolean', [
-              '骰狗',
+            field(
+              'alive-notice-enable',
+              'aliveNoticeEnable',
               '存活确认',
-            ]),
-            field('alive-notice-value', 'aliveNoticeValue', '存活消息间隔', 'text', [
-              '存活间隔',
-              'cron',
-            ]),
-            field('log-size-notice-enable', 'logSizeNoticeEnable', '日志记录提示', 'boolean', [
-              '日志提示',
-            ]),
+              'boolean',
+              ['骰狗', '存活确认'],
+              {
+                hint: '定期向通知列表发送消息，便于骰主知晓存活状态。',
+              }
+            ),
+            field(
+              'alive-notice-value',
+              'aliveNoticeValue',
+              '存活消息间隔',
+              'text',
+              ['存活间隔', 'cron'],
+              {
+                hint: '间隔写法请参阅 cron 文档。注意：重启骰子后会重新计时。',
+              }
+            ),
+            field(
+              'log-size-notice-enable',
+              'logSizeNoticeEnable',
+              '日志记录提示',
+              'boolean',
+              ['日志提示'],
+              {
+                hint: '每记录 N 条文本后主动发送一条提醒，避免忘记 log off。',
+              }
+            ),
             field('log-size-notice-count', 'logSizeNoticeCount', '日志提示阈值', 'number', [
               '日志条数阈值',
             ]),
@@ -158,11 +217,16 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
               'boolean',
               ['日志仅记录指令', '私聊']
             ),
-            field('command-prefix', 'commandPrefix', '指令前缀', 'string-list', [
-              '前缀',
-              '指令前导',
-              '命令前缀',
-            ]),
+            field(
+              'command-prefix',
+              'commandPrefix',
+              '指令前缀',
+              'string-list',
+              ['前缀', '指令前导', '命令前缀'],
+              {
+                hint: '举例：添加 ! 作为指令前缀后，运行 !r 即可骰点。',
+              }
+            ),
           ],
         },
       ],
@@ -185,22 +249,42 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
             },
           ],
           fields: [
-            field('rate-limit-enabled', 'rateLimitEnabled', '刷屏警告开关', 'boolean', [
-              '速率限制',
-              '刷屏警告',
-            ]),
-            field('personal-rate', 'personalReplenishRate', '个人速率', 'text', [
+            field(
+              'rate-limit-enabled',
+              'rateLimitEnabled',
+              '刷屏警告开关',
+              'boolean',
+              ['速率限制', '刷屏警告'],
+              {
+                hint: '默认关闭。开启后会对使用指令过快的用户和群组进行警告，警告后继续使用指令会增加怒气值，仅对 QQ 平台有效。',
+              }
+            ),
+            field(
+              'personal-rate',
+              'personalReplenishRate',
               '个人速率',
-              '每秒',
-              '@every',
-            ]),
-            field('personal-burst', 'personalBurst', '个人上限', 'number', ['个人上限']),
-            field('group-rate', 'groupReplenishRate', '群组速率', 'text', [
+              'text',
+              ['个人速率', '每秒', '@every'],
+              {
+                hint: '支持 @every 3s（每 3 秒一个）或 3（每秒 3 个）格式。',
+              }
+            ),
+            field('personal-burst', 'personalBurst', '个人上限', 'number', ['个人上限'], {
+              hint: '个人令牌桶最多可容纳的令牌数。所有速率限制更改将在重启后生效。',
+            }),
+            field(
+              'group-rate',
+              'groupReplenishRate',
               '群组速率',
-              '每秒',
-              '@every',
-            ]),
-            field('group-burst', 'groupBurst', '群组上限', 'number', ['群组上限']),
+              'text',
+              ['群组速率', '每秒', '@every'],
+              {
+                hint: '支持 @every 3s（每 3 秒一个）或 3（每秒 3 个）格式。',
+              }
+            ),
+            field('group-burst', 'groupBurst', '群组上限', 'number', ['群组上限'], {
+              hint: '群组令牌桶最多可容纳的令牌数。所有速率限制更改将在重启后生效。',
+            }),
           ],
         },
       ],
@@ -225,6 +309,7 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
                   { label: '127.0.0.1:3211', value: '127.0.0.1:3211' },
                 ],
                 allowCustomValue: true,
+                hint: '0.0.0.0:3211 用于服务器，可在公网访问；127.0.0.1:3211 仅限本机访问。修改后需重启生效；开多个海豹时必须修改端口。',
               }
             ),
             field(
@@ -233,7 +318,7 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
               'UI 界面密码',
               'password',
               ['UI密码', '后台密码', '登录密码'],
-              { sensitive: true }
+              { sensitive: true, hint: '公网用户务必设置，登录后会自动记住一段时间。' }
             ),
           ],
         },
@@ -241,16 +326,29 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
           id: 'friend-group',
           title: '好友与群组',
           fields: [
-            field('friend-add-comment', 'friendAddComment', '加好友验证', 'text', [
-              '好友验证',
-              '加好友',
-            ]),
-            field('refuse-group-invite', 'refuseGroupInvite', '拒绝加入新群', 'boolean', [
-              '拒绝加群',
-              '群邀请',
-            ]),
+            field(
+              'friend-add-comment',
+              'friendAddComment',
+              '加好友验证',
+              'text',
+              ['好友验证', '加好友'],
+              {
+                hint: '加好友时必须输入正确的验证信息才能通过。若使用“回答问题并由我确认”，只写问题答案，多个答案用空格隔开；问题答案中不能有空格。',
+              }
+            ),
+            field(
+              'refuse-group-invite',
+              'refuseGroupInvite',
+              '拒绝加入新群',
+              'boolean',
+              ['拒绝加群', '群邀请'],
+              {
+                hint: '仅在非强制拉入时生效。',
+              }
+            ),
             field('tray-tooltip', 'trayTooltip', '托盘提示文本', 'text', ['托盘', '提示文本'], {
               maxLength: 10,
+              hint: '自定义前缀最长 10 个字符；留空时使用“海豹TRPG骰点核心”，版本号和端口会自动追加。',
             }),
           ],
         },
@@ -258,37 +356,69 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
     },
     {
       id: 'platform-special',
-      title: '平台特殊配置',
+      title: '平台配置',
       groups: [
         {
-          id: 'qq-channel',
-          title: 'QQ平台配置',
+          id: 'qq-official-bot',
+          title: 'QQ 官方机器人配置',
           fields: [
-            field('work-in-qq-channel', 'workInQQChannel', '总开关', 'boolean', [
-              'QQ频道',
-              '频道消息',
-            ]),
-            field('qq-channel-auto-on', 'QQChannelAutoOn', '自动 bot on', 'boolean', [
-              '自动开启',
-              '频道自动开启',
-            ]),
-            field('qq-channel-log-message', 'QQChannelLogMessage', '记录消息日志', 'boolean', [
-              '频道日志',
-              'QQ频道日志',
-            ]),
-            field('qq-enable-poke', 'QQEnablePoke', '启用戳一戳', 'boolean', ['戳一戳', 'QQ特性']),
             field(
               'officialqq-file-send-base64',
               'officialQQFileSendBase64',
               '以 Base64 发送文件',
               'boolean',
-              ['官方QQ', 'Base64', '文件发送']
+              ['官方QQ', 'Base64', '文件发送'],
+              {
+                hint: '是否使用 Base64 发送本地/非公网图片或语音文件，仅对 QQ 官方机器人有效。',
+              }
             ),
-            field('officialqq-use-markdown', 'officialQQUseMarkdown', '使用 Markdown', 'boolean', [
-              '官方QQ',
-              'Markdown',
-              '消息格式',
-            ]),
+            field(
+              'officialqq-use-markdown',
+              'officialQQUseMarkdown',
+              '使用 Markdown',
+              'boolean',
+              ['官方QQ', 'Markdown', '消息格式'],
+              {
+                hint: '是否自动把发送的所有群聊和频道消息转为 Markdown 类型消息，仅对 QQ 官方机器人有效。',
+              }
+            ),
+          ],
+        },
+        {
+          id: 'qq-platform',
+          title: 'QQ 平台配置',
+          fields: [
+            field(
+              'work-in-qq-channel',
+              'workInQQChannel',
+              '总开关',
+              'boolean',
+              ['QQ频道', '频道消息'],
+              {
+                hint: '如果关闭，将忽略任何频道消息。',
+              }
+            ),
+            field(
+              'qq-channel-auto-on',
+              'QQChannelAutoOn',
+              '自动 bot on',
+              'boolean',
+              ['自动开启', '频道自动开启'],
+              {
+                hint: '如果开启，需要在每一个子频道手动 bot off，推荐关闭。',
+              }
+            ),
+            field(
+              'qq-channel-log-message',
+              'QQChannelLogMessage',
+              '记录消息日志',
+              'boolean',
+              ['频道日志', 'QQ频道日志'],
+              {
+                hint: '是否记录频道消息到日志。频道较多时可能造成严重刷屏；关闭后仅记录指令，推荐关闭。',
+              }
+            ),
+            field('qq-enable-poke', 'QQEnablePoke', '启用戳一戳', 'boolean', ['戳一戳', 'QQ特性']),
             field(
               'message-delay-range',
               '',
@@ -309,15 +439,29 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
           id: 'game',
           title: '游戏配置',
           fields: [
-            field('default-coc-rule-index', 'defaultCocRuleIndex', 'COC 默认房规', 'text', [
-              'coc房规',
-              'dg',
-            ]),
-            field('max-coc-card-gen', 'maxCocCardGen', 'COC 制卡上限', 'text', ['制卡上限']),
-            field('max-execute-time', 'maxExecuteTime', '骰点轮数上限', 'text', [
-              '骰点上限',
-              '.r n#',
-            ]),
+            field(
+              'default-coc-rule-index',
+              'defaultCocRuleIndex',
+              'COC 默认房规',
+              'text',
+              ['coc房规', 'dg'],
+              {
+                hint: '可设置为 0-5，以及 dg（Delta Green）。',
+              }
+            ),
+            field('max-coc-card-gen', 'maxCocCardGen', 'COC 制卡上限', 'text', ['制卡上限'], {
+              hint: '.coc n 中 n 的最大值，1-12 之间，默认 5。',
+            }),
+            field(
+              'max-execute-time',
+              'maxExecuteTime',
+              '骰点轮数上限',
+              'text',
+              ['骰点上限', '.r n#'],
+              {
+                hint: '.r n# 中 n 的最大值，1-25 之间，默认 12。',
+              }
+            ),
           ],
         },
         {
@@ -345,10 +489,16 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
           title: '自动退群',
           collapsible: true,
           fields: [
-            field('quit-inactive-threshold', 'quitInactiveThreshold', '自动退群阈值', 'number', [
-              '不活跃退群',
-              '多少天',
-            ]),
+            field(
+              'quit-inactive-threshold',
+              'quitInactiveThreshold',
+              '自动退群阈值',
+              'number',
+              ['不活跃退群', '多少天'],
+              {
+                hint: '每天凌晨 4 点检查所有群聊的不活跃天数，超过设定天数则自动退群；设置为 0 关闭该功能。',
+              }
+            ),
             field('quit-inactive-batch-size', 'quitInactiveBatchSize', '退群批次大小', 'number', [
               '退群批次',
             ]),

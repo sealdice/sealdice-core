@@ -9,6 +9,35 @@ import (
 	"sealdice-core/dice"
 )
 
+func TestDataListResolvesExtensionByScriptName(t *testing.T) {
+	dm := &dice.DiceManager{}
+	d := &dice.Dice{Parent: dm, JsExtRegistry: new(dice.SyncMap[string, *dice.ExtInfo])}
+	dm.Dice = d
+	d.BaseConfig.DataDir = t.TempDir()
+	script := &dice.JsScriptInfo{Name: "AI骰娘 4", Filename: "./data/default/scripts/chat.js"}
+	d.JsScriptList = []*dice.JsScriptInfo{script}
+	// 注册名与脚本 @name 不同，列表传入的是 @name。
+	ext := &dice.ExtInfo{Name: "chat", Source: script}
+	d.RegisterExtension(ext)
+	d.JsExtRegistry.Store(ext.Name, ext)
+	t.Cleanup(func() { _ = ext.StorageClose() })
+	if err := ext.StorageSet("key", "value"); err != nil {
+		t.Fatal(err)
+	}
+
+	service := NewService(dm)
+	got, err := service.DataList(t.Context(), &struct {
+		Name string `path:"name"`
+		DataListQuery
+	}{Name: script.Name, DataListQuery: DataListQuery{Page: 1, PageSize: 20}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Body.Item.Keys) != 1 || got.Body.Item.Keys[0].Key != "key" {
+		t.Fatalf("got %+v, want one key", got.Body.Item)
+	}
+}
+
 func TestDataListPagination(t *testing.T) {
 	dm := &dice.DiceManager{}
 	d := &dice.Dice{Parent: dm, JsExtRegistry: new(dice.SyncMap[string, *dice.ExtInfo])}

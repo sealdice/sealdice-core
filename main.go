@@ -719,7 +719,7 @@ func uiServe(dm *dice.DiceManager, hideUI bool, useBuiltinOldUI bool, enablePPro
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
 		HSTSMaxAge:            3600,
-		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
+		ContentSecurityPolicy: "default-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; img-src 'self' data: blob: *; style-src  'self' 'unsafe-inline' *; frame-src 'self' *;",
 	}))
 
 	e.Use(echomiddleware.GzipWithConfig(echomiddleware.GzipConfig{

@@ -1,40 +1,32 @@
 <template>
-  <div class="setting-string-list">
-    <div v-for="(item, index) in rows" :key="index" class="setting-string-list-row">
-      <n-input
-        class="setting-string-list-input"
-        :value="item"
-        placeholder="条目内容，如 . 或 !"
-        @update:value="updateRow(index, $event)"
-      />
-      <n-tooltip>
-        <template #trigger>
-          <n-button quaternary circle type="error" aria-label="删除该项" @click="removeRow(index)">
-            <template #icon><i-tabler-trash /></template>
-          </n-button>
-        </template>
-        删除该项
-      </n-tooltip>
-    </div>
-
-    <div class="setting-string-list-add">
-      <n-input
-        v-model:value="pendingItem"
-        class="setting-string-list-input"
-        placeholder="输入新条目后回车或点击添加"
-        clearable
-        @keydown.enter.prevent="addItem"
-      />
-      <n-button dashed :disabled="!pendingItem.trim()" @click="addItem">
-        <template #icon><i-tabler-plus /></template>
-        添加
-      </n-button>
-    </div>
-  </div>
+  <RepeatableList add-label="添加前缀" @add="addItem">
+    <RepeatableItem
+      v-for="(item, index) in rows"
+      :key="index"
+      inline
+      remove-label="删除该前缀"
+      @remove="removeRow(index)"
+    >
+      <template #leading>
+        <span class="setting-string-list-index">前缀 {{ index + 1 }}</span>
+      </template>
+      <div class="setting-string-list-control">
+        <n-input
+          :ref="instance => setInputRef(index, instance)"
+          :value="item"
+          placeholder="如 . 或 !"
+          @update:value="updateRow(index, $event)"
+        />
+      </div>
+    </RepeatableItem>
+  </RepeatableList>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
+import type { InputInst } from 'naive-ui';
+import RepeatableItem from '@/components/shared/RepeatableItem.vue';
+import RepeatableList from '@/components/shared/RepeatableList.vue';
 import { normalizeStringListValues } from '@/features/baseSetting/viewModel';
 
 const message = useMessage();
@@ -42,7 +34,7 @@ const model = defineModel<string[]>({ required: true });
 
 // 本地行副本：允许正在编辑的空行存在，提交到 model 时才做清理。
 const rows = ref<string[]>([...model.value]);
-const pendingItem = ref('');
+const inputRefs = ref<Array<InputInst | null>>([]);
 
 // 外部（如远端数据刷新、放弃更改）更新 model 时同步回本地行。
 watch(
@@ -54,6 +46,10 @@ watch(
   },
   { deep: true }
 );
+
+function setInputRef(index: number, instance: unknown) {
+  inputRefs.value[index] = (instance as InputInst | null) ?? null;
+}
 
 function commit(items: string[]) {
   rows.value = [...items];
@@ -76,37 +72,25 @@ function removeRow(index: number) {
   commit(rows.value.filter((_, rowIndex) => rowIndex !== index));
 }
 
-function addItem() {
-  const value = pendingItem.value.trim();
-  if (!value) return;
-  if (rows.value.some(row => row.trim() === value)) {
-    message.warning('该项已存在');
-    pendingItem.value = '';
-    return;
-  }
-  commit([...rows.value, value]);
-  pendingItem.value = '';
+async function addItem() {
+  const index = rows.value.length;
+  commit([...rows.value, '']);
+  await nextTick();
+  inputRefs.value[index]?.focus();
 }
 </script>
 
 <style scoped>
-.setting-string-list {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 0.625rem;
+/* 子项序号是附属信息，使用弱化排版，避免与上方字段标签争夺层级。 */
+.setting-string-list-index {
+  color: var(--sd-text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
-.setting-string-list-row,
-.setting-string-list-add {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-}
-
-.setting-string-list-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 24rem;
+.setting-string-list-control {
+  width: 8rem;
+  max-width: 100%;
 }
 </style>

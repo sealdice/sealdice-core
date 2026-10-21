@@ -74,6 +74,17 @@ it('旧请求的 401 不清空刚建立的新会话', async () => {
   expect(isApiErrorHandled(error)).toBe(true);
 });
 
+it('当前会话的 401 清理会话后交由解锁弹窗处理，不再重复弹全局错误', async () => {
+  const error = await client.instance
+    .get('/sd-api/v2/test', {
+      adapter: config => rejectResponse(config, 401),
+    })
+    .catch(error => error);
+  expect(auth.token).toBe('');
+  expect(globalError).not.toHaveBeenCalled();
+  expect(isApiErrorHandled(error)).toBe(true);
+});
+
 it('旧请求的续期响应不覆盖新会话', async () => {
   await client.instance.get('/sd-api/v2/test', {
     adapter: async config => {

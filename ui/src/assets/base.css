@@ -464,3 +464,15 @@ select {
   width: min(760px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
 }
+
+/* naive-ui 的 tooltip 默认按内容撑宽，长文本会超出视口且内容被裁切。
+   统一限制浮层尺寸，文本换行，纵向超出时在内容区滚动。 */
+.n-popover.n-tooltip {
+  max-width: min(520px, calc(100vw - 32px));
+}
+
+.n-popover.n-tooltip .n-popover__content {
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}

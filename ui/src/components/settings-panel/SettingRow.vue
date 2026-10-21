@@ -43,9 +43,12 @@ withDefaults(
   background: color-mix(in srgb, var(--sd-bg-hover), transparent 35%);
 }
 
+/* 列表、标签集合等复合控件需要占满整行；grid 布局下仅写 flex-direction 不会生效。 */
 .setting-row-stacked {
+  display: flex;
   align-items: stretch;
   flex-direction: column;
+  grid-column: 1 / -1;
   gap: 0.45rem;
   padding-block: 0.62rem;
 }
