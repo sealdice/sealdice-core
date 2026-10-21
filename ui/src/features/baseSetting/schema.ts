@@ -344,11 +344,37 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
     },
     {
       id: 'platform-special',
-      title: '平台特殊配置',
+      title: '平台配置',
       groups: [
         {
-          id: 'qq-channel',
-          title: 'QQ平台配置',
+          id: 'qq-official-bot',
+          title: 'QQ 官方机器人配置',
+          fields: [
+            field(
+              'officialqq-file-send-base64',
+              'officialQQFileSendBase64',
+              '以 Base64 发送文件',
+              'boolean',
+              ['官方QQ', 'Base64', '文件发送'],
+              {
+                hint: '是否使用 Base64 发送本地/非公网图片或语音文件，仅对 QQ 官方机器人有效。',
+              }
+            ),
+            field(
+              'officialqq-use-markdown',
+              'officialQQUseMarkdown',
+              '使用 Markdown',
+              'boolean',
+              ['官方QQ', 'Markdown', '消息格式'],
+              {
+                hint: '是否自动把发送的所有群聊和频道消息转为 Markdown 类型消息，仅对 QQ 官方机器人有效。',
+              }
+            ),
+          ],
+        },
+        {
+          id: 'qq-platform',
+          title: 'QQ 平台配置',
           fields: [
             field(
               'work-in-qq-channel',
@@ -381,26 +407,6 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
               }
             ),
             field('qq-enable-poke', 'QQEnablePoke', '启用戳一戳', 'boolean', ['戳一戳', 'QQ特性']),
-            field(
-              'officialqq-file-send-base64',
-              'officialQQFileSendBase64',
-              '以 Base64 发送文件',
-              'boolean',
-              ['官方QQ', 'Base64', '文件发送'],
-              {
-                hint: '是否使用 Base64 发送本地/非公网图片或语音文件，仅对 QQ 官方机器人有效。',
-              }
-            ),
-            field(
-              'officialqq-use-markdown',
-              'officialQQUseMarkdown',
-              '使用 Markdown',
-              'boolean',
-              ['官方QQ', 'Markdown', '消息格式'],
-              {
-                hint: '是否自动把发送的所有群聊和频道消息转为 Markdown 类型消息，仅对 QQ 官方机器人有效。',
-              }
-            ),
             field(
               'message-delay-range',
               '',
