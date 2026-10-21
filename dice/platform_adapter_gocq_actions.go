@@ -880,23 +880,30 @@ func textAssetsConvert(s string) string {
 			}
 			cwd, _ := os.Getwd()
 
-			if strings.HasPrefix(afn, cwd) || strings.HasPrefix(afn, os.TempDir()) {
-				if _, err := os.Stat(afn); errors.Is(err, os.ErrNotExist) {
-					cq.Overwrite = "[CQ码找不到文件]"
-				} else {
-					// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
-					if runtime.GOOS == `windows` {
-						afn = "/" + afn
-					}
-					u := url.URL{
-						Scheme: "file",
-						Path:   filepath.ToSlash(afn),
-					}
-					cq.Args["file"] = EscapeComma(u.String())
+			withinAllowedDir := strings.HasPrefix(afn, cwd) || strings.HasPrefix(afn, os.TempDir())
+			if !withinAllowedDir {
+				// 只对明确指向本地路径的引用做安全拦截；协议端的不透明引用原样透传。
+				if message.LooksLikeExplicitLocalPath(fn) {
+					cq.Overwrite = "[CQ码读取的不是当前目录文件或临时文件，可能是恶意行为，已禁止]"
 				}
-			} else {
-				cq.Overwrite = "[CQ码读取的不是当前目录文件或临时文件，可能是恶意行为，已禁止]"
+				return
 			}
+			if _, err := os.Stat(afn); err != nil {
+				// 裸文件名/hash 可能是协议端的资源标识，交给协议端解析，不在这里判死。
+				if message.LooksLikeExplicitLocalPath(fn) {
+					cq.Overwrite = "[CQ码找不到文件]"
+				}
+				return
+			}
+			// 这里使用绝对路径，windows上gocqhttp会裁掉一个斜杠，所以我这里加一个
+			if runtime.GOOS == `windows` {
+				afn = "/" + afn
+			}
+			u := url.URL{
+				Scheme: "file",
+				Path:   filepath.ToSlash(afn),
+			}
+			cq.Args["file"] = EscapeComma(u.String())
 		}
 		//}
 	}

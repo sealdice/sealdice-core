@@ -158,19 +158,26 @@ func (t *DefaultElement) Type() ElementType {
 }
 
 func (t *DefaultElement) FromCQData(dMap map[string]string) error {
-	// 未注册的 CQ 资源类型也可能携带本地文件，发送前统一规范化其路径。
-	if rawFile, exists := dMap["file"]; exists && strings.TrimSpace(dMap["url"]) == "" {
-		normalized, err := NormalizeLocalResourcePath(rawFile)
-		if err != nil {
-			return err
-		}
-		if normalized != rawFile {
-			cloned := make(map[string]string, len(dMap))
-			for key, value := range dMap {
-				cloned[key] = value
+	return t.fromCQData(dMap, ResourceOutbound)
+}
+
+func (t *DefaultElement) fromCQData(dMap map[string]string, mode ResourceMode) error {
+	// 未注册的 CQ 资源类型也可能携带本地文件，出站前统一规范化其路径。
+	// 入站保持原样，由协议端负责资源获取。
+	if mode == ResourceOutbound {
+		if rawFile, exists := dMap["file"]; exists && strings.TrimSpace(dMap["url"]) == "" {
+			normalized, err := NormalizeLocalResourcePath(rawFile)
+			if err != nil {
+				return err
 			}
-			cloned["file"] = normalized
-			dMap = cloned
+			if normalized != rawFile {
+				cloned := make(map[string]string, len(dMap))
+				for key, value := range dMap {
+					cloned[key] = value
+				}
+				cloned["file"] = normalized
+				dMap = cloned
+			}
 		}
 	}
 
@@ -247,6 +254,9 @@ type FileElement struct {
 	Stream      io.Reader
 	File        string `jsbind:"file"`
 	URL         string `jsbind:"url"`
+	// RawParams 保留入站 CQ 码的原始参数（如 subType/cache），
+	// 用于无损还原兼容文本，避免 file/url 相互覆盖。
+	RawParams map[string]string `json:"-" yaml:"-"`
 }
 
 func (l *FileElement) Type() ElementType {
@@ -254,20 +264,88 @@ func (l *FileElement) Type() ElementType {
 }
 
 func (l *FileElement) FromCQData(dMap map[string]string) error {
-	p := strings.TrimSpace(dMap["file"])
-	u := strings.TrimSpace(dMap["url"])
-	if u == "" {
-		fileElem, err := FilepathToFileElement(p)
-		if err != nil {
-			return err
+	return l.fromCQData(dMap, ResourceOutbound)
+}
+
+func (l *FileElement) fromCQData(dMap map[string]string, mode ResourceMode) error {
+	l.RawParams = cloneCQParams(dMap)
+
+	file := strings.TrimSpace(dMap["file"])
+	url := strings.TrimSpace(dMap["url"])
+
+	if mode == ResourceInbound {
+		// 协议端负责资源获取：入站只保留引用，不做 Stat/下载。
+		l.File = file
+		l.URL = url
+		if l.URL == "" {
+			l.URL = l.File
 		}
-		*l = *fileElem
-		return nil
-	} else {
-		// 当 url 不为空时，绕过读取直接发送 url
-		l.URL = u
 		return nil
 	}
+
+	// 同时带 url 时保留两者，不再用 url 覆盖 file。
+	if url != "" {
+		l.File = file
+		l.URL = url
+		return nil
+	}
+
+	if file == "" {
+		return nil
+	}
+
+	fileElem, err := FilepathToFileElement(file)
+	if err != nil {
+		// 协议端的不透明资源引用（如 hash.jpg、adapter-cache-id）不是本地文件，
+		// 原样透传；只有明显指向本地路径且确实不可用时才报错。
+		if looksLikeExplicitLocalPath(file) {
+			return err
+		}
+		l.File = file
+		l.URL = file
+		return nil
+	}
+
+	*l = *fileElem
+	l.RawParams = cloneCQParams(dMap)
+	return nil
+}
+
+// LooksLikeExplicitLocalPath reports whether a CQ file value explicitly points
+// to the local filesystem (absolute path, ./, ../, Windows drive, file://).
+// Bare names such as onebot's hash.jpg are protocol-side references.
+func LooksLikeExplicitLocalPath(s string) bool {
+	return looksLikeExplicitLocalPath(s)
+}
+
+func cloneCQParams(dMap map[string]string) map[string]string {
+	if len(dMap) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(dMap))
+	for k, v := range dMap {
+		out[k] = v
+	}
+	return out
+}
+
+// looksLikeExplicitLocalPath 判断资源引用是否明确指向本地文件系统。
+// 裸文件名（如 onebot 的 hash.jpg）视为协议端引用，不做本地解析。
+func looksLikeExplicitLocalPath(s string) bool {
+	if s == "" {
+		return false
+	}
+	lower := strings.ToLower(s)
+	if strings.HasPrefix(lower, "file://") {
+		return true
+	}
+	if strings.HasPrefix(s, "./") || strings.HasPrefix(s, "../") ||
+		strings.HasPrefix(s, `.\`) || strings.HasPrefix(s, `..\`) ||
+		strings.HasPrefix(s, "/") || strings.HasPrefix(s, `\`) {
+		return true
+	}
+	// Windows 盘符路径，如 C:\foo 或 C:/foo
+	return len(s) >= 3 && s[1] == ':' && (s[2] == '\\' || s[2] == '/')
 }
 
 type ImageElement struct {
@@ -280,13 +358,19 @@ func (l *ImageElement) Type() ElementType {
 }
 
 func (l *ImageElement) FromCQData(dMap map[string]string) error {
+	return l.fromCQData(dMap, ResourceOutbound)
+}
+
+func (l *ImageElement) fromCQData(dMap map[string]string, mode ResourceMode) error {
 	fileElem := &FileElement{}
-	err := fileElem.FromCQData(dMap)
-	if err != nil {
+	if err := fileElem.fromCQData(dMap, mode); err != nil {
 		return err
 	}
 	l.File = fileElem
 	l.URL = fileElem.URL
+	if l.URL == "" {
+		l.URL = fileElem.File
+	}
 	return nil
 }
 
@@ -299,10 +383,16 @@ func (r *RecordElement) Type() ElementType {
 }
 
 func (r *RecordElement) FromCQData(dMap map[string]string) error {
+	return r.fromCQData(dMap, ResourceOutbound)
+}
+
+func (r *RecordElement) fromCQData(dMap map[string]string, mode ResourceMode) error {
 	fileElem := &FileElement{}
-	err := fileElem.FromCQData(dMap)
-	if err != nil {
+	if err := fileElem.fromCQData(dMap, mode); err != nil {
 		return err
+	}
+	if fileElem.URL == "" {
+		fileElem.URL = fileElem.File
 	}
 	r.File = fileElem
 	return nil
@@ -596,13 +686,18 @@ func FilepathToFileElement(fp string) (*FileElement, error) {
 	}
 }
 
-func toElement(t string, dMap map[string]string) (IMessageElement, error) {
+func toElement(t string, dMap map[string]string, mode ResourceMode) (IMessageElement, error) {
 	// 从注册表查找工厂函数
 	elemFactory := GetElementFactory(t)
 	elem := elemFactory()
-	// 调用实例的转换方法
-	err := elem.FromCQData(dMap)
-	if err != nil {
+	// 调用实例的转换方法；媒体类元素需要区分入站/出站模式
+	if parser, ok := elem.(cqDataModeParser); ok {
+		if err := parser.fromCQData(dMap, mode); err != nil {
+			return nil, err
+		}
+		return elem, nil
+	}
+	if err := elem.FromCQData(dMap); err != nil {
 		return nil, err
 	}
 
@@ -673,10 +768,30 @@ func SealCodeToCqCode(text string) string {
 	return cq.Compile()
 }
 
+// ResourceMode controls how CQ media references are materialized.
+//
+// Inbound parsing must stay side-effect free: the protocol side owns fetching
+// and caching resources, so file/url are kept as opaque strings. Outbound
+// parsing may resolve local files that the core itself owns, but never
+// downloads remote resources on its own.
+type ResourceMode int
+
+const (
+	ResourceInbound ResourceMode = iota
+	ResourceOutbound
+)
+
+// cqDataModeParser is implemented by elements that need different behaviour
+// for inbound (opaque) and outbound (materialize local resources) parsing.
+type cqDataModeParser interface {
+	fromCQData(dMap map[string]string, mode ResourceMode) error
+}
+
 // convertConfig ConvertStringMessage的配置
 type convertConfig struct {
-	logger  *zap.SugaredLogger
-	onError func(err error, cqType string, cqArgs map[string]string)
+	logger       *zap.SugaredLogger
+	onError      func(err error, cqType string, cqArgs map[string]string)
+	resourceMode ResourceMode
 }
 
 // ConvertOption ConvertStringMessage的选项函数
@@ -696,10 +811,16 @@ func WithOnError(fn func(err error, cqType string, cqArgs map[string]string)) Co
 	return func(c *convertConfig) { c.onError = fn }
 }
 
+// WithResourceMode 设置资源解析模式。入站应使用 ResourceInbound。
+func WithResourceMode(mode ResourceMode) ConvertOption {
+	return func(c *convertConfig) { c.resourceMode = mode }
+}
+
 func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElement) {
 	cfg := &convertConfig{
 		// 默认使用全局logger，确保控制台+前端日志可见
-		logger: zap.S().Named("message"),
+		logger:       zap.S().Named("message"),
+		resourceMode: ResourceOutbound,
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -708,7 +829,12 @@ func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElemen
 	var arg, key string
 	dMap := map[string]string{}
 
-	text := ImageRewrite(raw, SealCodeToCqCode)
+	text := raw
+	if cfg.resourceMode != ResourceInbound {
+		// 海豹码是海豹自己的扩展，只在我们主动发送时翻译；
+		// 入站内容是用户/协议端数据，保持字面，避免触发本地文件访问。
+		text = ImageRewrite(raw, SealCodeToCqCode)
+	}
 
 	resourceName := func(cqType string) string {
 		switch cqType {
@@ -748,29 +874,29 @@ func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElemen
 	}
 
 	saveCQCode := func() {
-		elem, err := toElement(arg, dMap)
+		elem, err := toElement(arg, dMap, cfg.resourceMode)
 		if err != nil {
-			// 错误时跳过该CQ码，不原样发出，但记录日志
+			// 错误时不原样发出该 CQ 码，但保留占位文本，避免整段被静默丢弃。
 			var fe *CQFileError
 			if errors.As(err, &fe) {
 				switch fe.Kind {
 				case CQFileErrInvalidURL:
-					cfg.logger.Warnf("CQ码资源URL格式错误，已跳过: type=%s raw=%q err=%v", arg, fe.Raw, fe)
+					cfg.logger.Warnf("CQ码资源URL格式错误: type=%s raw=%q err=%v", arg, fe.Raw, fe)
 				case CQFileErrUnavailable:
 					if fe.StatusCode > 0 {
-						cfg.logger.Warnf("CQ码资源不可用(HTTP %d)，已跳过: type=%s raw=%q", fe.StatusCode, arg, fe.Raw)
+						cfg.logger.Warnf("CQ码资源不可用(HTTP %d): type=%s raw=%q", fe.StatusCode, arg, fe.Raw)
 					} else {
-						cfg.logger.Warnf("CQ码资源不可用，已跳过: type=%s raw=%q err=%v", arg, fe.Raw, fe.Cause)
+						cfg.logger.Warnf("CQ码资源不可用: type=%s raw=%q err=%v", arg, fe.Raw, fe.Cause)
 					}
 				case CQFileErrRestricted:
-					cfg.logger.Warnf("CQ码资源路径受限，已跳过: type=%s raw=%q", arg, fe.Raw)
+					cfg.logger.Warnf("CQ码资源路径受限: type=%s raw=%q", arg, fe.Raw)
 				case CQFileErrInvalidSize:
-					cfg.logger.Warnf("CQ码资源文件大小无效，已跳过: type=%s raw=%q", arg, fe.Raw)
+					cfg.logger.Warnf("CQ码资源文件大小无效: type=%s raw=%q", arg, fe.Raw)
 				default:
-					cfg.logger.Warnf("CQ码资源处理失败，已跳过: type=%s raw=%q err=%v", arg, fe.Raw, fe)
+					cfg.logger.Warnf("CQ码资源处理失败: type=%s raw=%q err=%v", arg, fe.Raw, fe)
 				}
 			} else {
-				cfg.logger.Warnf("转换CQ码失败，已跳过: type=%s args=%v err=%v", arg, dMap, err)
+				cfg.logger.Warnf("转换CQ码失败: type=%s args=%v err=%v", arg, dMap, err)
 			}
 			// 调用错误回调（如果设置了的话）
 			if cfg.onError != nil {
@@ -780,9 +906,6 @@ func ConvertStringMessage(raw string, opts ...ConvertOption) (r []IMessageElemen
 					argsCopy[k] = v
 				}
 				cfg.onError(err, arg, argsCopy)
-			}
-			if fe != nil {
-				return
 			}
 			r = append(r, newText(placeholderForError(err, arg, dMap)))
 			return
