@@ -88,6 +88,8 @@ func TestGetValueIncludesOfficialQQAndTrayTooltipFields(t *testing.T) {
 	svc, testDice := newTestBaseSettingService(t)
 	testDice.Config.OfficialQQFileSendBase64 = true
 	testDice.Config.OfficialQQUseMarkdown = true
+	testDice.Config.OfficialQQUseNameCard = true
+	testDice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>"
 
 	resp, err := svc.GetValue(t.Context(), &request.Empty{})
 	if err != nil {
@@ -110,6 +112,12 @@ func TestGetValueIncludesOfficialQQAndTrayTooltipFields(t *testing.T) {
 	if value, ok := got["officialQQUseMarkdown"].(bool); !ok || !value {
 		t.Fatalf("officialQQUseMarkdown = %#v, want true", got["officialQQUseMarkdown"])
 	}
+	if value, ok := got["officialQQUseNameCard"].(bool); !ok || !value {
+		t.Fatalf("officialQQUseNameCard = %#v, want true", got["officialQQUseNameCard"])
+	}
+	if value, ok := got["officialQQUseNameCardTemplate"].(string); !ok || value != "<b>{card}</b>" {
+		t.Fatalf("officialQQUseNameCardTemplate = %#v, want %q", got["officialQQUseNameCardTemplate"], "<b>{card}</b>")
+	}
 	if value, ok := got["trayTooltip"].(string); !ok || value != "" {
 		t.Fatalf("trayTooltip = %#v, want empty string", got["trayTooltip"])
 	}
@@ -125,6 +133,8 @@ func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
 		Body: BaseSettingPatch{
 			OfficialQQFileSendBase64: ptr(true),
 			OfficialQQUseMarkdown:    ptr(true),
+			OfficialQQUseNameCard:    ptr(true),
+			OfficialQQNameCardTmpl:   ptr("<i>{card}</i>"),
 			TrayTooltip:              ptr("海豹提示"),
 		},
 	}); err != nil {
@@ -151,8 +161,73 @@ func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
 	if value, ok := got["officialQQUseMarkdown"].(bool); !ok || !value {
 		t.Fatalf("officialQQUseMarkdown = %#v, want true", got["officialQQUseMarkdown"])
 	}
+	if value, ok := got["officialQQUseNameCard"].(bool); !ok || !value {
+		t.Fatalf("officialQQUseNameCard = %#v, want true", got["officialQQUseNameCard"])
+	}
+	if value, ok := got["officialQQUseNameCardTemplate"].(string); !ok || value != "<i>{card}</i>" {
+		t.Fatalf("officialQQUseNameCardTemplate = %#v, want %q", got["officialQQUseNameCardTemplate"], "<i>{card}</i>")
+	}
 	if value, ok := got["trayTooltip"].(string); !ok || value != "海豹提示" {
 		t.Fatalf("trayTooltip = %#v, want 海豹提示", got["trayTooltip"])
+	}
+}
+
+func TestOfficialQQNameCardRequiresMarkdown(t *testing.T) {
+	t.Run("rejects explicit enable without markdown", func(t *testing.T) {
+		svc, d := newTestBaseSettingService(t)
+		d.Config.OfficialQQUseMarkdown = false
+		d.Config.OfficialQQUseNameCard = false
+
+		rec := putSettings(t, svc, `{"officialQQUseMarkdown":false,"officialQQUseNameCard":true}`)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+		}
+		if d.Config.OfficialQQUseNameCard {
+			t.Fatal("name card should not be enabled without markdown")
+		}
+	})
+
+	t.Run("disabling markdown also disables name card", func(t *testing.T) {
+		svc, d := newTestBaseSettingService(t)
+		d.Config.OfficialQQUseMarkdown = true
+		d.Config.OfficialQQUseNameCard = true
+
+		rec := putSettings(t, svc, `{"officialQQUseMarkdown":false}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+		}
+		if d.Config.OfficialQQUseNameCard {
+			t.Fatal("name card should be disabled when markdown is disabled")
+		}
+	})
+
+	t.Run("accepts both enabled", func(t *testing.T) {
+		svc, d := newTestBaseSettingService(t)
+		d.Config.OfficialQQUseMarkdown = false
+		d.Config.OfficialQQUseNameCard = false
+
+		rec := putSettings(t, svc, `{"officialQQUseMarkdown":true,"officialQQUseNameCard":true}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+		}
+		if !d.Config.OfficialQQUseMarkdown || !d.Config.OfficialQQUseNameCard {
+			t.Fatalf("markdown=%t nameCard=%t, want both true",
+				d.Config.OfficialQQUseMarkdown, d.Config.OfficialQQUseNameCard)
+		}
+	})
+}
+
+func TestOfficialQQNameCardTemplateRejectsOverlongValue(t *testing.T) {
+	svc, d := newTestBaseSettingService(t)
+	d.Config.OfficialQQNameCardTmpl = "<b>{card}</b>"
+
+	rec := putSettings(t, svc, `{"officialQQUseNameCardTemplate":"`+
+		strings.Repeat("x", dice.MaxOfficialQQNameCardTemplateRunes+1)+`"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	if d.Config.OfficialQQNameCardTmpl != "<b>{card}</b>" {
+		t.Fatalf("template changed to %q", d.Config.OfficialQQNameCardTmpl)
 	}
 }
 

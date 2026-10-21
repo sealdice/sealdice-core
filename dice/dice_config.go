@@ -145,13 +145,15 @@ type BaseConfig struct {
 	MessageDelayRangeStart   float64    `json:"messageDelayRangeStart"  yaml:"messageDelayRangeStart"`  // 指令延迟区间
 	MessageDelayRangeEnd     float64    `json:"messageDelayRangeEnd"    yaml:"messageDelayRangeEnd"`
 	WorkInQQChannel          bool       `json:"workInQQChannel"         yaml:"workInQQChannel"`
-	QQChannelAutoOn          bool       `json:"QQChannelAutoOn"         yaml:"QQChannelAutoOn"`           // QQ频道中自动开启(默认不开)
-	QQChannelLogMessage      bool       `json:"QQChannelLogMessage"     yaml:"QQChannelLogMessage"`       // QQ频道中记录消息(默认不开)
-	QQEnablePoke             bool       `json:"QQEnablePoke"            yaml:"QQEnablePoke"`              // 启用戳一戳
-	OfficialQQFileSendBase64 bool       `json:"officialQQFileSendBase64" yaml:"officialQQFileSendBase64"` // 是否使用base64发送本地/非公网文件
-	OfficialQQUseMarkdown    bool       `json:"officialQQUseMarkdown"    yaml:"officialQQUseMarkdown"`    // 是否自动把消息全转为markdown类型消息
-	TextCmdTrustOnly         bool       `json:"textCmdTrustOnly"        yaml:"textCmdTrustOnly"`          // 只允许信任用户或master使用text指令
-	IgnoreUnaddressedBotCmd  bool       `json:"ignoreUnaddressedBotCmd" yaml:"ignoreUnaddressedBotCmd"`   // 不响应群聊裸bot指令
+	QQChannelAutoOn          bool       `json:"QQChannelAutoOn"         yaml:"QQChannelAutoOn"`                     // QQ频道中自动开启(默认不开)
+	QQChannelLogMessage      bool       `json:"QQChannelLogMessage"     yaml:"QQChannelLogMessage"`                 // QQ频道中记录消息(默认不开)
+	QQEnablePoke             bool       `json:"QQEnablePoke"            yaml:"QQEnablePoke"`                        // 启用戳一戳
+	OfficialQQFileSendBase64 bool       `json:"officialQQFileSendBase64" yaml:"officialQQFileSendBase64"`           // 是否使用base64发送本地/非公网文件
+	OfficialQQUseMarkdown    bool       `json:"officialQQUseMarkdown"    yaml:"officialQQUseMarkdown"`              // 是否自动把消息全转为markdown类型消息
+	OfficialQQUseNameCard    bool       `json:"officialQQUseNameCard"    yaml:"officialQQUseNameCard"`              // 是否在官方QQ回复顶部显示玩家.sn名片，需要同时启用Markdown
+	OfficialQQNameCardTmpl   string     `json:"officialQQUseNameCardTemplate" yaml:"officialQQUseNameCardTemplate"` // 名片渲染模板，{card} 为名片内容占位符
+	TextCmdTrustOnly         bool       `json:"textCmdTrustOnly"        yaml:"textCmdTrustOnly"`                    // 只允许信任用户或master使用text指令
+	IgnoreUnaddressedBotCmd  bool       `json:"ignoreUnaddressedBotCmd" yaml:"ignoreUnaddressedBotCmd"`             // 不响应群聊裸bot指令
 	UILogLimit               int64      `json:"-"                       yaml:"UILogLimit"`
 	FriendAddComment         string     `json:"friendAddComment"        yaml:"friendAddComment"` // 加好友验证信息
 	CustomReplyConfigEnable  bool       `json:"customReplyConfigEnable" yaml:"customReplyConfigEnable"`

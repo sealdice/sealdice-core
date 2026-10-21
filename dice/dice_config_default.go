@@ -26,6 +26,7 @@ var DefaultConfig = Config{
 		QQEnablePoke:             true,
 		OfficialQQFileSendBase64: false,
 		OfficialQQUseMarkdown:    false,
+		OfficialQQNameCardTmpl:   DefaultOfficialQQNameCardTemplate,
 		TextCmdTrustOnly:         true,
 		IgnoreUnaddressedBotCmd:  false,
 		UILogLimit:               0,

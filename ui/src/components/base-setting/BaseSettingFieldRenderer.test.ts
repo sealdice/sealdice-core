@@ -48,6 +48,56 @@ it('清空区间终点会同步修正起点，保证保存的区间仍然有效'
   ]);
 });
 
+it('依赖开关关闭时禁用目标开关并显示提示', () => {
+  const field = renderField(
+    {
+      kind: 'boolean',
+      key: 'officialQQUseNameCard',
+      disabledWhen: { key: 'officialQQUseMarkdown', equals: false },
+      disabledHint: '请先启用 Markdown。',
+    },
+    { officialQQUseMarkdown: false, officialQQUseNameCard: false }
+  );
+
+  expect(field.getComponent(NSwitch).props('disabled')).toBe(true);
+  expect(field.text()).toContain('请先启用 Markdown。');
+});
+
+it('依赖开关开启时目标开关可用', () => {
+  const field = renderField(
+    {
+      kind: 'boolean',
+      key: 'officialQQUseNameCard',
+      disabledWhen: { key: 'officialQQUseMarkdown', equals: false },
+      disabledHint: '请先启用 Markdown。',
+    },
+    { officialQQUseMarkdown: true, officialQQUseNameCard: false }
+  );
+
+  expect(field.getComponent(NSwitch).props('disabled')).toBe(false);
+});
+
+it('名片渲染模板支持实时预览', () => {
+  const field = renderField(
+    {
+      kind: 'text',
+      key: 'officialQQUseNameCardTemplate',
+      previewSample: '木落 HP10/10',
+      previewFallback: '<font color="#FF0000" size="1">{card}</font>',
+    },
+    {
+      officialQQUseNameCardTemplate: '<font color="#FF0000" size="1">{card}</font>',
+    }
+  );
+
+  const preview = field.find('.name-card-template-preview');
+  expect(preview.exists()).toBe(true);
+  expect(preview.text()).toContain('木落 HP10/10');
+  const value = preview.find('.name-card-template-preview-value');
+  expect(value.attributes('style')).toContain('color: #FF0000');
+  expect(value.attributes('style')).toContain('font-size: x-small');
+});
+
 it('关闭需确认的开关时，只有用户确认后才修改草稿', async () => {
   const field = renderField(
     { kind: 'boolean', key: 'logSizeNoticeEnable', confirmMessage: '确认关闭日志提示？' },
