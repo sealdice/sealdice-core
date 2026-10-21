@@ -72,6 +72,11 @@ func (d DummyLogger) Warn(v ...interface{}) {
 }
 
 func (d DummyLogger) Error(v ...interface{}) {
+	msg := fmt.Sprint(v...)
+	if isOfficialQQReconnectMessage(msg) {
+		d.logger.Warn("official qq sdk: " + friendlyOfficialQQReconnectMessage(msg))
+		return
+	}
 	d.logger.Error(output(v...))
 }
 
@@ -88,11 +93,42 @@ func (d DummyLogger) Infof(format string, v ...interface{}) {
 }
 
 func (d DummyLogger) Warnf(format string, v ...interface{}) {
-	d.logger.Warn(output(fmt.Sprintf(format, v...)))
+	msg := fmt.Sprintf(format, v...)
+	if isOfficialQQReconnectMessage(msg) {
+		d.logger.Warn("official qq sdk: " + friendlyOfficialQQReconnectMessage(msg))
+		return
+	}
+	d.logger.Warn(output(msg))
 }
 
 func (d DummyLogger) Errorf(format string, v ...interface{}) {
-	d.logger.Error(output(fmt.Sprintf(format, v...)))
+	msg := fmt.Sprintf(format, v...)
+	if isOfficialQQReconnectMessage(msg) {
+		d.logger.Warn("official qq sdk: " + friendlyOfficialQQReconnectMessage(msg))
+		return
+	}
+	d.logger.Error(output(msg))
+}
+
+// QQ 官方网关约每小时会通过 op=7 要求连接续期，旧 session 随后可能返回
+// op=9 invalid session。这是正常的轮换流程，不应按 Error 报警。
+func isOfficialQQReconnectMessage(msg string) bool {
+	for _, token := range []string{
+		"code:9000", "need reconnect", "code:9005", "invalid session",
+		"4009", "Session timed out",
+	} {
+		if strings.Contains(msg, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func friendlyOfficialQQReconnectMessage(msg string) string {
+	if strings.Contains(msg, "正常续期") {
+		return strings.TrimSpace(msg)
+	}
+	return "QQ 官方要求 WebSocket 重连（正常续期），海豹会自动恢复。详情: " + strings.TrimSpace(msg)
 }
 
 func (d DummyLogger) Sync() error {

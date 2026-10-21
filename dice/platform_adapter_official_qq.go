@@ -563,6 +563,8 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 		intent |= dto.IntentGroupMembers
 	}
 
+	log.Info("official qq WebSocket 正在建立；QQ 官方可能约每小时要求一次连接续期，自动重连属于正常现象")
+
 	go func() {
 		currentCtx := ctx
 		defer func() {
@@ -595,7 +597,7 @@ func (pa *PlatformAdapterOfficialQQ) connect(probe *OfficialQQAccountProbeResult
 	pa.clearQrLoginState()
 	d.LastUpdatedTime = time.Now().Unix()
 	d.Save(false)
-	log.Info("official qq 连接成功")
+	log.Info("official qq 连接成功（WebSocket）；QQ 官方续期重连会自动恢复，不需要手动重启")
 	return 0
 }
 
