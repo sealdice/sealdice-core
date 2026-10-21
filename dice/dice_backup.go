@@ -83,7 +83,11 @@ const (
 
 func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error) {
 	_ = os.MkdirAll(BackupDir, 0o755)
-	logger := dm.Dice[0].Logger
+	currentDice := dm.GetDice()
+	if currentDice == nil {
+		return "", errors.New("Dice实例不存在")
+	}
+	logger := currentDice.Logger
 
 	cfgGlb := backupConfigGlobal{
 		Global: true,
@@ -105,10 +109,10 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	fnHashed := crypto.CalculateSHA512Str([]byte(bakFn))[:8]
 	bakFn += "_" + fnHashed + ".zip"
 
-	fzip, err := os.OpenFile(filepath.Join(BackupDir, bakFn),
+	fzip, openErr := os.OpenFile(filepath.Join(BackupDir, bakFn),
 		os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o644)
-	if err != nil {
-		return "", err
+	if openErr != nil {
+		return "", openErr
 	}
 	defer func() { _ = fzip.Close() }()
 
@@ -126,6 +130,13 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 		return err == nil && stat.IsDir()
 	}
 
+	var firstBackupErr error
+	recordBackupErr := func(err error) {
+		if firstBackupErr == nil && err != nil {
+			firstBackupErr = err
+		}
+	}
+
 	backup := func(d *Dice, fn string) {
 		file, err := os.Open(fn)
 		if err != nil && !strings.Contains(fn, "session.token") {
@@ -134,6 +145,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			} else {
 				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
+			recordBackupErr(err)
 			return
 		}
 		defer file.Close()
@@ -146,6 +158,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			} else {
 				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
+			recordBackupErr(err)
 			return
 		}
 
@@ -156,6 +169,7 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			} else {
 				logger.Errorf("备份文件失败: %s, 原因: %s", fn, err.Error())
 			}
+			recordBackupErr(err)
 		}
 	}
 
@@ -225,116 +239,131 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 	withJS := sel&BackupSelectionJS != 0
 	cfgDice.JSScripts = withJS
 
-	for _, d := range dm.Dice {
-		cfgGlb.Dices[d.BaseConfig.Name] = &cfgDice
-		dataDir := d.BaseConfig.DataDir
+	d := currentDice
+	cfgGlb.Dices[d.BaseConfig.Name] = &cfgDice
+	dataDir := d.BaseConfig.DataDir
 
-		backup(d, filepath.Join(dataDir, "serve.yaml"))
-		if fn := filepath.Join(dataDir, "advanced.yaml"); fileOK(fn) {
-			backup(d, fn)
+	backup(d, filepath.Join(dataDir, "serve.yaml"))
+	if fn := filepath.Join(dataDir, "advanced.yaml"); fileOK(fn) {
+		backup(d, fn)
+	}
+	if fn := filepath.Join(dataDir, "configs", "plugin-configs.json"); fileOK(fn) {
+		backup(d, fn)
+	}
+
+	flushErr := service.FlushWAL(d.DBOperator.GetDataDB(constant.WRITE))
+	if flushErr != nil {
+		d.Logger.Errorf("备份时data数据库flush出错 错误为:%v", flushErr.Error())
+	} else {
+		backup(d, filepath.Join(dataDir, "data.db"))
+	}
+	flushErr = service.FlushWAL(d.DBOperator.GetLogDB(constant.WRITE))
+	if flushErr != nil {
+		d.Logger.Errorf("备份时logs数据库flush出错 错误为:%v", flushErr.Error())
+	} else {
+		backup(d, filepath.Join(dataDir, "data-logs.db"))
+	}
+	if d.CensorManager != nil && d.CensorManager.DB != nil {
+		flushErr = service.FlushWAL(d.DBOperator.GetCensorDB(constant.WRITE))
+		if flushErr != nil {
+			d.Logger.Errorf("备份时censor数据库flush出错 %v", flushErr.Error())
+		} else {
+			backup(d, filepath.Join(dataDir, "data-censor.db"))
 		}
-		if fn := filepath.Join(dataDir, "configs", "plugin-configs.json"); fileOK(fn) {
-			backup(d, fn)
+	}
+
+	backup(d, filepath.Join(dataDir, "configs/text-template.yaml"))
+
+	_ = filepath.WalkDir(filepath.Join(dataDir, "extensions/reply"), func(path string, info fs.DirEntry, _ error) error {
+		// NOTE(Xiangze Li): copied from dice.ReplyReload. Should extract as function, but I'm lazy
+		if info.IsDir() {
+			if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if strings.HasPrefix(info.Name(), ".reply") || info.Name() == "info.yaml" {
+			return nil
 		}
 
-		err := service.FlushWAL(d.DBOperator.GetDataDB(constant.WRITE))
-		if err != nil {
-			d.Logger.Errorf("备份时data数据库flush出错 错误为:%v", err.Error())
-		} else {
-			backup(d, filepath.Join(dataDir, "data.db"))
+		ext := filepath.Ext(path)
+		if ext == ".yaml" || ext == "" {
+			backup(d, path)
 		}
-		err = service.FlushWAL(d.DBOperator.GetLogDB(constant.WRITE))
-		if err != nil {
-			d.Logger.Errorf("备份时logs数据库flush出错 错误为:%v", err.Error())
-		} else {
-			backup(d, filepath.Join(dataDir, "data-logs.db"))
-		}
-		if d.CensorManager != nil && d.CensorManager.DB != nil {
-			err = service.FlushWAL(d.DBOperator.GetCensorDB(constant.WRITE))
-			if err != nil {
-				d.Logger.Errorf("备份时censor数据库flush出错 %v", err.Error())
-			} else {
-				backup(d, filepath.Join(dataDir, "data-censor.db"))
+		return nil
+	})
+
+	for _, i := range d.ImSession.EndPoints {
+		if i.Platform == "QQ" {
+			if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
+				workDir := i.RelWorkDir
+				if pa.BuiltinMode == "lagrange" {
+					backup(d, filepath.Join(dataDir, workDir, "appsettings.json"))
+					backup(d, filepath.Join(dataDir, workDir, "device.json"))
+					backup(d, filepath.Join(dataDir, workDir, "keystore.json"))
+				} else {
+					backup(d, filepath.Join(dataDir, workDir, "config.yml"))
+					backup(d, filepath.Join(dataDir, workDir, "device.json"))
+					backup(d, filepath.Join(dataDir, workDir, "session.token"))
+				}
 			}
 		}
+	}
 
-		backup(d, filepath.Join(dataDir, "configs/text-template.yaml"))
-
-		_ = filepath.WalkDir(filepath.Join(dataDir, "extensions/reply"), func(path string, info fs.DirEntry, _ error) error {
-			// NOTE(Xiangze Li): copied from dice.ReplyReload. Should extract as function, but I'm lazy
+	if withJS {
+		_ = filepath.WalkDir(filepath.Join(dataDir, "scripts"), func(path string, info fs.DirEntry, _ error) error {
 			if info.IsDir() {
-				if strings.EqualFold(info.Name(), "assets") || strings.EqualFold(info.Name(), "images") {
-					return fs.SkipDir
+				if info.Name() == "_builtin" {
+					return filepath.SkipDir
 				}
 				return nil
 			}
-			if strings.HasPrefix(info.Name(), ".reply") || info.Name() == "info.yaml" {
-				return nil
-			}
-
-			ext := filepath.Ext(path)
-			if ext == ".yaml" || ext == "" {
+			if filepath.Ext(info.Name()) == ".js" {
 				backup(d, path)
 			}
 			return nil
 		})
-
-		for _, i := range d.ImSession.EndPoints {
-			if i.Platform == "QQ" {
-				if pa, ok := i.Adapter.(*PlatformAdapterGocq); ok && pa.UseInPackClient {
-					workDir := i.RelWorkDir
-					if pa.BuiltinMode == "lagrange" {
-						backup(d, filepath.Join(dataDir, workDir, "appsettings.json"))
-						backup(d, filepath.Join(dataDir, workDir, "device.json"))
-						backup(d, filepath.Join(dataDir, workDir, "keystore.json"))
-					} else {
-						backup(d, filepath.Join(dataDir, workDir, "config.yml"))
-						backup(d, filepath.Join(dataDir, workDir, "device.json"))
-						backup(d, filepath.Join(dataDir, workDir, "session.token"))
-					}
-				}
-			}
-		}
-
-		if withJS {
-			_ = filepath.WalkDir(filepath.Join(dataDir, "scripts"), func(path string, info fs.DirEntry, _ error) error {
-				if info.IsDir() {
-					if info.Name() == "_builtin" {
+		extDataDir := filepath.Join(dataDir, "extensions")
+		_ = filepath.WalkDir(extDataDir, func(path string, info fs.DirEntry, err error) error {
+			if info.IsDir() {
+				if filepath.Dir(path) == extDataDir {
+					if ext := d.ExtFind(info.Name(), false); ext == nil || !ext.IsJsExt {
 						return filepath.SkipDir
 					}
-					return nil
-				}
-				if filepath.Ext(info.Name()) == ".js" {
-					backup(d, path)
 				}
 				return nil
-			})
-			extDataDir := filepath.Join(dataDir, "extensions")
-			_ = filepath.WalkDir(extDataDir, func(path string, info fs.DirEntry, err error) error {
-				if info.IsDir() {
-					if filepath.Dir(path) == extDataDir {
-						if ext := d.ExtFind(info.Name(), false); ext == nil || !ext.IsJsExt {
-							return filepath.SkipDir
-						}
-					}
-					return nil
-				}
-				backup(d, path)
-				return nil
-			})
-		}
+			}
+			backup(d, path)
+			return nil
+		})
 	}
 
 	// 写入文件信息
-	data, _ := json.Marshal(map[string]interface{}{
+	data, err := json.Marshal(map[string]interface{}{
 		"config":      cfgGlb,
 		"version":     VERSION.String(),
 		"versionCode": VERSION_CODE,
 	})
+	if err != nil {
+		recordBackupErr(err)
+	} else {
+		h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
+		fileWriter, createErr := writer.CreateHeader(h)
+		if createErr != nil {
+			recordBackupErr(createErr)
+		} else if _, writeErr := fileWriter.Write(data); writeErr != nil {
+			recordBackupErr(writeErr)
+		}
+	}
 
-	h := &zip.FileHeader{Name: "backup_info.json", Method: zip.Deflate, Flags: 0x800}
-	fileWriter, _ := writer.CreateHeader(h)
-	_, _ = fileWriter.Write(data)
+	if closeErr := writer.Close(); closeErr != nil {
+		recordBackupErr(closeErr)
+	}
+	if firstBackupErr != nil {
+		_ = fzip.Close()
+		_ = os.Remove(fzip.Name())
+		return "", firstBackupErr
+	}
 
 	return fzip.Name(), nil
 }

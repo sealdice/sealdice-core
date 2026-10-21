@@ -36,6 +36,11 @@ func managementAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func isManagementAPIPath(path string) bool {
+	// v2 管理接口由 huma 层中间件按分组鉴权（/sd-api/v2/base 等分组包含公开端点），
+	// 此处不拦截，交由 v2 自行处理，避免全局中间件破坏其公开端点。
+	if path == "/sd-api/v2" || strings.HasPrefix(path, "/sd-api/v2/") {
+		return false
+	}
 	return path == "/sd-api" || strings.HasPrefix(path, "/sd-api/") ||
 		path == "/dice/api/store" || strings.HasPrefix(path, "/dice/api/store/")
 }

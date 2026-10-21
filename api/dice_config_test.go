@@ -28,7 +28,7 @@ func TestDiceConfigSetAcceptsCRNGRandomMode(t *testing.T) {
 		Logger:     zap.NewNop().Sugar(),
 	}
 	manager := &dice.DiceManager{
-		Dice:        []*dice.Dice{testDice},
+		Dice:        testDice,
 		JustForTest: true,
 	}
 	token := "test-token"
@@ -51,5 +51,20 @@ func TestDiceConfigSetAcceptsCRNGRandomMode(t *testing.T) {
 	}
 	if got := testDice.Config.DiceRandomMode; got != string(dice.DiceRandomModeCRNG) {
 		t.Fatalf("DiceRandomMode = %q, want %q", got, dice.DiceRandomModeCRNG)
+	}
+
+	// GM 未启用时旧版端点必须拒绝，避免保存 gm 后运行时静默回退。
+	gmReq := httptest.NewRequest(http.MethodPost, "/sd-api/configs/dice", strings.NewReader(`{"diceRandomMode":"gm"}`))
+	gmReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	gmReq.Header.Set("Token", token)
+	gmRec := httptest.NewRecorder()
+	if err := DiceConfigSet(e.NewContext(gmReq, gmRec)); err != nil {
+		t.Fatalf("DiceConfigSet(gm) error = %v", err)
+	}
+	if gmRec.Code != http.StatusBadRequest {
+		t.Fatalf("gm status = %d, body = %s", gmRec.Code, gmRec.Body.String())
+	}
+	if got := testDice.Config.DiceRandomMode; got == string(dice.DiceRandomModeGM) {
+		t.Fatal("legacy endpoint saved gm while GM source is disabled")
 	}
 }

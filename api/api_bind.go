@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humaecho"
 	"github.com/labstack/echo/v4"
 	"github.com/monaco-io/request"
 	"github.com/robfig/cron/v3"
@@ -148,7 +146,7 @@ func forceStop(c echo.Context) error {
 		log.Errorf("异常: %v\n堆栈: %v", err, string(debug.Stack()))
 		diceManager := dm
 
-		for _, i := range diceManager.Dice {
+		if i := diceManager.GetDice(); i != nil {
 			if i.IsAlreadyLoadConfig {
 				i.Config.BanList.SaveChanged(i)
 				err = i.AttrsManager.CheckForSave()
@@ -168,13 +166,13 @@ func forceStop(c echo.Context) error {
 			}
 		}
 
-		for _, i := range diceManager.Dice {
-			d := i
+		if d := diceManager.GetDice(); d != nil {
+			d.CloseDecks()
 			d.DBOperator.Close()
 		}
 
 		// 清理gocqhttp
-		for _, i := range diceManager.Dice {
+		if i := diceManager.GetDice(); i != nil {
 			if i.ImSession != nil && i.ImSession.EndPoints != nil {
 				for _, j := range i.ImSession.EndPoints {
 					dice.BuiltinQQServeProcessKill(i, j)
@@ -559,21 +557,23 @@ func checkCronExpr(c echo.Context) error {
 }
 
 func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
+	BindV1(e, _myDice)
+}
+
+func BindV1(e *echo.Echo, _myDice *dice.DiceManager) {
 	dm = _myDice
-	myDice = _myDice.Dice[0]
+	myDice = _myDice.GetDice()
 
 	prefix := "/sd-api"
 
 	// Protect all management routes before handlers can bind input or perform
 	// side effects; individual handler checks remain as defense in depth.
+	// 注意：/sd-api/v2 由 huma 层中间件自行鉴权（含公开端点），该中间件已排除 v2。
 	e.Use(managementAuthMiddleware)
 
-	// 挂载 humaecho 到 echo 实例
-	_ = humaecho.New(e, huma.DefaultConfig("Sealdiciapi", "1.0.0"))
-
 	e.GET(prefix+"/preInfo", preInfo)
-	e.GET(prefix+"/baseInfo", baseInfo)
-	e.GET(prefix+"/hello", hello2)
+	e.GET(prefix+"/baseInfo", baseInfo) // 已完成
+	e.GET(prefix+"/hello", hello2)      // 已完成
 	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
 	e.GET(prefix+"/im_connections/list", ImConnections)
 	e.GET(prefix+"/im_connections/get", ImConnectionsGet)
@@ -609,10 +609,10 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/im_connections/del", ImConnectionsDel)
 	e.POST(prefix+"/im_connections/set_enable", ImConnectionsSetEnable)
 	e.POST(prefix+"/im_connections/set_data", ImConnectionsSetData)
-	e.GET(prefix+"/im_connections/get_lgr_signinfo", ImConnectionsGetSignInfo)
-	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)
-	e.POST(prefix+"/im_connections/walleQRelogin", ImConnectionsWalleQRelogin)
-	e.GET(prefix+"/im_connections/gocq_config_download.zip", ImConnectionsGocqConfigDownload)
+	e.GET(prefix+"/im_connections/get_lgr_signinfo", ImConnectionsGetSignInfo)                // 理应废弃
+	e.POST(prefix+"/im_connections/gocqhttpRelogin", ImConnectionsGocqhttpRelogin)            // 理应废弃
+	e.POST(prefix+"/im_connections/walleQRelogin", ImConnectionsWalleQRelogin)                // 理应废弃
+	e.GET(prefix+"/im_connections/gocq_config_download.zip", ImConnectionsGocqConfigDownload) // 理应废弃
 
 	e.GET(prefix+"/configs/customText", customText)
 	e.POST(prefix+"/configs/customText/save", customTextSave)
@@ -644,9 +644,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 
 	e.POST(prefix+"/dice/config/vm-version-set", vmVersionSet)
 
-	e.POST(prefix+"/signin", doSignIn)
-	e.GET(prefix+"/signin/salt", doSignInGetSalt)
-	e.GET(prefix+"/checkSecurity", checkSecurity)
+	e.POST(prefix+"/signin", doSignIn)            // 已完成
+	e.GET(prefix+"/signin/salt", doSignInGetSalt) // 废弃了
+	e.GET(prefix+"/checkSecurity", checkSecurity) // 已完成
 
 	e.GET(prefix+"/backup/list", backupGetList)
 	e.POST(prefix+"/backup/do_backup", backupExec)
@@ -656,9 +656,9 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/backup/delete", backupDelete)
 	e.POST(prefix+"/backup/batch_delete", backupBatchDelete)
 
-	e.GET(prefix+"/group/list", groupList)
-	e.POST(prefix+"/group/set_one", groupSetOne)
-	e.POST(prefix+"/group/quit_one", groupQuit)
+	e.GET(prefix+"/group/list", groupList)       // 已完成
+	e.POST(prefix+"/group/set_one", groupSetOne) // 已完成
+	e.POST(prefix+"/group/quit_one", groupQuit)  // 已完成
 
 	e.GET(prefix+"/banconfig/list", banMapList)
 	e.GET(prefix+"/banconfig/get", banConfigGet)
@@ -763,6 +763,7 @@ func Bind(e *echo.Echo, _myDice *dice.DiceManager) {
 	e.POST(prefix+"/store/package-info-list", storePackageInfoList)
 	e.POST(prefix+"/store/install-list", storeInstallList)
 	e.POST(prefix+"/store/rating", storeRating)
+	e.GET(prefix+"/log/fetchAndClear", logFetchAndClear)
 
 	// 扩展包管理
 	e.GET(prefix+"/package/list", packageList)

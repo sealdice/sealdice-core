@@ -17,6 +17,9 @@ import (
 	"sealdice-core/utils/dboperator/engine"
 )
 
+// MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
+const MaxTrayTooltipPrefixLength = 10
+
 type VersionInfo struct {
 	VersionLatest           string `json:"versionLatest"           yaml:"versionLatest"`
 	VersionLatestDetail     string `json:"versionLatestDetail"     yaml:"versionLatestDetail"`
@@ -27,17 +30,13 @@ type VersionInfo struct {
 	UpdaterURLPrefix        string `json:"updaterUrlPrefix"        yaml:"updaterUrlPrefix"`
 }
 
-// MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
-const MaxTrayTooltipPrefixLength = 10
-
 type GroupNameCacheItem struct {
 	Name string
 	time int64
 }
 
 type DiceManager struct { //nolint:revive
-	Dice                 []*Dice
-	diceLock             sync.RWMutex
+	Dice                 *Dice
 	Operator             engine.DatabaseOperator
 	ServeAddress         string
 	trayTooltip          string
@@ -78,7 +77,7 @@ type DiceManager struct { //nolint:revive
 	AppVersionCode   int64
 	AppVersionOnline *VersionInfo
 
-	UpdateRequestChan      chan *Dice
+	UpdateRequestChan      chan struct{}
 	UpdateDownloadedChan   chan string
 	RebootRequestChan      chan int
 	UpdateCheckRequestChan chan int
@@ -125,6 +124,10 @@ type Configs struct { //nolint:revive
 	ConfigVersion int `yaml:"configVersion"`
 }
 
+func (dm *DiceManager) GetDice() *Dice {
+	return dm.Dice
+}
+
 func (dm *DiceManager) InitHelp() {
 	_ = dm.reloadHelp(false)
 }
@@ -146,7 +149,8 @@ func (dm *DiceManager) reloadHelp(closeCurrent bool) error {
 	if closeCurrent && dm.Help != nil {
 		dm.Help.Close()
 	}
-	if len(dm.Dice) == 0 {
+	currentDice := dm.GetDice()
+	if currentDice == nil {
 		err := errors.New("Dice实例不存在")
 		log.Error(err)
 		return err
@@ -156,7 +160,7 @@ func (dm *DiceManager) reloadHelp(closeCurrent bool) error {
 	if nextHelp == nil || closeCurrent {
 		nextHelp = &HelpManager{EngineType: EngineType(dm.HelpDocEngineType)}
 	}
-	nextHelp.Load(dm.Dice[0], dm.Dice[0].CmdMap, dm.Dice[0].ExtList)
+	nextHelp.Load(currentDice, currentDice.CmdMap, currentDice.ExtList)
 	if !nextHelp.IsAvailable() {
 		err := errors.New("帮助文档搜索引擎不可用")
 		log.Error(err)
@@ -236,11 +240,14 @@ func (dm *DiceManager) LoadDice() {
 		dm.AccessTokens.Store(i, true)
 	}
 
-	for _, i := range dc.DiceConfigs {
+	if len(dc.DiceConfigs) > 0 {
+		if len(dc.DiceConfigs) > 1 {
+			log.Warnf("检测到 %d 个 diceConfigs 条目，运行时仅支持单实例，将只加载第一项 %q", len(dc.DiceConfigs), dc.DiceConfigs[0].Name)
+		}
 		newDice := new(Dice)
-		newDice.BaseConfig = i
+		newDice.BaseConfig = dc.DiceConfigs[0]
 		newDice.ContainerMode = dm.ContainerMode
-		dm.appendDice(newDice)
+		dm.Dice = newDice
 	}
 }
 
@@ -268,8 +275,8 @@ func (dm *DiceManager) Save() {
 		return true
 	})
 
-	for _, i := range dm.Dice {
-		dc.DiceConfigs = append(dc.DiceConfigs, i.BaseConfig)
+	if currentDice := dm.GetDice(); currentDice != nil {
+		dc.DiceConfigs = append(dc.DiceConfigs, currentDice.BaseConfig)
 	}
 
 	data, err := yaml.Marshal(dc) //nolint:gosec
@@ -300,22 +307,9 @@ func (dm *DiceManager) SetTrayTooltip(tooltip string) {
 	dm.trayTooltip = NormalizeTrayTooltipPrefix(tooltip)
 }
 
-// DiceSnapshot 返回当前 Dice 实例切片的副本。
-func (dm *DiceManager) DiceSnapshot() []*Dice {
-	dm.diceLock.RLock()
-	defer dm.diceLock.RUnlock()
-	return append([]*Dice(nil), dm.Dice...)
-}
-
-func (dm *DiceManager) appendDice(instance *Dice) {
-	dm.diceLock.Lock()
-	defer dm.diceLock.Unlock()
-	dm.Dice = append(dm.Dice, instance)
-}
-
 func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 	log := logger.M()
-	dm.UpdateRequestChan = make(chan *Dice, 1)
+	dm.UpdateRequestChan = make(chan struct{}, 1)
 	dm.RebootRequestChan = make(chan int, 1)
 	dm.UpdateCheckRequestChan = make(chan int, 1)
 	dm.UpdateDownloadedChan = make(chan string, 1)
@@ -329,9 +323,9 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 		dm.progressExitGroupWin = g
 	}
 
-	for _, i := range dm.Dice {
-		i.Parent = dm
-		i.Init(dm.Operator, writer)
+	if currentDice := dm.GetDice(); currentDice != nil {
+		currentDice.Parent = dm
+		currentDice.Init(dm.Operator, writer)
 	}
 
 	go func() {
@@ -424,16 +418,14 @@ func (dm *DiceManager) TryCreateDefault() {
 		dm.ServeAddress = "0.0.0.0:3211"
 	}
 
-	dm.diceLock.Lock()
-	defer dm.diceLock.Unlock()
-	if len(dm.Dice) == 0 {
+	if dm.GetDice() == nil {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"
 		defaultDice.Config.MessageDelayRangeStart = DefaultConfig.MessageDelayRangeStart
 		defaultDice.Config.MessageDelayRangeEnd = DefaultConfig.MessageDelayRangeEnd
 		defaultDice.MarkModified()
 		defaultDice.ContainerMode = dm.ContainerMode
-		dm.Dice = append(dm.Dice, defaultDice)
+		dm.Dice = defaultDice
 	}
 }
 

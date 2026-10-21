@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -13,95 +14,35 @@ import (
 	"sealdice-core/dice"
 )
 
-const customReplyPackageWarning = "此文件来自扩展包运行时缓存，重装、刷新缓存或升级扩展包时可能被覆盖"
+const customReplyPackageWarning = dice.ReplyPackageWarning
 
 type customReplySaveResponse struct {
 	Success bool   `json:"success"`
 	Warning string `json:"warning,omitempty"`
 }
 
-func normalizeCustomReplyVMVersion(version string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(version)) {
-	case "", dice.ReplyVMVersionV1:
-		return "", true
-	case dice.ReplyVMVersionV2:
-		return dice.ReplyVMVersionV2, true
-	default:
-		return "", false
-	}
-}
-
-func existingCustomReplyVMVersion(packageID, filename string) string {
-	for _, item := range myDice.CustomReplyConfig {
-		if item == nil {
-			continue
-		}
-		if strings.EqualFold(item.PackageID, packageID) && strings.EqualFold(item.Filename, filename) {
-			return item.VMVersion
-		}
-	}
-	return ""
-}
-
 func customReplySave(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
 	}
-
-	vReq := struct {
+	req := struct {
 		dice.ReplyConfig
 		VMVersion *string `json:"vmVersion"`
 	}{}
-	err := c.Bind(&vReq)
-	if err != nil {
+	if err := c.Bind(&req); err != nil {
 		return c.String(430, err.Error())
 	}
-	v := vReq.ReplyConfig
-	if vReq.VMVersion == nil {
-		v.VMVersion = existingCustomReplyVMVersion(v.PackageID, v.Filename)
-	} else {
-		vmVersion, validVMVersion := normalizeCustomReplyVMVersion(*vReq.VMVersion)
-		if !validVMVersion {
-			return c.String(http.StatusBadRequest, "不支持的自定义回复 VM 版本")
+	if err := myDice.SaveReplyConfig(&req.ReplyConfig, req.VMVersion); err != nil {
+		if errors.Is(err, dice.ErrInvalidConfig) {
+			return c.String(http.StatusBadRequest, err.Error())
 		}
-		v.VMVersion = vmVersion
+		if errors.Is(err, dice.ErrReplyPackageNotFound) {
+			return c.JSON(http.StatusNotFound, map[string]interface{}{"success": false, "message": err.Error()})
+		}
+		myDice.Logger.Errorf("保存自定义回复文件失败: %v", err)
+		return c.String(http.StatusInternalServerError, "保存自定义回复文件失败")
 	}
-
-	v.Clean()
-	if v.PackageID != "" {
-		replyFile, ok := findCustomReplyPackageFile(v.PackageID, v.Filename)
-		if !ok {
-			return c.JSON(http.StatusNotFound, map[string]interface{}{
-				"success": false,
-				"message": "扩展包自定义回复不存在",
-			})
-		}
-		v.Filename = filepath.Base(replyFile.Path)
-		v.CacheBacked = true
-		v.Warning = customReplyPackageWarning
-		if err := v.SaveToPath(replyFile.Path); err != nil {
-			return c.String(http.StatusInternalServerError, err.Error())
-		}
-		upsertCustomReplyConfig(v)
-		return c.JSON(http.StatusOK, customReplySaveResponse{
-			Success: true,
-			Warning: customReplyPackageWarning,
-		})
-	}
-
-	for index, i := range myDice.CustomReplyConfig {
-		if i != nil && i.PackageID == "" && strings.EqualFold(i.Filename, v.Filename) {
-			myDice.CustomReplyConfig[index].Enable = v.Enable
-			myDice.CustomReplyConfig[index].VMVersion = v.VMVersion
-			myDice.CustomReplyConfig[index].Conditions = v.Conditions
-			myDice.CustomReplyConfig[index].Items = v.Items
-			myDice.CustomReplyConfig[index].Warning = ""
-			myDice.CustomReplyConfig[index].CacheBacked = false
-			break
-		}
-	}
-	v.Save(myDice)
-	return c.JSON(http.StatusOK, customReplySaveResponse{Success: true})
+	return c.JSON(http.StatusOK, customReplySaveResponse{Success: true, Warning: req.Warning})
 }
 
 func customReplyGet(c echo.Context) error {
@@ -115,7 +56,7 @@ func customReplyGet(c echo.Context) error {
 		packageID = c.QueryParam("packageID")
 	}
 	if packageID != "" {
-		if replyFile, ok := findCustomReplyPackageFile(packageID, filename); ok {
+		if replyFile, ok := myDice.FindReplyPackageFile(packageID, filename); ok {
 			rc, err := dice.CustomReplyConfigReadFromPath(myDice, replyFile.Path, filepath.Base(replyFile.Path))
 			if err != nil {
 				return c.String(http.StatusInternalServerError, err.Error())
@@ -133,7 +74,7 @@ func customReplyGet(c echo.Context) error {
 		return c.JSON(http.StatusOK, rc)
 	}
 
-	if replyFile, ok := findCustomReplyPackageFile("", filename); ok {
+	if replyFile, ok := myDice.FindReplyPackageFile("", filename); ok {
 		rc, err := dice.CustomReplyConfigReadFromPath(myDice, replyFile.Path, filepath.Base(replyFile.Path))
 		if err != nil {
 			return c.String(http.StatusInternalServerError, err.Error())
@@ -198,52 +139,6 @@ func customReplyListKey(packageID, filename string) string {
 	return strings.ToLower(packageID) + "\x00" + strings.ToLower(filename)
 }
 
-func upsertCustomReplyConfig(rc dice.ReplyConfig) {
-	for index, item := range myDice.CustomReplyConfig {
-		if item == nil {
-			continue
-		}
-		if strings.EqualFold(item.PackageID, rc.PackageID) && strings.EqualFold(item.Filename, rc.Filename) {
-			next := rc
-			myDice.CustomReplyConfig[index] = &next
-			return
-		}
-	}
-	next := rc
-	myDice.CustomReplyConfig = append(myDice.CustomReplyConfig, &next)
-}
-
-func getCustomReplyPackageFiles() []dice.PackageContentFile {
-	if myDice == nil || myDice.PackageManager == nil {
-		return nil
-	}
-	files := myDice.PackageManager.GetEnabledContentFiles("reply")
-	result := make([]dice.PackageContentFile, 0, len(files))
-	for _, replyFile := range files {
-		ext := strings.ToLower(filepath.Ext(replyFile.Path))
-		if ext != ".yaml" && ext != ".yml" {
-			continue
-		}
-		result = append(result, replyFile)
-	}
-	return result
-}
-
-func findCustomReplyPackageFile(packageID, filename string) (dice.PackageContentFile, bool) {
-	if filename == "" {
-		return dice.PackageContentFile{}, false
-	}
-	for _, replyFile := range getCustomReplyPackageFiles() {
-		if packageID != "" && !strings.EqualFold(replyFile.PackageID, packageID) {
-			continue
-		}
-		if strings.EqualFold(filepath.Base(replyFile.Path), filename) {
-			return replyFile, true
-		}
-	}
-	return dice.PackageContentFile{}, false
-}
-
 func customReplyFileNew(c echo.Context) error {
 	if !doAuth(c) {
 		return c.JSON(http.StatusForbidden, nil)
@@ -261,7 +156,7 @@ func customReplyFileNew(c echo.Context) error {
 	if v.VMVersion == "" {
 		v.VMVersion = dice.ReplyVMVersionV2
 	}
-	vmVersion, validVMVersion := normalizeCustomReplyVMVersion(v.VMVersion)
+	vmVersion, validVMVersion := dice.ValidateReplyVMVersion(v.VMVersion)
 	if !validVMVersion {
 		return c.String(http.StatusBadRequest, "不支持的自定义回复 VM 版本")
 	}
@@ -303,7 +198,7 @@ func customReplyFileDelete(c echo.Context) error {
 	var warning string
 	var success bool
 	if v.PackageID != "" {
-		replyFile, ok := findCustomReplyPackageFile(v.PackageID, v.Filename)
+		replyFile, ok := myDice.FindReplyPackageFile(v.PackageID, v.Filename)
 		if !ok {
 			return c.JSON(http.StatusNotFound, map[string]interface{}{
 				"success": false,
@@ -337,7 +232,7 @@ func customReplyFileDownload(c echo.Context) error {
 	}
 	if name != "" && (!strings.Contains(name, "/")) && (!strings.Contains(name, "\\")) {
 		if packageID != "" {
-			if replyFile, ok := findCustomReplyPackageFile(packageID, name); ok {
+			if replyFile, ok := myDice.FindReplyPackageFile(packageID, name); ok {
 				myDice.Logger.Infof("下载扩展包自定义回复文件: %s", replyFile.Path)
 				return c.Attachment(replyFile.Path, filepath.Base(replyFile.Path))
 			}

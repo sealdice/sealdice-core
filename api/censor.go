@@ -248,7 +248,7 @@ func censorSetConfig(c echo.Context) error {
 }
 
 func setLevelHandlers(level censor.Level, handlers []string) {
-	newHandlers := map[dice.CensorHandler]bool{}
+	newHandlers := make(map[dice.CensorHandler]bool)
 	for _, newH := range handlers {
 		switch newH {
 		case "SendWarning":
@@ -456,7 +456,10 @@ func censorDeleteWordFiles(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	myDice.CensorManager.DeleteCensorWordFiles(v.Keys)
+	if err := myDice.CensorManager.DeleteCensorWordFiles(v.Keys); err != nil {
+		myDice.Logger.Error("censorDeleteWordFiles", err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
 
 	return Success(&c, Response{})
 }

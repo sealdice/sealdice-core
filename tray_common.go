@@ -1,4 +1,4 @@
-//go:build windows || darwin
+//go:build windows || (darwin && cgo)
 
 package main
 
@@ -62,18 +62,18 @@ func startTrayAccountMenu(dm *dice.DiceManager, openAccountSettings func()) {
 		}
 	}()
 
-	menu.refresh(dm.DiceSnapshot())
+	menu.refresh(dm.GetDice())
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			menu.refresh(dm.DiceSnapshot())
+			menu.refresh(dm.GetDice())
 		}
 	}()
 }
 
-func (menu *trayAccountMenu) refresh(instances []*dice.Dice) {
-	titles := loadTrayAccountTitles(instances)
+func (menu *trayAccountMenu) refresh(instance *dice.Dice) {
+	titles := loadTrayAccountTitles(instance)
 
 	for len(menu.account) < len(titles) {
 		item := menu.root.AddSubMenuItem(titles[len(menu.account)], "")
@@ -101,20 +101,18 @@ func (menu *trayAccountMenu) refresh(instances []*dice.Dice) {
 	}
 }
 
-func loadTrayAccountTitles(instances []*dice.Dice) []string {
+func loadTrayAccountTitles(instance *dice.Dice) []string {
+	if instance == nil || instance.ImSession == nil {
+		return nil
+	}
 	var titles []string
-	for _, instance := range instances {
-		if instance == nil || instance.ImSession == nil {
-			continue
-		}
-		for _, endpoint := range instance.ImSession.EndPointsSnapshot() {
-			titles = append(titles, fmt.Sprintf(
-				"%s(%s) [%s]",
-				endpoint.Nickname,
-				endpoint.UserID,
-				trayEndpointStateText(endpoint.State),
-			))
-		}
+	for _, endpoint := range instance.ImSession.EndPointsSnapshot() {
+		titles = append(titles, fmt.Sprintf(
+			"%s(%s) [%s]",
+			endpoint.Nickname,
+			endpoint.UserID,
+			trayEndpointStateText(endpoint.State),
+		))
 	}
 	return titles
 }

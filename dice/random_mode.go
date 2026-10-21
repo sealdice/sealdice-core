@@ -17,3 +17,7 @@ var supportedDiceRandomModes = randcore.SupportedModes()
 func parseDiceRandomModeStrict(raw string) (DiceRandomMode, bool) {
 	return randcore.ParseModeStrict(raw)
 }
+
+func NormalizeDiceRandomMode(raw string) DiceRandomMode {
+	return randcore.NormalizeMode(raw)
+}

@@ -81,7 +81,10 @@ func banMapDeleteOne(c echo.Context) error {
 	if err != nil {
 		return c.String(430, err.Error())
 	}
-	(&myDice.Config).BanList.DeleteByID(myDice, v.ID)
+	if err := myDice.Config.BanList.DeleteByID(myDice, v.ID); err != nil {
+		myDice.Logger.Errorf("删除黑名单条目失败: %v", err)
+		return c.String(http.StatusInternalServerError, "删除黑名单条目失败")
+	}
 	return c.JSON(http.StatusOK, nil)
 }
 

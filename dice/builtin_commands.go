@@ -1379,7 +1379,7 @@ func (d *Dice) registerCoreCommands() {
 						ReplyToSender(ctx, msg, "升级失败，原因: "+ret)
 					}
 				}()
-				dm.UpdateRequestChan <- d
+				dm.UpdateRequestChan <- struct{}{}
 			case "reboot":
 				var dm = ctx.Dice.Parent
 				if dm.JustForTest {
@@ -2142,7 +2142,7 @@ func (d *Dice) registerCoreCommands() {
 	randalgoHelp := formatDiceRandomModeHelpText()
 	d.CmdMap["randalgo"] = &CmdItemInfo{
 		Name:      "randalgo",
-		ShortHelp: ".randalgo // 查看当前随机算法与规范\n.randalgo get [面数] // 对全部随机源各掷一次并显示单次耗时\n.randalgo set <模式> // 设置随机模式，仅Master可用",
+		ShortHelp: ".randalgo // 查看当前随机算法与规范\n.randalgo get [模式|all] [面数] // 只测当前/指定随机源\n.randalgo set <模式> // 设置随机模式，仅Master可用\n.randalgo set gm <确认码> // 启用国密源（约 +32MB 内存）\n.randalgo set gm off // 禁用国密源（重启后释放内存）",
 		Help:      randalgoHelp,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			if cmdArgs.IsArgEqual(1, "help") {
@@ -2150,16 +2150,54 @@ func (d *Dice) registerCoreCommands() {
 			}
 			if cmdArgs.IsArgEqual(1, "get") {
 				points := int64(100)
-				if rawPoints := cmdArgs.GetArgN(2); rawPoints != "" {
-					parsedPoints, err := strconv.ParseInt(rawPoints, 10, 64)
+				mode := DiceRandomMode("")
+				arg2 := cmdArgs.GetArgN(2)
+				arg3 := cmdArgs.GetArgN(3)
+
+				parsePoints := func(raw string) bool {
+					if raw == "" {
+						return true
+					}
+					parsedPoints, err := strconv.ParseInt(raw, 10, 64)
 					if err != nil || parsedPoints <= 0 {
-						ReplyToSender(ctx, msg, formatDiceRandomModeGetInvalidPointsText(rawPoints))
-						return CmdExecuteResult{Matched: true, Solved: true}
+						ReplyToSender(ctx, msg, formatDiceRandomModeGetInvalidPointsText(raw))
+						return false
 					}
 					points = parsedPoints
+					return true
 				}
 
-				ReplyToSender(ctx, msg, globalRandSource.ReportGetText(points))
+				if arg2 != "" {
+					if parsedPoints, err := strconv.ParseInt(arg2, 10, 64); err == nil {
+						if parsedPoints <= 0 || arg3 != "" {
+							badPoints := arg2
+							if arg3 != "" {
+								badPoints = arg3
+							}
+							ReplyToSender(ctx, msg, formatDiceRandomModeGetInvalidPointsText(badPoints))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						points = parsedPoints
+					} else if strings.EqualFold(arg2, "all") {
+						if !parsePoints(arg3) {
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						ReplyToSender(ctx, msg, globalRandSource.ReportAllGetText(points))
+						return CmdExecuteResult{Matched: true, Solved: true}
+					} else {
+						parsedMode, ok := parseDiceRandomModeStrict(arg2)
+						if !ok {
+							ReplyToSender(ctx, msg, formatDiceRandomModeSetInvalidModeText(arg2))
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+						mode = parsedMode
+						if !parsePoints(arg3) {
+							return CmdExecuteResult{Matched: true, Solved: true}
+						}
+					}
+				}
+
+				ReplyToSender(ctx, msg, globalRandSource.ReportGetText(mode, points))
 				return CmdExecuteResult{Matched: true, Solved: true}
 			}
 			if cmdArgs.IsArgEqual(1, "set") {
@@ -2179,6 +2217,11 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, formatDiceRandomModeSetInvalidModeText(rawMode))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+
+				if mode == DiceRandomModeGM && handleGMSetCommand(ctx, msg, cmdArgs.GetArgN(3)) {
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
+
 				if err := globalRandSource.InitError(mode); err != nil {
 					ReplyToSender(ctx, msg, formatDiceRandomModeSetUnavailableText(mode, err))
 					return CmdExecuteResult{Matched: true, Solved: true}

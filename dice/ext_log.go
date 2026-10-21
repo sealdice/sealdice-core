@@ -1030,7 +1030,6 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 
 func logSendToBackend(ctx *MsgContext, groupID string, logName string, skipResolve bool) (bool, string, string, error) {
 	dice := ctx.Dice
-	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
 	if !skipResolve {
 		resolvedName, err := resolveLogNameForGroup(dice.DBOperator, groupID, logName)
@@ -1041,6 +1040,22 @@ func logSendToBackend(ctx *MsgContext, groupID string, logName string, skipResol
 			logName = resolvedName
 		}
 	}
+
+	logInfo, err := service.LogGetByGroupIDAndName(dice.DBOperator, groupID, logName)
+	if err != nil {
+		return false, "", "", err
+	}
+	return uploadLogInfoToBackend(ctx, logInfo, false)
+}
+
+func LogSendToBackendByInfo(ctx *MsgContext, logInfo *model.LogInfo, force bool) (bool, string, error) {
+	unofficial, url, _, err := uploadLogInfoToBackend(ctx, logInfo, force)
+	return unofficial, url, err
+}
+
+func uploadLogInfoToBackend(ctx *MsgContext, logInfo *model.LogInfo, force bool) (bool, string, string, error) {
+	dice := ctx.Dice
+	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
 	var sealBackends []string
 	for _, sealBackend := range BackendUrls {
@@ -1054,9 +1069,10 @@ func logSendToBackend(ctx *MsgContext, groupID string, logName string, skipResol
 		Log:      dice.Logger,
 		Backends: sealBackends,
 
-		LogName:   logName,
+		LogName:   logInfo.Name,
 		UniformID: ctx.EndPoint.UserID,
-		GroupID:   groupID,
+		GroupID:   logInfo.GroupID,
+		Force:     force,
 	}
 	uploadCtx.Version = storylog.StoryVersionV1
 

@@ -199,6 +199,10 @@ func buildHybridSourceFromAvailable(available map[Mode]ds.DiceSource) (ds.DiceSo
 
 // NewSourceForMode creates one concrete random source for a mode.
 func NewSourceForMode(mode Mode, logger *zap.SugaredLogger) (ds.DiceSource, error) {
+	return newSourceForMode(mode, logger, false)
+}
+
+func newSourceForMode(mode Mode, logger *zap.SugaredLogger, mixGMEntropy bool) (ds.DiceSource, error) {
 	spec := ModeSpecFor(mode)
 	switch mode {
 	case ModeGM:
@@ -225,33 +229,35 @@ func NewSourceForMode(mode Mode, logger *zap.SugaredLogger) (ds.DiceSource, erro
 			return nil, err
 		}
 
-		buf := make([]byte, gmEntropyMixSize)
-		n := 0
-		readErr := func() (err error) {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("read gm entropy panic: %v", r)
-				}
+		if mixGMEntropy {
+			buf := make([]byte, gmEntropyMixSize)
+			n := 0
+			readErr := func() (err error) {
+				defer func() {
+					if r := recover(); r != nil {
+						err = fmt.Errorf("read gm entropy panic: %v", r)
+					}
+				}()
+				n, err = gmrand.Read(buf)
+				return err
 			}()
-			n, err = gmrand.Read(buf)
-			return err
-		}()
-		if readErr == nil && n == len(buf) {
-			if err := reader.Reseed(buf); err != nil {
-				if logger != nil {
-					logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: reseed nist reader with gm entropy: %v", err)
+			if readErr == nil && n == len(buf) {
+				if err := reader.Reseed(buf); err != nil {
+					if logger != nil {
+						logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: reseed nist reader with gm entropy: %v", err)
+					}
+				} else {
+					runtimeNote = "启动时额外注入了基于 GM/T 0105-2021、SM3 Hash DRBG 的国密随机源输出，作为 reseed seed material 的附加输入，在密码学上进一步扩充了熵输入强度。"
 				}
-			} else {
-				runtimeNote = "启动时额外注入了基于 GM/T 0105-2021、SM3 Hash DRBG 的国密随机源输出，作为 reseed seed material 的附加输入，在密码学上进一步扩充了熵输入强度。"
+			} else if logger != nil {
+				if readErr != nil {
+					logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: read gm entropy: %v", readErr)
+				} else {
+					logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: read gm entropy: short read %d/%d", n, len(buf))
+				}
 			}
-		} else if logger != nil {
-			if readErr != nil {
-				logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: read gm entropy: %v", readErr)
-			} else {
-				logger.Warnf("[随机源] NIST 模式混入 GM 国密熵源失败，将继续使用原生 NIST 熵路径。错误: read gm entropy: short read %d/%d", n, len(buf))
-			}
+			clear(buf)
 		}
-		clear(buf)
 		return &nistSource{
 			readerSourceState: readerSourceState{
 				reader:      reader,

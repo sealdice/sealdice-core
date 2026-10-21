@@ -6,13 +6,22 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.golangci.toml'
       - '.github/workflows/test-and-lint.yml'
+      - '.github/scripts/lint.sh'
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
     paths:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.golangci.toml'
       - '.github/workflows/test-and-lint.yml'
+      - '.github/scripts/lint.sh'
 
 permissions:
   contents: read
@@ -20,14 +29,15 @@ permissions:
 jobs:
   test-and-lint:
     name: Test & Lint
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-24.04
     steps:
       - name: Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.25'
       - run: go mod download
@@ -36,9 +46,12 @@ jobs:
       - run: go test -v -race ./...
       - run: go vet ./...
 
-      - name: GolangCI-Lint
-        uses: golangci/golangci-lint-action@v8
+      - name: Install GolangCI-Lint
+        uses: golangci/golangci-lint-action@v9
         if: github.event_name != 'pull_request'
         with:
-          version: latest
-          args: '--timeout 10m'
+          version: v2.15.0
+          install-only: true
+      - name: Verify configuration and lint
+        if: github.event_name != 'pull_request'
+        run: bash .github/scripts/lint.sh
