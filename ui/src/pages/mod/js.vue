@@ -117,7 +117,7 @@ import {
   shallowRef,
   watch,
 } from 'vue';
-import { useQuery } from '@tanstack/vue-query';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
   NButton,
   NFlex,
@@ -131,6 +131,8 @@ import {
   type LogInst,
 } from 'naive-ui';
 import {
+  getSdApiV2JsConfigsQueryKey,
+  getSdApiV2JsListQueryKey,
   getSdApiV2JsRecord,
   getSdApiV2JsStatusOptions,
   postSdApiV2JsExecute,
@@ -162,6 +164,7 @@ const CodeMirror = defineAsyncComponent(() => import('vue-codemirror6'));
 // list 管理脚本文件，config 管理插件配置，data 管理插件 KV 存储，
 // console 用于临时执行代码和查看输出。
 const message = useMessage();
+const queryClient = useQueryClient();
 const { isTestMode } = useTestMode();
 const tab = ref<string>('list');
 
@@ -301,7 +304,12 @@ async function handleReload(): Promise<boolean> {
     await postSdApiV2JsReload({ throwOnError: true });
     message.success('已重载');
     needReload.value = false;
-    await statusQuery.refetch();
+    await Promise.all([
+      statusQuery.refetch(),
+      // 重载后后端才扫描到刚上传/删除的脚本，必须让列表重新请求。
+      queryClient.invalidateQueries({ queryKey: getSdApiV2JsListQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getSdApiV2JsConfigsQueryKey() }),
+    ]);
     return true;
   } catch (error) {
     if (isTestModeApiError(error)) {
