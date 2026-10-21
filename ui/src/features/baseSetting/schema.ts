@@ -93,6 +93,16 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
         {
           id: 'behavior',
           title: '行为控制',
+          notes: [
+            {
+              tone: 'info',
+              lines: [
+                '国密源默认禁用。启用后约增加 32MB 常驻内存，用于国密随机源的熵采集；只有重启海豹才能释放。',
+                '选择“国密 SM3”时会弹窗确认；如要关闭，请执行 .randalgo set gm off 后重启海豹。',
+                '混合模式只有在国密源已启用时才会包含国密源。',
+              ],
+            },
+          ],
           fields: [
             field('trust-only-mode', 'trustOnlyMode', '私骰模式', 'boolean', ['私骰', '信任用户'], {
               hint: '只允许信任用户拉入群聊。',
@@ -141,6 +151,8 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
                   { label: '系统 CRNG', value: 'crng' },
                   { label: '混合模式', value: 'hybrid' },
                 ],
+                confirmMessage:
+                  '启用国密随机源后，会常驻约 32MB 内存，用于采集系统熵并保证 SM3 随机数的随机性和不可预测性。这部分内存只有重启海豹才能释放。启用后混合模式会加入国密源，NIST 模式会混入国密种子。确定要启用吗？',
               }
             ),
             field(

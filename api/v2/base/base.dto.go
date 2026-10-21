@@ -11,9 +11,11 @@ type HealthData struct {
 }
 
 type NetworkHealthTarget struct {
-	Target     string `json:"target" doc:"检测目标"`
+	Target     string `json:"target" doc:"检测目标标识"`
+	Name       string `json:"name" doc:"检测目标名称"`
+	Label      string `json:"label" doc:"检测目标展示标签"`
 	OK         bool   `json:"ok" doc:"是否可连接"`
-	DurationMs int64  `json:"durationMs" doc:"平均延迟毫秒"`
+	DurationMs int64  `json:"durationMs" doc:"探测延迟毫秒"`
 }
 
 type NetworkHealthData struct {

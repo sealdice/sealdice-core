@@ -116,6 +116,15 @@ func DiceConfigSet(c echo.Context) error {
 		return c.JSON(http.StatusOK, nil)
 	}
 
+	if val, ok := jsonMap["diceRandomMode"]; ok {
+		if v, ok := val.(string); ok && strings.EqualFold(strings.TrimSpace(v), string(dice.DiceRandomModeGM)) && !myDice.Config.DiceRandomGMEnabled {
+			return c.JSON(http.StatusBadRequest, Response{
+				"result": false,
+				"err":    "国密源默认禁用。请先在基本设置中确认启用国密源，或使用 .randalgo set gm 完成二次确认。",
+			})
+		}
+	}
+
 	trayTooltip := ""
 	trayTooltipModified := false
 	if val, ok := jsonMap["trayTooltip"]; ok {

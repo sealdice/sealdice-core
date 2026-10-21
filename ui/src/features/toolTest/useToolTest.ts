@@ -113,7 +113,10 @@ export function useToolTest() {
   });
 
   const realtime = useRealtimeClientStore();
-  const { connected: realtimeActive } = storeToRefs(realtime);
+  // 全局实时通道包含 SSE 与轮询降级；只要通道已建立，就不再使用独立的
+  // pending 轮询，避免和全局轮询重复消费同一批测试消息。
+  const realtimeActive = computed(() => realtime.connected || realtime.activeTransport !== '');
+  const realtimeTransport = computed(() => realtime.activeTransport);
   const currentContext = computed(() => contexts[mode.value] ?? fallbackContext(mode.value));
   const commandOptions = computed(() =>
     buildToolTestCommandOptions(commandList.value, input.value, currentContext.value.commandPrefix)
@@ -511,6 +514,7 @@ export function useToolTest() {
     pollingActive,
     pollingErrorText,
     realtimeActive,
+    realtimeTransport,
     selectedSenderIds,
     splitOptionKey,
     splitOptions,

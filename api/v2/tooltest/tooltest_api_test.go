@@ -271,6 +271,46 @@ func TestUpdateProfileChangesPlayerAndGroupMetadata(t *testing.T) {
 	}
 }
 
+func TestMessagesAfterReturnsIncrementalMessagesWithoutClearing(t *testing.T) {
+	svc, _ := newTestService(t)
+	svc.emit(dice.HTTPTestMessage{ID: "first", MessageType: "private"})
+	svc.emit(dice.HTTPTestMessage{ID: "second", MessageType: "group"})
+
+	items, latest, epoch, reset := svc.MessagesAfter(0, "")
+	if !reset || latest != 2 || epoch == "" || len(items) != 2 {
+		t.Fatalf("MessagesAfter(0) = %+v, latest=%d, epoch=%q, reset=%v", items, latest, epoch, reset)
+	}
+	if items[0].Seq != 1 || items[1].Seq != 2 {
+		t.Fatalf("sequence = %d, %d; want 1, 2", items[0].Seq, items[1].Seq)
+	}
+
+	items, latest, epoch, reset = svc.MessagesAfter(1, epoch)
+	if reset || latest != 2 || len(items) != 1 || items[0].ID != "second" || items[0].Seq != 2 {
+		t.Fatalf("MessagesAfter(1) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+
+	items, latest, epoch, reset = svc.MessagesAfter(2, epoch)
+	if reset || latest != 2 || len(items) != 0 {
+		t.Fatalf("MessagesAfter(2) = %+v, latest=%d, reset=%v", items, latest, reset)
+	}
+
+	// 读取不会清空缓冲区，后续轮询仍可从头取到消息。
+	items, _, _, _ = svc.MessagesAfter(0, "")
+	if len(items) != 2 {
+		t.Fatalf("messages were cleared by polling: %+v", items)
+	}
+
+	items, _, _, reset = svc.MessagesAfter(99, epoch)
+	if !reset || len(items) != 2 {
+		t.Fatalf("MessagesAfter(99) = %+v, reset=%v; want full retained window", items, reset)
+	}
+
+	items, _, _, reset = svc.MessagesAfter(1, "old-process")
+	if !reset || len(items) != 2 {
+		t.Fatalf("MessagesAfter(old process) = %+v, reset=%v; want full retained window", items, reset)
+	}
+}
+
 func TestGetPendingMessagesReturnsAndClearsQueue(t *testing.T) {
 	svc, adapter := newTestService(t)
 	adapter.RecentMessage = []dice.HTTPSimpleMessage{

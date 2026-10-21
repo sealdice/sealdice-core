@@ -22,8 +22,9 @@ const (
 type Server struct {
 	dm *dice.DiceManager
 
-	bus     *Bus
-	watcher *StateWatcher
+	bus          *Bus
+	watcher      *StateWatcher
+	toolMessages ToolMessageProvider
 
 	mu      sync.Mutex
 	cancel  context.CancelFunc
@@ -54,6 +55,11 @@ func RegisterRoutes(api huma.API, dm *dice.DiceManager) *Server {
 			},
 		},
 	}, realtimeEventTypeMap(), srv.stream)
+
+	huma.Get(api, "/poll", srv.Poll, func(o *huma.Operation) {
+		o.Description = "SSE 不可用时的增量轮询接口"
+		o.Summary = "轮询实时事件"
+	})
 
 	return srv
 }

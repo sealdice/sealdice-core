@@ -46,6 +46,7 @@ func InitV2Router(api huma.API, dm *dice.DiceManager) *realtime.Server {
 	realtimeServer := realtime.RegisterRoutes(groupFor("realtime", auth), dm)
 	toolTestService := tooltest.NewService(dm)
 	toolTestService.SetPublisher(realtimeServer)
+	realtimeServer.SetToolMessageProvider(toolTestService)
 
 	// Modules classify their operations explicitly. HTTP method alone does not
 	// determine write protection (e.g. POST connection tests and store queries).

@@ -13,26 +13,25 @@ import (
 	"sealdice-core/dice"
 	"sealdice-core/model/common/request"
 	"sealdice-core/model/common/response"
+	"sealdice-core/utils/networkhealth"
 )
 
 var startTime = time.Now()
 
 // BaseService 基础服务，封装dice依赖
 type BaseService struct {
-	dice         *dice.Dice
-	dm           *dice.DiceManager
-	checkNetwork networkHealthCheckFunc
-	signURLs     networkHealthSignURLsFunc
+	dice          *dice.Dice
+	dm            *dice.DiceManager
+	networkHealth func() networkhealth.Result
 }
 
 // NewBaseService 创建新的基础服务实例
 // 特殊增加dm降低封装层 - 或许应该传入dm获取dice才是正道。
 func NewBaseService(dm *dice.DiceManager) *BaseService {
 	return &BaseService{
-		dice:         dm.GetDice(),
-		dm:           dm,
-		checkNetwork: checkNetworkTargetConnectivity,
-		signURLs:     defaultSignServerPingURLs,
+		dice:          dm.GetDice(),
+		dm:            dm,
+		networkHealth: networkhealth.Run,
 	}
 }
 

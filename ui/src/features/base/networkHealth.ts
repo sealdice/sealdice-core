@@ -5,6 +5,8 @@ import type {
 } from '@/api';
 
 export type NetworkHealthTarget = Omit<ApiNetworkHealthTarget, 'durationMs'> & {
+  name: string;
+  label: string;
   durationMs: number;
 };
 
@@ -31,6 +33,8 @@ export function normalizeNetworkHealthData(
     ok: data.ok ?? [],
     targets: (data.targets ?? []).map(target => ({
       target: target.target,
+      name: target.name || target.target,
+      label: target.label || target.name || target.target,
       ok: target.ok,
       durationMs: Number(target.durationMs ?? 0),
     })),
