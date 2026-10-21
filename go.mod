@@ -242,4 +242,4 @@ replace (
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105 => github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6
 )
 
-replace github.com/sealdice/botgo => github.com/PaienNate/botgo v0.0.0-20261021093040-21cbba3d67d6
+replace github.com/sealdice/botgo => github.com/PaienNate/botgo v0.0.0-20261021101239-14b96d8223be
