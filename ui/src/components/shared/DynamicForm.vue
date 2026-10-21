@@ -27,13 +27,13 @@
           :precision="0"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
-          @update:value="value => setValue(fieldKeyOf(item), value)"
+          @update:value="(value: number | null) => setValue(fieldKeyOf(item), value)"
         />
         <n-switch
           v-else-if="item.input_type === 10"
           :value="Boolean(valueOf(fieldKeyOf(item)))"
           :disabled="isDisabled(item)"
-          @update:value="value => setValue(fieldKeyOf(item), value)"
+          @update:value="(value: boolean) => setValue(fieldKeyOf(item), value)"
         />
         <n-select
           v-else-if="item.input_type === 12"
@@ -41,7 +41,7 @@
           :options="optionList(item)"
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
-          @update:value="value => setValue(fieldKeyOf(item), value)"
+          @update:value="(value: string | null) => setValue(fieldKeyOf(item), value)"
         />
         <n-input
           v-else
@@ -50,7 +50,7 @@
           :disabled="isDisabled(item)"
           :placeholder="item.placeholder"
           show-password-on="click"
-          @update:value="value => setValue(fieldKeyOf(item), value)"
+          @update:value="(value: string) => setValue(fieldKeyOf(item), value)"
         />
       </slot>
     </n-form-item>

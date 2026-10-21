@@ -131,6 +131,15 @@ func (s *Service) buildProtocolTree() []*PlatformTreeNode {
 		},
 	}
 
+	qqOfficial := &MethodTreeNode{
+		ID:          "official",
+		Name:        "官方机器人",
+		Description: "通过 QQ 开放平台官方机器人接口接入，支持手动填写凭据、扫码登录，以及 WebSocket 或 Webhook。",
+		Protocols: []*ProtocolDefinition{
+			{Key: "officialqq", Name: "QQ 官方机器人", Platform: "QQ", SchemaKey: "officialqq", Available: true, Description: "QQ 官方机器人接口，支持手动填写或扫码登录，可选择 WebSocket 或 Webhook 接入。", Capabilities: withWorkflow(baseCapabilities, true, true, false)},
+		},
+	}
+
 	qqSeparate := &MethodTreeNode{
 		ID:          "separate",
 		Name:        "分离客户端",
@@ -139,7 +148,6 @@ func (s *Service) buildProtocolTree() []*PlatformTreeNode {
 			{Key: "milky", Name: "Milky (外部)", Platform: "QQ", SchemaKey: "milky", Available: true, Description: "外部 Milky 协议端，需自行部署后连接。", Capabilities: baseCapabilities},
 			{Key: "gocq-separate", Name: "OneBot11 正向WS", Platform: "QQ", SchemaKey: "gocq-separate", Available: true, Description: "OneBot 11 正向 WebSocket 协议，需配合协议端使用。", Capabilities: baseCapabilities},
 			{Key: "onebot-reverse", Name: "OneBot11 反向WS", Platform: "QQ", SchemaKey: "onebot-reverse", Available: true, Description: "OneBot 11 反向 WebSocket 协议，需配合协议端使用。", Capabilities: baseCapabilities},
-			{Key: "officialqq", Name: "QQ 官方机器人", Platform: "QQ", SchemaKey: "officialqq", Available: true, Description: "QQ 官方机器人接口，支持手动填写或扫码登录，可选择 WebSocket 或 Webhook 接入。", Capabilities: withWorkflow(baseCapabilities, true, true, false)},
 			{Key: "red", Name: "Red 协议", Platform: "QQ", SchemaKey: "red", Deprecated: true, Available: false, DisabledReason: "Red 协议已弃用", Description: "QQ Red 协议，已废弃。", Capabilities: ProtocolCapability{}},
 		},
 	}
@@ -148,7 +156,7 @@ func (s *Service) buildProtocolTree() []*PlatformTreeNode {
 		{
 			ID: "qq", Name: "QQ",
 			Description: "腾讯 QQ 即时通讯平台，支持群聊和私聊。",
-			Methods:     []*MethodTreeNode{qqBuiltin, qqSeparate},
+			Methods:     []*MethodTreeNode{qqBuiltin, qqOfficial, qqSeparate},
 		},
 		{
 			ID: "dingtalk", Name: "钉钉",
