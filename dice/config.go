@@ -2043,6 +2043,8 @@ func setupBaseTextTemplate(d *Dice) {
 			},
 		},
 	}
+	texts["TRPG"] = trpgTextTemplates()
+	helpInfo["TRPG"] = trpgTextTemplateHelp()
 	d.TextMapRaw = texts
 	d.TextMapHelpInfo = helpInfo
 
