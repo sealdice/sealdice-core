@@ -105,3 +105,40 @@ it.each([
   expect(savingWhileWaiting).toBe(true);
   expect(api.read).toHaveBeenCalledTimes(2); // 首屏 + 保存后刷新一次。
 });
+
+it('关闭 Markdown 时同步关闭回复名片草稿', async () => {
+  const remote = {
+    uiPassword: '------',
+    officialQQUseMarkdown: true,
+    officialQQUseNameCard: true,
+    commandPrefix: ['.'],
+    diceMasters: [],
+    noticeIds: [],
+    extDefaultSettings: [],
+  };
+  api.read.mockResolvedValue({ item: structuredClone(remote) });
+  pinia = createPinia();
+  useAuthStore(pinia).setAccessToken('settings-test');
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  wrapper = shallowMount(BaseSettingPage, {
+    global: {
+      plugins: [pinia, [VueQueryPlugin, { queryClient: client }]],
+      renderStubDefaultSlot: true,
+      stubs: {
+        ResponsiveTabs: {
+          inheritAttrs: false,
+          template: '<slot name="panel" :option="{ value: \'master-notice\' }" />',
+        },
+      },
+    },
+  });
+  await vi.waitFor(() =>
+    expect(wrapper!.findComponent(BaseSettingFieldRenderer).exists()).toBe(true)
+  );
+  const field = wrapper.findComponent(BaseSettingFieldRenderer);
+  field.vm.$emit('updateField', 'officialQQUseMarkdown', false);
+  await nextTick();
+
+  expect(field.props('model').officialQQUseMarkdown).toBe(false);
+  expect(field.props('model').officialQQUseNameCard).toBe(false);
+});

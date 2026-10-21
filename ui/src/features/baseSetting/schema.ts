@@ -1,5 +1,7 @@
 import { normalizeBaseSettingSchema, type BaseSettingFieldSchema } from './viewModel';
 
+const officialQQNameCardDefaultTemplate = '<font color="#FF0000" size="1">{card}</font>';
+
 function field(
   id: string,
   key: BaseSettingFieldSchema['key'] | '',
@@ -380,6 +382,35 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
               ['官方QQ', 'Markdown', '消息格式'],
               {
                 hint: '是否自动把发送的所有群聊和频道消息转为 Markdown 类型消息，仅对 QQ 官方机器人有效。',
+              }
+            ),
+            field(
+              'officialqq-use-name-card',
+              'officialQQUseNameCard',
+              '回复携带名片',
+              'boolean',
+              ['官方QQ', '名片', 'sn', 'Markdown'],
+              {
+                hint: '开启后，官方 QQ 的回复顶部会显示当前玩家的 .sn 名片。需要先启用 Markdown。',
+                disabledWhen: {
+                  key: 'officialQQUseMarkdown',
+                  equals: false,
+                },
+                disabledHint: '请先启用 Markdown。',
+              }
+            ),
+            field(
+              'officialqq-name-card-template',
+              'officialQQUseNameCardTemplate',
+              '名片渲染模板',
+              'text',
+              ['官方QQ', '名片', '模板', 'font', 'Markdown'],
+              {
+                placeholder: officialQQNameCardDefaultTemplate,
+                hint: '使用 {card} 代表名片内容。留空或缺少 {card} 时使用默认样式；预览显示 <font> 标签的颜色和字号。',
+                maxLength: 500,
+                previewSample: '木落 HP10/10',
+                previewFallback: officialQQNameCardDefaultTemplate,
               }
             ),
           ],
