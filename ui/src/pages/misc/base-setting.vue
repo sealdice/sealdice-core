@@ -204,10 +204,14 @@ function resetChanges() {
 
 function updateField(key: string, value: unknown) {
   if (!draft.currentValue.value) return;
-  draft.currentValue.value = {
+  const next = {
     ...draft.currentValue.value,
     [key]: value,
   };
+  if (key === 'officialQQUseMarkdown' && value === false) {
+    next.officialQQUseNameCard = false;
+  }
+  draft.currentValue.value = next;
 }
 
 async function runAction(fieldId: string, payload?: unknown) {

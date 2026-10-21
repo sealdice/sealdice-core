@@ -467,6 +467,25 @@ func DiceConfigSet(c echo.Context) error {
 		config.OfficialQQUseMarkdown = val.(bool)
 	}
 
+	if val, ok := jsonMap["officialQQUseNameCard"]; ok {
+		config.OfficialQQUseNameCard = val.(bool)
+	}
+	if val, ok := jsonMap["officialQQUseNameCardTemplate"]; ok {
+		if text, ok := val.(string); ok {
+			text = strings.TrimSpace(text)
+			if utf8.RuneCountInString(text) > dice.MaxOfficialQQNameCardTemplateRunes {
+				return c.JSON(http.StatusBadRequest, Response{
+					"result": false,
+					"err":    "名片渲染模板不能超过" + strconv.Itoa(dice.MaxOfficialQQNameCardTemplateRunes) + "个字符",
+				})
+			}
+			config.OfficialQQNameCardTmpl = text
+		}
+	}
+	if !config.OfficialQQUseMarkdown {
+		config.OfficialQQUseNameCard = false
+	}
+
 	if val, ok := jsonMap["officialQQEnableIdentityMigration"]; ok {
 		config.OfficialQQMigrationEnable = val.(bool)
 	}

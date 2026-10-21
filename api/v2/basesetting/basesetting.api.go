@@ -168,6 +168,8 @@ func (s *Service) buildValue() BaseSettingValueResp {
 		QQEnablePoke:             s.dice.Config.QQEnablePoke,
 		OfficialQQFileSendBase64: s.dice.Config.OfficialQQFileSendBase64,
 		OfficialQQUseMarkdown:    s.dice.Config.OfficialQQUseMarkdown,
+		OfficialQQUseNameCard:    s.dice.Config.OfficialQQUseNameCard && s.dice.Config.OfficialQQUseMarkdown,
+		OfficialQQNameCardTmpl:   s.dice.Config.OfficialQQNameCardTmpl,
 		TextCmdTrustOnly:         s.dice.Config.TextCmdTrustOnly,
 		IgnoreUnaddressedBotCmd:  s.dice.Config.IgnoreUnaddressedBotCmd,
 		AliveNoticeEnable:        s.dice.Config.AliveNoticeEnable,
@@ -215,6 +217,20 @@ func (s *Service) applyPatch(patch BaseSettingPatch) error {
 	setIfProvided(&config.QQEnablePoke, patch.QQEnablePoke)
 	setIfProvided(&config.OfficialQQFileSendBase64, patch.OfficialQQFileSendBase64)
 	setIfProvided(&config.OfficialQQUseMarkdown, patch.OfficialQQUseMarkdown)
+	setIfProvided(&config.OfficialQQUseNameCard, patch.OfficialQQUseNameCard)
+	if patch.OfficialQQNameCardTmpl != nil {
+		value := strings.TrimSpace(*patch.OfficialQQNameCardTmpl)
+		if utf8.RuneCountInString(value) > dice.MaxOfficialQQNameCardTemplateRunes {
+			return huma.Error400BadRequest("名片渲染模板不能超过" + strconv.Itoa(dice.MaxOfficialQQNameCardTemplateRunes) + "个字符")
+		}
+		config.OfficialQQNameCardTmpl = value
+	}
+	if config.OfficialQQUseNameCard && !config.OfficialQQUseMarkdown {
+		if patch.OfficialQQUseNameCard != nil && *patch.OfficialQQUseNameCard {
+			return huma.Error400BadRequest("启用回复名片前必须启用 Markdown")
+		}
+		config.OfficialQQUseNameCard = false
+	}
 	setIfProvided(&config.TextCmdTrustOnly, patch.TextCmdTrustOnly)
 	setIfProvided(&config.IgnoreUnaddressedBotCmd, patch.IgnoreUnaddressedBotCmd)
 	setIfProvided(&config.AliveNoticeEnable, patch.AliveNoticeEnable)

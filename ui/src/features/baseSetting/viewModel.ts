@@ -23,6 +23,13 @@ export type BaseSettingFieldSchema = {
   confirmMessage?: string;
   allowCustomValue?: boolean;
   maxLength?: number;
+  disabledWhen?: {
+    key: keyof BaseSettingValueResp;
+    equals: unknown;
+  };
+  disabledHint?: string;
+  previewSample?: string;
+  previewFallback?: string;
 };
 export type BaseSettingGroupSchema = {
   id: string;
