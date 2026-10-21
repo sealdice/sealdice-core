@@ -106,7 +106,7 @@ require (
 require (
 	github.com/blevesearch/mmap-go v1.2.0
 	github.com/emmansun/gmsm v0.44.1
-	github.com/klauspost/compress v1.18.0
+	github.com/klauspost/compress v1.18.7
 	github.com/sixafter/aes-ctr-drbg v1.16.0
 	github.com/tus/tusd/v2 v2.10.1
 )
