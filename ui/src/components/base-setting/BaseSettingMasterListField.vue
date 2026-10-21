@@ -8,13 +8,14 @@
       remove-label="删除该 Master"
       @remove="removeRow(index)"
     >
-      <n-input
-        :ref="instance => setInputRef(index, instance)"
-        class="master-list-input"
-        :value="master"
-        placeholder="平台:账号，如 QQ:12345"
-        @update:value="updateRow(index, $event)"
-      />
+      <div class="master-list-control">
+        <n-input
+          :ref="instance => setInputRef(index, instance)"
+          :value="master"
+          placeholder="如 QQ:12345"
+          @update:value="updateRow(index, $event)"
+        />
+      </div>
     </RepeatableItem>
   </RepeatableList>
 </template>
@@ -78,7 +79,8 @@ async function addMaster() {
 </script>
 
 <style scoped>
-.master-list-input {
-  max-width: 18rem;
+.master-list-control {
+  width: 11rem;
+  max-width: 100%;
 }
 </style>

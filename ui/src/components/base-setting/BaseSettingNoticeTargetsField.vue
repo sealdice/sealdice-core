@@ -4,6 +4,7 @@
       v-for="(target, index) in targets"
       :key="index"
       :title="`通知目标 ${index + 1}`"
+      inline
       show-enabled
       :enabled="target.enabled"
       enabled-label="启用通知目标"
@@ -12,25 +13,24 @@
       @remove="removeTarget(index)"
     >
       <div class="notice-target-fields">
-        <RepeatableFieldRow class="notice-target-field notice-target-field--id" label="ID">
+        <div class="notice-target-control notice-target-control--id">
           <n-input
-            class="notice-target-id"
             :value="target.id"
-            placeholder="平台:账号或群组 ID"
+            placeholder="QQ:12345"
             @update:value="updateTarget(index, { id: $event })"
           />
-        </RepeatableFieldRow>
-        <RepeatableFieldRow class="notice-target-field notice-target-field--types" label="通知项">
+        </div>
+        <div class="notice-target-control notice-target-control--types">
           <n-select
-            class="notice-target-types"
             :value="target.noticeTypes"
             :options="noticeTypeOptions"
+            placeholder="通知项"
             multiple
             clearable
             max-tag-count="responsive"
             @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
           />
-        </RepeatableFieldRow>
+        </div>
       </div>
     </RepeatableItem>
   </RepeatableList>
@@ -38,7 +38,6 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import RepeatableFieldRow from '@/components/settings-panel/RepeatableFieldRow.vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
 import {
@@ -96,22 +95,16 @@ function removeTarget(index: number) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sd-space-md) var(--sd-space-lg);
+  gap: var(--sd-space-xs);
 }
 
-.notice-target-field--id {
-  flex: 0 1 22.5rem;
-  min-width: min(100%, 14rem);
+.notice-target-control--id {
+  width: 11rem;
+  max-width: 100%;
 }
 
-.notice-target-field--types {
-  flex: 1 1 22rem;
-  max-width: 34rem;
-  min-width: min(100%, 16rem);
-}
-
-.notice-target-id,
-.notice-target-types {
-  width: 100%;
+.notice-target-control--types {
+  width: 20rem;
+  max-width: 100%;
 }
 </style>

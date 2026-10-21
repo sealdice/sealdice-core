@@ -10,11 +10,19 @@
       <div class="sd-repeatable-item__heading">
         <slot name="leading" />
         <n-text v-if="title" strong>{{ title }}</n-text>
+        <n-switch
+          v-if="inline && showEnabled"
+          :value="enabled"
+          size="small"
+          :disabled="disabled"
+          :aria-label="enabledLabel"
+          @update:value="emit('update:enabled', Boolean($event))"
+        />
       </div>
 
       <div class="sd-repeatable-item__actions">
         <n-switch
-          v-if="showEnabled"
+          v-if="!inline && showEnabled"
           :value="enabled"
           size="small"
           :disabled="disabled"
@@ -115,13 +123,15 @@ const emit = defineEmits<{
   min-width: 0;
 }
 
-/* 单字段子项：标题、控件、删除操作收在一行，避免无意义的纵向留白。 */
+/* 单行子项：标题、控件、删除操作紧密成组，间距统一使用 8px 栅格。 */
 .sd-repeatable-item--inline {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sd-space-md);
-  padding-block: var(--sd-space-xs);
+  justify-content: flex-start;
+  gap: var(--sd-space-xs);
+  padding: var(--sd-space-xs) var(--sd-space-md);
 }
 
 .sd-repeatable-item--inline .sd-repeatable-item__header {
@@ -129,18 +139,19 @@ const emit = defineEmits<{
 }
 
 .sd-repeatable-item--inline .sd-repeatable-item__heading {
-  grid-column: 1;
-  grid-row: 1;
+  flex: 0 0 auto;
+  order: 1;
+  gap: var(--sd-space-xs);
 }
 
 .sd-repeatable-item--inline .sd-repeatable-item__body {
-  grid-column: 2;
-  grid-row: 1;
+  flex: 0 1 auto;
+  order: 2;
 }
 
 .sd-repeatable-item--inline .sd-repeatable-item__actions {
-  grid-column: 3;
-  grid-row: 1;
+  flex: 0 0 auto;
+  order: 3;
   margin-left: 0;
 }
 
@@ -150,19 +161,13 @@ const emit = defineEmits<{
   }
 
   .sd-repeatable-item--inline {
-    display: flex;
-    align-items: stretch;
-    flex-direction: column;
-    gap: var(--sd-space-xs);
+    align-items: flex-start;
     padding-block: var(--sd-space-sm);
   }
 
-  .sd-repeatable-item--inline .sd-repeatable-item__header {
-    display: flex;
-  }
-
+  .sd-repeatable-item--inline .sd-repeatable-item__heading,
   .sd-repeatable-item--inline .sd-repeatable-item__body {
-    width: 100%;
+    flex: 1 1 100%;
   }
 }
 </style>
