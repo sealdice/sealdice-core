@@ -13,9 +13,11 @@ import (
 )
 
 type milkyForwardRequest struct {
-	GroupID int64 `json:"group_id"`
-	UserID  int64 `json:"user_id"`
-	Message []struct {
+	GroupID  int64  `json:"group_id"`
+	UserID   int64  `json:"user_id"`
+	FileURI  string `json:"file_uri"`
+	FileName string `json:"file_name"`
+	Message  []struct {
 		Type string `json:"type"`
 		Data struct {
 			Text       string `json:"text"`

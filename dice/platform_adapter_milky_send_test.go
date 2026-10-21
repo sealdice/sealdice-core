@@ -2,6 +2,8 @@
 package dice
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +11,45 @@ import (
 
 	"sealdice-core/message"
 )
+
+func TestPlatformAdapterMilkyPreservesUploadedFileName(t *testing.T) {
+	const filename = "【测试 100% #1】20261019-123.txt"
+	filePath := filepath.Join(t.TempDir(), filename)
+	sharedURI := logExportFileURI(filePath)
+	fileURI := strings.Replace(sharedURI, "files://", "file://", 1)
+	tests := []struct {
+		name    string
+		path    string
+		wantURI string
+	}{
+		{name: "shared file URI", path: sharedURI, wantURI: fileURI},
+		{name: "file URI", path: fileURI, wantURI: fileURI},
+		{name: "local path", path: filePath, wantURI: filePath},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			session, harness, cleanup := newMilkyForwardHarness(t, "")
+			defer cleanup()
+			pa := &PlatformAdapterMilky{IntentSession: session}
+
+			pa.SendFileToGroup(nil, "QQ-Group:20020", test.path, "")
+
+			endpoint, request := harness.snapshot()
+			if endpoint != milky.EndpointUploadGroupFile {
+				t.Fatalf("endpoint = %q, want %q", endpoint, milky.EndpointUploadGroupFile)
+			}
+			if request.GroupID != 20020 {
+				t.Errorf("group_id = %d, want 20020", request.GroupID)
+			}
+			if request.FileName != filename {
+				t.Errorf("file_name = %q, want %q", request.FileName, filename)
+			}
+			if request.FileURI != test.wantURI {
+				t.Errorf("file_uri = %q, want %q", request.FileURI, test.wantURI)
+			}
+		})
+	}
+}
 
 func (h *milkyForwardHarness) requestCount() int {
 	h.mu.Lock()
