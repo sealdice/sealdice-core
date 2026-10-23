@@ -20,12 +20,11 @@ require (
 	github.com/bytedance/sonic v1.15.2
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/danielgtaylor/huma/v2 v2.34.1
-	github.com/dop251/goja v0.0.0-20260216154549-8b74ce4618c5
+	github.com/dop251/goja v0.0.0-20260806115107-493f22071ef6
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/evanw/esbuild v0.27.1
 	github.com/fy0/bluge v0.8.0
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
-	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
 	github.com/fy0/systray v1.2.2
 	github.com/fyrchik/go-shlex v0.0.0-20210215145004-cd7f49bfd959
 	github.com/gen2brain/beeep v0.11.2
@@ -93,7 +92,6 @@ require (
 	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.41.0
 	golang.org/x/time v0.15.0
-	gopkg.in/elazarl/goproxy.v1 v1.0.0-20180725130230-947c36da3153
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
@@ -107,6 +105,7 @@ require (
 	github.com/blevesearch/mmap-go v1.2.0
 	github.com/emmansun/gmsm v0.44.1
 	github.com/klauspost/compress v1.18.0
+	github.com/sealdice/goja_ext v0.0.0-20260814022656-83f64c95a6ee
 	github.com/sixafter/aes-ctr-drbg v1.16.0
 	github.com/tus/tusd/v2 v2.10.1
 )
@@ -132,8 +131,9 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dgryski/go-metro v0.0.0-20250106013310-edb8663e5e33 // indirect
-	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/dlclark/regexp2/v2 v2.5.2 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
+	github.com/dop251/base64dec v0.0.0-20231022112746-c6c9f9a96217 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20230808193330-2592e75ae04a // indirect
@@ -235,9 +235,9 @@ require (
 
 replace (
 	github.com/Szzrain/dodo-open-go v0.2.7 => github.com/sealdice/dodo-open-go v0.2.8
+	github.com/dop251/goja_nodejs => github.com/sealdice/goja_ext v0.0.0-20260822150033-d5f4f40de0ca
 	// Try to fix sqlite in cgofree
 	// github.com/glebarez/sqlite v1.11.0 => github.com/PaienNate/sqlite v0.0.0-20241102151933-067d82f14685
-	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0 => github.com/PaienNate/goja_nodejs v0.0.0-20250924024212-bac2e5ba5231
 	github.com/lonelyevil/kook v0.0.31 => github.com/sealdice/kook v0.0.3
 	github.com/sacOO7/gowebsocket v0.0.0-20221109081133-70ac927be105 => github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6
 )
