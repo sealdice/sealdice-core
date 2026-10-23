@@ -31,14 +31,9 @@ const officialQQIdentityMigrationBatchSize = 200
 
 func officialQQIdentityMigrationFindInBatches[T any](query *gorm.DB, process func([]T) error) error {
 	var rows []T
-	query = officialQQIdentityMigrationWithoutCache(query)
 	return query.FindInBatches(&rows, officialQQIdentityMigrationBatchSize, func(_ *gorm.DB, _ int) error {
 		return process(rows)
 	}).Error
-}
-
-func officialQQIdentityMigrationWithoutCache(db *gorm.DB) *gorm.DB {
-	return db
 }
 
 func officialQQIdentityMigrationForEachChunk[T any](items []T, process func([]T) error) error {
@@ -328,7 +323,6 @@ func (m *officialQQIdentityMigration) syncCharacterCache(d *Dice, operator engin
 	if !hasTable(db, &model.AttributesItemModel{}) {
 		return nil
 	}
-	db = officialQQIdentityMigrationWithoutCache(db)
 	return officialQQIdentityMigrationForEachChunk(ids, func(batchIDs []string) error {
 		var rows []model.AttributesItemModel
 		if err := db.Select("id, name").Where("attrs_type = ? AND id IN ?", "character", batchIDs).Find(&rows).Error; err != nil {
@@ -395,7 +389,7 @@ func (m *officialQQIdentityMigration) shouldRunIdentityMigration(operator engine
 
 	for _, probe := range probes {
 		var found int
-		result := officialQQIdentityMigrationWithoutCache(probe).Select("1").Limit(1).Scan(&found)
+		result := probe.Select("1").Limit(1).Scan(&found)
 		if result.Error != nil {
 			return false, result.Error
 		}
@@ -635,7 +629,6 @@ func mergeOfficialQQUserAttrs(tx *gorm.DB, rows []model.AttributesItemModel) (mo
 			updatedAt = row.UpdatedAt
 		}
 	}
-	tx = officialQQIdentityMigrationWithoutCache(tx)
 	if err := officialQQIdentityMigrationForEachChunk(ordered, func(batch []model.AttributesItemModel) error {
 		ids := make([]string, 0, len(batch))
 		for _, row := range batch {
@@ -688,7 +681,6 @@ func mergeOfficialQQUserAttrs(tx *gorm.DB, rows []model.AttributesItemModel) (mo
 }
 
 func (m *officialQQIdentityMigration) mergeCollidingUserAttrs(tx *gorm.DB) error {
-	tx = officialQQIdentityMigrationWithoutCache(tx)
 	byTarget := map[string][]model.AttributesItemModel{}
 	err := officialQQIdentityMigrationFindInBatches(
 		m.legacyAttrsQuery(tx).Select(officialQQIdentityMigrationAttrsMetadataColumns),
@@ -750,7 +742,6 @@ func (m *officialQQIdentityMigration) mergeCollidingUserAttrs(tx *gorm.DB) error
 }
 
 func (m *officialQQIdentityMigration) planCharacterNames(tx *gorm.DB) (map[string]string, error) {
-	tx = officialQQIdentityMigrationWithoutCache(tx)
 	type ownerName struct {
 		owner string
 		name  string

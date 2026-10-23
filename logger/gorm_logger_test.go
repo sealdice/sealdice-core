@@ -2,14 +2,17 @@
 package logger
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
+	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 )
 
@@ -131,3 +134,67 @@ func TestDynamicFileCoreWritesQueryLoggerIntoDatabaseFile(t *testing.T) {
 }
 
 var _ gormlogger.Interface = GORMLogger{}
+
+func TestGORMLoggerParamsFilterTruncatesLargeValues(t *testing.T) {
+	l := NewGormLogger(zap.NewNop())
+	largeText := strings.Repeat("界", 4_000)
+	largeBinary := bytes.Repeat([]byte{0xab}, 12*1024)
+	smallText := "small"
+
+	sql, params := l.ParamsFilter(t.Context(), "INSERT INTO kv VALUES (?, ?, ?)", largeText, largeBinary, smallText)
+	if sql != "INSERT INTO kv VALUES (?, ?, ?)" {
+		t.Fatalf("filtered SQL = %q", sql)
+	}
+	if len(params) != 3 {
+		t.Fatalf("filtered params count = %d", len(params))
+	}
+
+	textSummary, ok := params[0].(string)
+	if !ok {
+		t.Fatalf("large text summary type = %T", params[0])
+	}
+	if !utf8.ValidString(textSummary) || len(textSummary) >= maxGORMLogParamBytes {
+		t.Fatalf("large text summary is invalid or unbounded: bytes=%d", len(textSummary))
+	}
+	if !strings.Contains(textSummary, "original_bytes=12000") {
+		t.Fatalf("large text summary missing original size: %q", textSummary)
+	}
+
+	binarySummary, ok := params[1].(string)
+	if !ok {
+		t.Fatalf("large binary summary type = %T", params[1])
+	}
+	if len(binarySummary) >= 512 || !strings.Contains(binarySummary, "original_bytes=12288") || !strings.Contains(binarySummary, strings.Repeat("ab", 8)) {
+		t.Fatalf("large binary summary is invalid: %q", binarySummary)
+	}
+	if params[2] != smallText {
+		t.Fatalf("small parameter changed: %#v", params[2])
+	}
+}
+
+func TestGORMLoggerTraceTruncatesFinalSQL(t *testing.T) {
+	core, observed := observer.New(zapcore.DebugLevel)
+	l := NewGormLogger(zap.New(core))
+	original := strings.Repeat("界", maxGORMLogSQLBytes)
+
+	l.Trace(t.Context(), time.Now(), func() (string, int64) {
+		return original, 1
+	}, nil)
+
+	entries := observed.All()
+	if len(entries) != 1 {
+		t.Fatalf("trace entries = %d", len(entries))
+	}
+	message := entries[0].Message
+	if !utf8.ValidString(message) {
+		t.Fatal("trace message is not valid UTF-8")
+	}
+	if len(message) > maxGORMLogSQLBytes+128 {
+		t.Fatalf("trace message remains unbounded: bytes=%d", len(message))
+	}
+	if !strings.Contains(message, "truncated original_bytes=30720") {
+		t.Fatalf("trace message missing truncation metadata: %q", message[len(message)-128:])
+	}
+}
+
+var _ gorm.ParamsFilter = GORMLogger{}

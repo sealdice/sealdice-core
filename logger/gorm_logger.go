@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -22,6 +23,13 @@ var (
 	traceStr     = "[%.3fms] [rows:%v] %s"
 	traceWarnStr = "%s\n[%.3fms] [rows:%v] %s"
 	traceErrStr  = "%s\n[%.3fms] [rows:%v] %s"
+)
+
+const (
+	maxGORMLogParamBytes        = 10 * 1024
+	maxGORMLogTextPrefixBytes   = 1024
+	maxGORMLogBinaryPrefixBytes = 64
+	maxGORMLogSQLBytes          = 10 * 1024
 )
 
 type ContextFn func(ctx context.Context) []zapcore.Field
@@ -82,6 +90,60 @@ func (l GORMLogger) Error(ctx context.Context, msg string, args ...interface{}) 
 	l.logger(ctx).Sugar().Errorf(errStr+msg, args...)
 }
 
+// ParamsFilter bounds values before GORM interpolates them into a log-only SQL
+// string. The original parameters used to execute the statement are untouched.
+func (l GORMLogger) ParamsFilter(_ context.Context, sql string, params ...interface{}) (string, []interface{}) {
+	filtered := params
+	for index, param := range params {
+		var replacement string
+		switch value := param.(type) {
+		case string:
+			if len(value) <= maxGORMLogParamBytes {
+				continue
+			}
+			replacement = fmt.Sprintf("%s...[truncated original_bytes=%d]", utf8BytePrefix(value, maxGORMLogTextPrefixBytes), len(value))
+		case []byte:
+			if len(value) <= maxGORMLogParamBytes {
+				continue
+			}
+			prefixLength := min(len(value), maxGORMLogBinaryPrefixBytes)
+			replacement = fmt.Sprintf("<bytes prefix_hex=%x original_bytes=%d>", value[:prefixLength], len(value))
+		default:
+			continue
+		}
+
+		if len(filtered) > 0 && &filtered[0] == &params[0] {
+			filtered = append([]interface{}(nil), params...)
+		}
+		filtered[index] = replacement
+	}
+	return sql, filtered
+}
+
+func utf8BytePrefix(value string, maxBytes int) string {
+	if len(value) <= maxBytes {
+		return value
+	}
+	prefix := value[:maxBytes]
+	for len(prefix) > 0 && !utf8.ValidString(prefix) {
+		prefix = prefix[:len(prefix)-1]
+	}
+	return prefix
+}
+
+func truncateGORMLogSQL(sql string) string {
+	if len(sql) <= maxGORMLogSQLBytes {
+		return sql
+	}
+	suffix := fmt.Sprintf("...[truncated original_bytes=%d]", len(sql))
+	return utf8BytePrefix(sql, maxGORMLogSQLBytes-len(suffix)) + suffix
+}
+
+func boundedTraceSQL(fc func() (string, int64)) (string, int64) {
+	sql, rows := fc()
+	return truncateGORMLogSQL(sql), rows
+}
+
 func (l GORMLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
 	if l.LogLevel <= gormlogger.Silent {
 		return
@@ -92,14 +154,14 @@ func (l GORMLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 
 	switch {
 	case err != nil && l.LogLevel >= gormlogger.Error && (!l.IgnoreRecordNotFoundError || !errors.Is(err, gorm.ErrRecordNotFound)):
-		sql, rows := fc()
+		sql, rows := boundedTraceSQL(fc)
 		if rows == -1 {
 			logger.Sugar().Errorf(traceErrStr, err, float64(elapsed.Nanoseconds())/1e6, "-", sql)
 			return
 		}
 		logger.Sugar().Errorf(traceErrStr, err, float64(elapsed.Nanoseconds())/1e6, rows, sql)
 	case l.SlowThreshold != 0 && elapsed > l.SlowThreshold && l.LogLevel >= gormlogger.Warn:
-		sql, rows := fc()
+		sql, rows := boundedTraceSQL(fc)
 		slowLog := fmt.Sprintf("SLOW SQL >= %v", l.SlowThreshold)
 		if rows == -1 {
 			logger.Sugar().Warnf(traceWarnStr, slowLog, float64(elapsed.Nanoseconds())/1e6, "-", sql)
@@ -107,7 +169,7 @@ func (l GORMLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 		}
 		logger.Sugar().Warnf(traceWarnStr, slowLog, float64(elapsed.Nanoseconds())/1e6, rows, sql)
 	case l.LogLevel >= gormlogger.Info:
-		sql, rows := fc()
+		sql, rows := boundedTraceSQL(fc)
 		queryLogger := l.queryLogger(ctx)
 		if rows == -1 {
 			queryLogger.Sugar().Debugf(traceStr, float64(elapsed.Nanoseconds())/1e6, "-", sql)
