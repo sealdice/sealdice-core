@@ -19,22 +19,23 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/abort"
+	"github.com/dop251/goja_nodejs/cloudflarekv"
 	"github.com/dop251/goja_nodejs/console"
+	sealcrypto "github.com/dop251/goja_nodejs/crypto"
 	"github.com/dop251/goja_nodejs/eventloop"
+	"github.com/dop251/goja_nodejs/fetch"
 	"github.com/dop251/goja_nodejs/require"
+	gojaextws "github.com/dop251/goja_nodejs/websocket"
 	esbuild "github.com/evanw/esbuild/pkg/api"
-	fetch "github.com/fy0/gojax/fetch"
 	"github.com/golang-module/carbon"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron/v3"
 	"github.com/samber/lo"
 	"go.uber.org/zap"
-	"gopkg.in/elazarl/goproxy.v1"
 
 	"sealdice-core/static"
 	"sealdice-core/utils/crypto"
-
-	sealws "sealdice-core/utils/plugin/websocket"
 )
 
 var (
@@ -94,20 +95,25 @@ func (d *Dice) JsInit() {
 		eventloop.WithRegistry(reg),
 		eventloop.WithDebugLog(true),
 		eventloop.WithLogger(d.Logger))
-	_ = fetch.Enable(loop, goproxy.NewProxyHttpServer())
 	versionID := d.ExtLoopManager.SetLoop(loop)
 
 	printer := &PrinterFunc{d, false, []string{}}
 	d.JsPrinter = printer
-	reg.RegisterNativeModule("console", console.RequireWithPrinter(printer))
+	// console 打标签：每条来自脚本的 console 日志按来源脚本文件名打 [x.js] 前缀，
+	// 并可选择性过滤（见 console.Config.Filter）。ModuleTag 取最内层发起脚本的 basename。
+	reg.RegisterNativeModule("console", console.RequireWithConfig(console.Config{
+		Printer: printer,
+		Tag:     console.ModuleTag,
+	}))
+	reg.RegisterNativeModule("crypto", sealcrypto.Require)
+	reg.RegisterNativeModule("node:crypto", sealcrypto.Require)
 
 	d.JsScriptCron = cron.New()
 	d.JsScriptCronLock = &sync.Mutex{}
 	d.JsScriptCron.Start()
-	// 单独给WebSocket一个Logger
-	sealws.SetLogger(d.Logger)
-	// 关闭之前的所有WebSocket
-	sealws.GlobalConnManager.CloseAll()
+	// 单独给 WebSocket 一个 Logger，并关闭旧 loop 遗留的连接。
+	gojaextws.SetLogger(d.Logger)
+	gojaextws.GlobalConnManager.CloseAll()
 	// 初始化
 	loop.Run(func(vm *goja.Runtime) {
 		vm.SetFieldNameMapper(goja.TagFieldNameMapper("jsbind", true))
@@ -119,7 +125,15 @@ func (d *Dice) JsInit() {
 		// console 模块
 		console.Enable(vm)
 
-		sealws.Enable(vm, loop)
+		fetch.Enable(vm)
+		if err := fetch.EnableFetch(vm, loop); err != nil {
+			panic(err)
+		}
+		abort.Enable(vm)
+		sealcrypto.Enable(vm)
+		if err := gojaextws.Enable(vm, loop); err != nil {
+			panic(err)
+		}
 		// require 模块
 		reg.Enable(vm)
 
@@ -208,7 +222,6 @@ func (d *Dice) JsInit() {
 					d.Logger.Error(e)
 				}
 			}()
-
 			if strings.ToLower(realExt.Name) == "help" || strings.ToLower(realExt.Name) == "all" {
 				panic("help 和 all 为保留关键字，无法作为插件名使用")
 			}
@@ -265,7 +278,33 @@ func (d *Dice) JsInit() {
 			// 4. 更新全局扩展变更时间戳
 			d.ExtUpdateTime = time.Now().Unix()
 
-			// 5. 触发 OnLoad 回调
+			// 5. 初始化并注入插件 KV 对象。
+			if err := realExt.StorageInit(); err != nil {
+				d.Logger.Errorf("扩展<%s>存储初始化失败: %v", realExt.Name, err)
+				return
+			}
+			storageObject := vm.NewObject()
+			// 大值/流式由 kvfile 文件后端承载：放开桥层的 25MB 值上限（0=不设上限），
+			// 可存体量由文件存储与后续配额把控。
+			kvLimits := cloudflarekv.CloudflareLimits()
+			kvLimits.MaxValueBytes = 0
+			kvOpts := []cloudflarekv.BindOption{cloudflarekv.WithLimits(kvLimits)}
+			asyncKV := vm.NewObject()
+			if err := cloudflarekv.BindNamespaceObject(vm, loop, asyncKV, realExt.Storage, kvOpts...); err != nil {
+				d.Logger.Errorf("扩展<%s>异步 KV 注入失败: %v", realExt.Name, err)
+				return
+			}
+			syncKV := vm.NewObject()
+			if err := cloudflarekv.BindSyncNamespaceObject(vm, syncKV, realExt.Storage, kvOpts...); err != nil {
+				d.Logger.Errorf("扩展<%s>同步 KV 注入失败: %v", realExt.Name, err)
+				return
+			}
+			_ = storageObject.Set("kv", asyncKV)
+			_ = storageObject.Set("synckv", syncKV)
+			realExt.JSStorage = storageObject
+			wrapper.JSStorage = storageObject
+
+			// 6. 触发 OnLoad 回调
 			if realExt.OnLoad != nil {
 				realExt.OnLoad()
 			}

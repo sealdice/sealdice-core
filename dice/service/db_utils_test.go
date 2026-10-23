@@ -24,6 +24,7 @@ func (f *fakeOperator) DBCheck()                             {}
 func (f *fakeOperator) GetDataDB(constant.DBMode) *gorm.DB   { return f.db }
 func (f *fakeOperator) GetLogDB(constant.DBMode) *gorm.DB    { return f.db }
 func (f *fakeOperator) GetCensorDB(constant.DBMode) *gorm.DB { return f.db }
+func (f *fakeOperator) GetPluginDB(constant.DBMode) *gorm.DB { return f.db }
 func (f *fakeOperator) Close()                               {}
 
 func freelistCount(t *testing.T, db *gorm.DB) int {

@@ -31,6 +31,7 @@ func (o *logInfoTestOperator) DBCheck()                               {}
 func (o *logInfoTestOperator) GetDataDB(_ constant.DBMode) *gorm.DB   { return o.db }
 func (o *logInfoTestOperator) GetLogDB(_ constant.DBMode) *gorm.DB    { return o.db }
 func (o *logInfoTestOperator) GetCensorDB(_ constant.DBMode) *gorm.DB { return o.db }
+func (o *logInfoTestOperator) GetPluginDB(_ constant.DBMode) *gorm.DB { return o.db }
 func (o *logInfoTestOperator) Close()                                 {}
 
 func TestLogGetInfoUsesSQLiteSequenceForRows(t *testing.T) {

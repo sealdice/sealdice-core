@@ -1,18 +1,20 @@
 package js
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
-	"github.com/tidwall/buntdb"
+	"github.com/dop251/goja_nodejs/cloudflarekv/store"
 
 	"sealdice-core/dice"
 )
 
-// extStorage wraps per-extension BuntDB operations.
+// extStorage wraps per-extension KV operations.
 // It holds a *dice.ExtInfo so we don't look it up on every call.
 type extStorage struct {
 	d   *dice.Dice
@@ -73,6 +75,50 @@ func findStorageExtensionByScript(d *dice.Dice, name string) *dice.ExtInfo {
 	return nil
 }
 
+// allKeys walks the namespace in ascending key order using the cursor-based
+// List API, so a big plugin KV never has to be materialized all at once.
+func (s *extStorage) allKeys(ctx context.Context) ([]string, error) {
+	var keys []string
+	cursor := ""
+	for {
+		result, err := s.ext.Storage.List(ctx, store.ListOptions{Limit: 1000, Cursor: cursor})
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range result.Keys {
+			keys = append(keys, item.Name)
+		}
+		if result.ListComplete || result.Cursor == "" || result.Cursor == cursor {
+			return keys, nil
+		}
+		cursor = result.Cursor
+	}
+}
+
+// compileGlob translates a BuntDB-style key pattern (* and ?) into a regexp.
+// Unlike path.Match it lets * span any character, including '/', which matches
+// how plugin keys are addressed.
+func compileGlob(pattern string) *regexp.Regexp {
+	var builder strings.Builder
+	builder.WriteString("^")
+	for _, r := range pattern {
+		switch r {
+		case '*':
+			builder.WriteString(".*")
+		case '?':
+			builder.WriteString(".")
+		default:
+			builder.WriteString(regexp.QuoteMeta(string(r)))
+		}
+	}
+	builder.WriteString("$")
+	re, err := regexp.Compile(builder.String())
+	if err != nil {
+		return nil
+	}
+	return re
+}
+
 // listKeys returns a paginated subset of keys matching keyword (glob pattern).
 func (s *extStorage) listKeys(page, pageSize int, keyword string) (*DataListResp, error) {
 	if page < 1 {
@@ -85,40 +131,68 @@ func (s *extStorage) listKeys(page, pageSize int, keyword string) (*DataListResp
 		keyword = "*"
 	}
 
-	result := &DataListResp{Keys: []DataKV{}, Page: page, PageSize: pageSize}
-	err := s.ext.Storage.View(func(tx *buntdb.Tx) error {
-		return tx.AscendKeys(keyword, func(key, value string) bool {
-			// Count all matches, but retain only the requested page. Division
-			// avoids overflowing an offset when the client sends a huge page.
-			if result.Total/pageSize == page-1 {
-				result.Keys = append(result.Keys, DataKV{
-					Key: key, Value: value, IsJSON: json.Valid([]byte(value)),
-				})
-			}
-			result.Total++
-			return true
-		})
-	})
+	all, err := s.allKeys(context.Background())
 	if err != nil {
 		return nil, err
 	}
+	matcher := compileGlob(keyword)
+	matched := make([]string, 0, len(all))
+	for _, key := range all {
+		if matcher == nil {
+			if key == keyword {
+				matched = append(matched, key)
+			}
+			continue
+		}
+		if matcher.MatchString(key) {
+			matched = append(matched, key)
+		}
+	}
 
+	result := &DataListResp{Keys: []DataKV{}, Page: page, PageSize: pageSize, Total: len(matched)}
+	// Guard against overflowing (page-1)*pageSize when the client sends a huge
+	// page number; anything past the last page is simply empty.
+	if page > 1 && page > (len(matched)+pageSize-1)/pageSize {
+		return result, nil
+	}
+	start := (page - 1) * pageSize
+	if start >= len(matched) {
+		return result, nil
+	}
+	end := start + pageSize
+	if end > len(matched) {
+		end = len(matched)
+	}
+
+	for _, key := range matched[start:end] {
+		record, found, err := s.ext.Storage.Get(context.Background(), key)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			continue
+		}
+		value := string(record.Value)
+		result.Keys = append(result.Keys, DataKV{
+			Key: key, Value: value, IsJSON: json.Valid(record.Value),
+		})
+	}
 	return result, nil
 }
 
 // getValue returns a single key-value pair.
 func (s *extStorage) getValue(key string) (*DataKV, error) {
-	val, err := s.ext.StorageGet(key)
+	record, found, err := s.ext.Storage.Get(context.Background(), key)
 	if err != nil {
-		if errors.Is(err, buntdb.ErrNotFound) {
-			return nil, errors.New("key不存在：" + key)
-		}
 		return nil, err
+	}
+	if !found {
+		return nil, errors.New("key不存在：" + key)
 	}
 	return &DataKV{
 		Key:    key,
-		Value:  val,
-		IsJSON: json.Valid([]byte(val)),
+		Value:  string(record.Value),
+		IsJSON: json.Valid(record.Value),
 	}, nil
 }
 
@@ -132,47 +206,45 @@ func (s *extStorage) deleteKeys(keys []string) error {
 	if len(keys) == 0 {
 		return nil
 	}
-	return s.ext.Storage.Update(func(tx *buntdb.Tx) error {
-		for _, key := range keys {
-			if _, err := tx.Delete(key); err != nil && !errors.Is(err, buntdb.ErrNotFound) {
-				return err
-			}
+	for _, key := range keys {
+		if err := s.ext.Storage.Delete(context.Background(), key); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
-// info returns DB statistics.
+// info returns the key count and the on-disk size of this plugin's large-value
+// bodies. Small values live in the shared plugin database, so their size is not
+// attributable to a single extension.
 func (s *extStorage) info() (*DataInfoResp, error) {
-	var count int
-	var canShrink bool
-	var fileSize int64
-
-	dbPath := filepath.Join(s.d.BaseConfig.DataDir, "extensions", s.ext.Name, "storage.db")
-	fi, err := os.Stat(dbPath)
-	if err == nil {
-		fileSize = fi.Size()
-		// BuntDB auto-shrink triggers at ~32MB; suggest manual shrink above 10MB
-		canShrink = fileSize > 10*1024*1024
-	}
-
-	err = s.ext.Storage.View(func(tx *buntdb.Tx) error {
-		var lerr error
-		count, lerr = tx.Len()
-		return lerr
-	})
+	keys, err := s.allKeys(context.Background())
 	if err != nil {
 		return nil, err
 	}
 
+	// 大值正文是 plugin-files/<ext>/<hash>.bin 的扁平布局，读一层目录即可。
+	var bodyBytes int64
+	if entries, readErr := os.ReadDir(filepath.Join(s.d.BaseConfig.DataDir, "plugin-files", s.ext.Name)); readErr == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			if info, statErr := entry.Info(); statErr == nil {
+				bodyBytes += info.Size()
+			}
+		}
+	}
+
 	return &DataInfoResp{
-		KeyCount:  count,
-		FileSize:  fileSize,
-		CanShrink: canShrink,
+		KeyCount:  len(keys),
+		FileSize:  bodyBytes,
+		CanShrink: false,
 	}, nil
 }
 
-// shrink compacts the storage database file.
+// shrink is a no-op: the plugin database runs with incremental auto-vacuum, so
+// there is no per-extension file to compact anymore.
 func (s *extStorage) shrink() error {
-	return s.ext.Storage.Shrink()
+	return nil
 }

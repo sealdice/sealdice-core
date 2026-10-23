@@ -47,6 +47,7 @@ func (o *configTestDatabaseOperator) DBCheck()                               {}
 func (o *configTestDatabaseOperator) GetDataDB(_ constant.DBMode) *gorm.DB   { return o.db }
 func (o *configTestDatabaseOperator) GetLogDB(_ constant.DBMode) *gorm.DB    { return o.db }
 func (o *configTestDatabaseOperator) GetCensorDB(_ constant.DBMode) *gorm.DB { return o.db }
+func (o *configTestDatabaseOperator) GetPluginDB(_ constant.DBMode) *gorm.DB { return o.db }
 func (o *configTestDatabaseOperator) Close() {
 	sqlDB, err := o.db.DB()
 	if err == nil {

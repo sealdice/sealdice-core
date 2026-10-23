@@ -30,6 +30,7 @@
 | `010_V160LogSizeRepairMigration` | v1.6.0 | logs.size 兜底修复 | 补建缺失的 size 列并全量重算（兜底 V150 失误） |
 | `011_V161NoticeIDsMigration` | v1.6.1 | 骰主通知目标初始化 | 将骰主 ID 一次性补入通知列表，仅开启 send 通知 |
 | `012_V161LogUpdatedAtRepairMigration` | v1.6.1 | logs.updated_at 回填修复 | 按最后一条日志时间回填 updated_at；无日志则回退到 created_at |
+| `013_V161PluginStorageMigration` | v1.6.1 | 插件存储迁移 | 初始化共享插件 KV 表并导入旧 BuntDB 存储 |
 
 > ⚠️ ID 冲突提醒：`007_` 前缀同时被 `V150FixGroupInfoMigration` 与 `V151GORMCleanMigration` 使用，靠后缀字典序保证 V150 先于 V151 执行。代码内多处 `TODO` 标注“需要合理的生成逻辑”，建议后续改为更稳健的编号方案。
 
@@ -156,6 +157,13 @@
 - **失败**：返回错误 → 中断升级。
 - **设计目的**：修复已执行过旧版 008 迁移的数据库中，`logs.updated_at` 被错误刷新成升级执行时间的问题。
 
+### 013 — V161PluginStorageMigration（插件存储迁移）
+
+- **触发条件**：始终初始化插件数据库中的 `kv_records` 表；存在 `data/default/extensions/<插件名>/storage.db` 时导入数据。
+- **行为**：以插件目录名作为 namespace，遍历 BuntDB 的全部键值并通过 gormkv upsert 写入；空字符串按零长度非 NULL blob 保存。
+- **幂等**：升级框架只记录一次；迁移函数直接重试也不会产生重复行。
+- **失败**：建表、扫描目录、打开 BuntDB 或写入任一键失败时返回错误并中断升级。原 BuntDB 文件不删除。
+
 ---
 
 ## size 语义（请重点审阅）
@@ -181,6 +189,7 @@
 - `v160_log_size_test.go`：010 的“补建缺失列+重算”、“已有列重算”、“无 logs 表无操作”。
 - `v160_logid0_test.go`：008 的“清理+重算”、“size 列缺失时不报错”、“无数据无操作”。
 - `v161/v161_test.go`、`v161_notice_ids_test.go`：011 的“合并且去重”、“缺少配置时跳过”，以及迁移完成后用户手动清空不会再次填充。
+- `v161/v161_plugin_storage_test.go`：013 的普通值、空值导入与直接重试幂等性。
 - `full_flow_test.go`：用 `testdata/full_setup_logs.sql` + `testdata/full_setup_data.sql` 造假库，跑完整 V120→V010 链路并断言结果，再跑第二次验证幂等。
 
 测试仅覆盖 SQLite（本仓库无 MySQL/PG 的 CI 实例）；迁移代码本身对三种数据库都做了分支处理。

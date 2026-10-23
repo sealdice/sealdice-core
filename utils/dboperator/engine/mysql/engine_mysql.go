@@ -20,7 +20,12 @@ type MYSQLEngine struct {
 	dataDB   *gorm.DB
 	logsDB   *gorm.DB
 	censorDB *gorm.DB
+	pluginDB *gorm.DB
 	ctx      context.Context
+}
+
+func (s *MYSQLEngine) GetPluginDB(_ constant.DBMode) *gorm.DB {
+	return s.pluginDB
 }
 
 func (s *MYSQLEngine) Close() {
@@ -76,6 +81,10 @@ func (s *MYSQLEngine) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.pluginDB, err = s.pluginDBInit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -99,6 +108,11 @@ func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
 		return nil, err
 	}
 	return s.DB, nil
+}
+
+func (s *MYSQLEngine) pluginDBInit() (*gorm.DB, error) {
+	db := s.DB.WithContext(s.ctx)
+	return db, nil
 }
 
 func (s *MYSQLEngine) Type() string {

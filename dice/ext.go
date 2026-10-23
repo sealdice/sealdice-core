@@ -1,17 +1,17 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync/atomic"
 
 	"github.com/dop251/goja"
-	"github.com/tidwall/buntdb"
+	"github.com/dop251/goja_nodejs/cloudflarekv/store"
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
@@ -190,23 +190,44 @@ func (d *Dice) GetExtConfigFilePath(extName string, filename string) string {
 	return path.Join(d.GetExtDataDir(extName), filename)
 }
 
-// ClearExtStorage 删除扩展 storage.db 并重新初始化。
+// ClearExtStorage 清空扩展对应的 gormkv namespace 并重新初始化。
 func ClearExtStorage(d *Dice, ext *ExtInfo, name string) error {
-	err := ext.StorageClose()
+	if d == nil || ext == nil {
+		return errors.New("[扩展]:Dice 或扩展不能为空")
+	}
+	target := ext.GetRealExt()
+	if target == nil {
+		return errors.New("[扩展]:目标扩展不存在")
+	}
+	err := target.StorageClose()
 	if err != nil {
 		return err
 	}
-
-	dbPath := filepath.Join(d.BaseConfig.DataDir, "extensions", name, "storage.db")
-	err = os.Remove(dbPath)
-	if errors.Is(err, os.ErrNotExist) {
-		err = nil
-	}
+	err = target.StorageInit()
 	if err != nil {
 		return err
 	}
-
-	return ext.StorageInit()
+	if target.Storage == nil {
+		return errors.New("[扩展]:Storage 未初始化")
+	}
+	namespace := target.Name
+	if strings.TrimSpace(name) != "" {
+		namespace = name
+	}
+	clearStorage, err := d.PluginKVBackend.Namespace(namespace)
+	if err != nil {
+		return err
+	}
+	if err := clearStorage.Clear(context.Background()); err != nil {
+		return err
+	}
+	// 大值文件侧也一并清空（文件体 + 指针行），避免留下孤儿文件。
+	if d.PluginKVFileBackend != nil {
+		if err := d.PluginKVFileBackend.ClearNamespace(context.Background(), namespace); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func GetExtensionDesc(ei *ExtInfo) string {
@@ -343,7 +364,7 @@ func (i *ExtInfo) callWithJsCheck(d *Dice, f func()) {
 	}
 }
 
-// StorageInit 与旧版一致：使用互斥锁确保只初始化一次。
+// StorageInit 使用 gormkv 初始化插件 namespace；表结构由 migrate 负责创建。
 func (i *ExtInfo) StorageInit() error {
 	var err error
 	if i.dice == nil {
@@ -357,33 +378,37 @@ func (i *ExtInfo) StorageInit() error {
 		return nil
 	}
 
-	dir := d.GetExtDataDir(i.Name)
-	fn := path.Join(dir, "storage.db")
-	i.Storage, err = buntdb.Open(fn)
+	if d.PluginKVBackend == nil {
+		return errors.New("[扩展]:插件 KV 后端未初始化")
+	}
+	smallNS, err := d.PluginKVBackend.Namespace(i.Name)
 	if err != nil {
-		d.Logger.Errorf("[扩展]:初始化扩展数据库失败，原因: %v，路径为：%s", err, fn)
+		d.Logger.Errorf("[扩展]:初始化扩展数据库失败，原因: %v", err)
+		return err
+	}
+	if d.PluginKVFileBackend != nil {
+		// 小值留在数据库（可随主库迁移），大值走插件级文件存储 + 指针行。
+		i.Storage, err = d.PluginKVFileBackend.Namespace(smallNS, i.Name)
+	} else {
+		i.Storage = smallNS
+	}
+	if err != nil {
+		d.Logger.Errorf("[扩展]:初始化扩展存储失败，原因: %v", err)
 		return err
 	}
 	i.init = true
 	return nil
 }
 
-// StorageClose 与旧逻辑一致：先判断 init，再关闭数据库并回收状态。
+// StorageClose 释放扩展对 repository 的引用，底层插件数据库由 DatabaseOperator 管理。
 func (i *ExtInfo) StorageClose() error {
 	i.dbMu.Lock()
 	defer i.dbMu.Unlock()
 	if !i.init {
 		return nil
 	}
-	if i.Storage == nil {
-		return errors.New("[扩展]:Storage 未初始化")
-	}
-	err := i.Storage.Close()
-	if err != nil {
-		i.dice.Logger.Errorf("[扩展]:关闭扩展数据库失败，原因: %v", err)
-		return err
-	}
 	i.Storage = nil
+	i.JSStorage = nil
 	i.init = false
 	return nil
 }
@@ -397,10 +422,8 @@ func (i *ExtInfo) StorageSet(k, v string) error {
 	if err := target.StorageInit(); err != nil {
 		return err
 	}
-	db := target.Storage
-	return db.Update(func(tx *buntdb.Tx) error {
-		_, _, err := tx.Set(k, v, nil)
-		return err
+	return target.Storage.Put(context.Background(), k, []byte(v), store.PutOptions{
+		ValueKind: store.ValueKindText,
 	})
 }
 
@@ -414,19 +437,11 @@ func (i *ExtInfo) StorageGet(k string) (string, error) {
 		return "", err
 	}
 
-	var val string
-	var err error
-
-	db := target.Storage
-	err = db.View(func(tx *buntdb.Tx) error {
-		val, err = tx.Get(k)
-		if err != nil && !errors.Is(err, buntdb.ErrNotFound) {
-			return err
-		}
-		return nil
-	})
-
-	return val, err
+	record, found, err := target.Storage.Get(context.Background(), k)
+	if err != nil || !found {
+		return "", err
+	}
+	return string(record.Value), nil
 }
 
 // GetPackageConfig 获取扩展所属包的用户配置

@@ -19,8 +19,13 @@ type PGSQLEngine struct {
 	dataDB   *gorm.DB
 	logsDB   *gorm.DB
 	censorDB *gorm.DB
+	pluginDB *gorm.DB
 	ctx      context.Context
 	// 其他引擎不需要读写分离
+}
+
+func (s *PGSQLEngine) GetPluginDB(_ constant.DBMode) *gorm.DB {
+	return s.pluginDB
 }
 
 func (s *PGSQLEngine) Close() {
@@ -75,6 +80,10 @@ func (s *PGSQLEngine) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.pluginDB, err = s.pluginDBInit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -96,6 +105,11 @@ func (s *PGSQLEngine) logDBInit() (*gorm.DB, error) {
 
 func (s *PGSQLEngine) censorDBInit() (*gorm.DB, error) {
 	return s.DB, nil
+}
+
+func (s *PGSQLEngine) pluginDBInit() (*gorm.DB, error) {
+	db := s.DB.WithContext(s.ctx)
+	return db, nil
 }
 func (s *PGSQLEngine) Type() string {
 	return constant.POSTGRESQL

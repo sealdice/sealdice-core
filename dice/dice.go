@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,16 +14,21 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/cloudflarekv/store"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/lascape/sat"
 	"github.com/robfig/cron/v3"
 	ds "github.com/sealdice/dicescript"
-	"github.com/tidwall/buntdb"
 	"go.uber.org/zap"
 
 	"sealdice-core/dice/events"
 	"sealdice-core/logger"
+	"sealdice-core/utils/constant"
 	"sealdice-core/utils/dboperator/engine"
+	"sealdice-core/utils/dboperator/gormkv"
+	"sealdice-core/utils/dboperator/gormkv/codec"
+	"sealdice-core/utils/dboperator/kvfile"
 	"sealdice-core/utils/public_dice"
 	randcore "sealdice-core/utils/random"
 	"sealdice-core/utils/weighted"
@@ -32,6 +38,46 @@ type CmdExecuteResult struct {
 	Matched  bool // 是否是指令
 	Solved   bool `jsbind:"solved"` // 是否响应此指令
 	ShowHelp bool `jsbind:"showHelp"`
+}
+
+func pluginKVCompressionOptions() codec.Options {
+	return codec.Options{
+		Enabled: true,
+		Level:   codec.DefaultZstdLevel,
+		MinSize: codec.DefaultMinSize,
+	}
+}
+
+func (d *Dice) registerPluginKVExpirationCleanup() error {
+	if d.Cron == nil || d.PluginKVBackend == nil {
+		return errors.New("plugin KV expiration cleanup is not initialized")
+	}
+	_, err := d.Cron.AddFunc("@every 1h", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		result, purgeErr := d.PluginKVBackend.PurgeExpired(ctx, gormkv.DefaultPurgeBatchSize)
+		if purgeErr != nil {
+			d.Logger.Warnf("清理插件 KV 过期数据失败: %v", purgeErr)
+			return
+		}
+		if result.Deleted > 0 {
+			d.Logger.Debugf("清理插件 KV 过期数据: deleted=%d hasMore=%v", result.Deleted, result.HasMore)
+		}
+
+		if d.PluginKVFileBackend == nil {
+			return
+		}
+		// 文件后端的大值同样需要过期清理（文件体 + 指针行）。
+		fileResult, purgeErr := d.PluginKVFileBackend.PurgeExpired(ctx, kvfile.DefaultPurgeBatchSize)
+		if purgeErr != nil {
+			d.Logger.Warnf("清理插件 KV 文件过期数据失败: %v", purgeErr)
+			return
+		}
+		if fileResult.FilesDeleted > 0 {
+			d.Logger.Debugf("清理插件 KV 文件过期数据: files=%d rows=%d", fileResult.FilesDeleted, fileResult.RowsDeleted)
+		}
+	})
+	return err
 }
 
 type CmdItemInfo struct {
@@ -78,10 +124,11 @@ type ExtInfo struct {
 	ActiveWith []string `jsbind:"activeWith" json:"-" yaml:"-"` // 跟随开关：当指定扩展开启或关闭时，本扩展也会同步
 
 	dice          *Dice
-	IsJsExt       bool          `json:"-"`
-	JSLoopVersion int64         `json:"-"`
-	Source        *JsScriptInfo `json:"-" yaml:"-"`
-	Storage       *buntdb.DB    `json:"-" yaml:"-"`
+	IsJsExt       bool                 `json:"-"`
+	JSLoopVersion int64                `json:"-"`
+	Source        *JsScriptInfo        `json:"-" yaml:"-"`
+	Storage       store.NamespaceStore `jsbind:"-" json:"-" yaml:"-"`
+	JSStorage     *goja.Object         `jsbind:"storage" json:"-" yaml:"-"`
 	// 为Storage使用互斥锁,并根据ID佬的说法修改为合适的名称
 	dbMu sync.Mutex `yaml:"-"` // 互斥锁
 	init bool       `yaml:"-"` // 标记Storage是否已初始化
@@ -206,10 +253,12 @@ type Dice struct {
 	BaseConfig         BaseConfig                           `yaml:"-"`
 	// DBData          *gorm.DB               `yaml:"-"` // 数据库对象
 	// DBLogs          *gorm.DB               `yaml:"-"` // 数据库对象
-	DBOperator    engine.DatabaseOperator
-	Logger        *zap.SugaredLogger `yaml:"-"` // 日志
-	LogWriter     *logger.UIWriter   `yaml:"-"` // 用于api的log对象
-	IsDeckLoading bool               `yaml:"-"` // 正在加载中
+	DBOperator          engine.DatabaseOperator
+	PluginKVBackend     *gormkv.Backend
+	PluginKVFileBackend *kvfile.Backend
+	Logger              *zap.SugaredLogger `yaml:"-"` // 日志
+	LogWriter           *logger.UIWriter   `yaml:"-"` // 用于api的log对象
+	IsDeckLoading       bool               `yaml:"-"` // 正在加载中
 
 	// 由于被导出的原因，暂时不迁移至 config
 	DeckList           []*DeckInfo `jsbind:"deckList"      yaml:"deckList"` // 牌堆信息
@@ -306,7 +355,7 @@ func (d *Dice) CocExtraRulesAdd(ruleInfo *CocRuleInfo) bool {
 	return true
 }
 
-func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter) {
+func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter) error {
 	loggerInstance := logger.M()
 	d.Logger = loggerInstance
 	d.LogWriter = uiWriter
@@ -319,13 +368,41 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "extra"), 0o755)
 	_ = os.MkdirAll(filepath.Join(d.BaseConfig.DataDir, "scripts"), 0o755)
 
-	d.Cron = cron.New()
-	d.Cron.Start()
-
-	d.CocExtraRules = map[int]*CocRuleInfo{}
-
 	var err error
 	d.DBOperator = operator
+	if d.DBOperator == nil {
+		return errors.New("database operator is required")
+	}
+	readDB := d.DBOperator.GetPluginDB(constant.READ)
+	writeDB := d.DBOperator.GetPluginDB(constant.WRITE)
+	if writeDB == nil {
+		return errors.New("plugin database is unavailable")
+	}
+	if readDB == nil {
+		readDB = writeDB
+	}
+	d.PluginKVBackend, err = gormkv.NewBackend(gormkv.BackendOptions{
+		ReadDB:      readDB,
+		WriteDB:     writeDB,
+		Compression: pluginKVCompressionOptions(),
+	})
+	if err != nil {
+		return fmt.Errorf("initialize plugin KV backend: %w", err)
+	}
+	// 大值/流式数据启用文件夹式文件后端：正文落 data/{name}/plugin-files，指针行留在插件库。
+	if d.PluginKVFileBackend, err = kvfile.NewBackend(readDB, writeDB, filepath.Join(d.BaseConfig.DataDir, "plugin-files"), kvfile.DefaultThreshold); err != nil {
+		return fmt.Errorf("initialize plugin KV file backend: %w", err)
+	}
+	if err = d.PluginKVFileBackend.AutoMigrate(); err != nil {
+		return fmt.Errorf("migrate plugin KV file refs: %w", err)
+	}
+	d.Cron = cron.New()
+	if scheduleErr := d.registerPluginKVExpirationCleanup(); scheduleErr != nil {
+		return fmt.Errorf("schedule plugin KV expiration cleanup: %w", scheduleErr)
+	}
+	d.Cron.Start()
+	d.CocExtraRules = map[int]*CocRuleInfo{}
+
 	d.AttrsManager = &AttrsManager{}
 	d.AttrsManager.Init(d)
 
@@ -531,6 +608,7 @@ func (d *Dice) Init(operator engine.DatabaseOperator, uiWriter *logger.UIWriter)
 	d.ResetQuitInactiveCron()
 
 	d.MarkModified()
+	return nil
 }
 
 func (d *Dice) rebuildParser(buffer string) *DiceRollParser {

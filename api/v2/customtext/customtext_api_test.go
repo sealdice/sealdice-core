@@ -34,6 +34,7 @@ func (o *testDatabaseOperator) DBCheck()                               {}
 func (o *testDatabaseOperator) GetDataDB(_ constant.DBMode) *gorm.DB   { return o.db }
 func (o *testDatabaseOperator) GetLogDB(_ constant.DBMode) *gorm.DB    { return o.db }
 func (o *testDatabaseOperator) GetCensorDB(_ constant.DBMode) *gorm.DB { return o.db }
+func (o *testDatabaseOperator) GetPluginDB(_ constant.DBMode) *gorm.DB { return o.db }
 func (o *testDatabaseOperator) Close()                                 { _ = closeGormDB(o.db) }
 
 func closeGormDB(db *gorm.DB) error {
