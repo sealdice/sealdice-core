@@ -307,7 +307,7 @@ func (dm *DiceManager) SetTrayTooltip(tooltip string) {
 	dm.trayTooltip = NormalizeTrayTooltipPrefix(tooltip)
 }
 
-func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
+func (dm *DiceManager) InitDice(writer *logger.UIWriter) error {
 	log := logger.M()
 	dm.UpdateRequestChan = make(chan struct{}, 1)
 	dm.RebootRequestChan = make(chan int, 1)
@@ -325,7 +325,9 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 
 	if currentDice := dm.GetDice(); currentDice != nil {
 		currentDice.Parent = dm
-		currentDice.Init(dm.Operator, writer)
+		if err := currentDice.Init(dm.Operator, writer); err != nil {
+			return err
+		}
 	}
 
 	go func() {
@@ -344,6 +346,7 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 	dm.ResetAutoBackup()
 	dm.ResetBackupClean()
 	dm.ResetDBMaintenance()
+	return nil
 }
 
 func (dm *DiceManager) ResetAutoBackup() {

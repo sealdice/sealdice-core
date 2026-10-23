@@ -5,15 +5,48 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/glebarez/sqlite"
+	gormlogger "gorm.io/gorm/logger"
+
+	"gorm.io/gorm"
+
 	. "sealdice-core/api/v2/js"
 	"sealdice-core/dice"
+	"sealdice-core/utils/dboperator/gormkv"
 )
+
+// newTestKVBackend wires a throwaway in-memory KV backend so StorageInit has
+// something to bind to. It does not exercise the kvfile large-value split; small
+// values fall back to the gormkv store, which is all these API tests need.
+func newTestKVBackend(t *testing.T) *gormkv.Backend {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+		Logger: gormlogger.Default.LogMode(gormlogger.Silent),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend, err := gormkv.NewBackend(gormkv.BackendOptions{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := backend.AutoMigrate(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	return backend
+}
 
 func TestDataListResolvesExtensionByScriptName(t *testing.T) {
 	dm := &dice.DiceManager{}
 	d := &dice.Dice{Parent: dm, JsExtRegistry: new(dice.SyncMap[string, *dice.ExtInfo])}
 	dm.Dice = d
 	d.BaseConfig.DataDir = t.TempDir()
+	d.PluginKVBackend = newTestKVBackend(t)
 	script := &dice.JsScriptInfo{Name: "AI骰娘 4", Filename: "./data/default/scripts/chat.js"}
 	d.JsScriptList = []*dice.JsScriptInfo{script}
 	// 注册名与脚本 @name 不同，列表传入的是 @name。
@@ -43,6 +76,7 @@ func TestDataListPagination(t *testing.T) {
 	d := &dice.Dice{Parent: dm, JsExtRegistry: new(dice.SyncMap[string, *dice.ExtInfo])}
 	dm.Dice = d
 	d.BaseConfig.DataDir = t.TempDir()
+	d.PluginKVBackend = newTestKVBackend(t)
 	ext := &dice.ExtInfo{Name: "plugin"}
 	d.RegisterExtension(ext)
 	d.JsExtRegistry.Store(ext.Name, ext)

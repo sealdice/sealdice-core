@@ -44,6 +44,7 @@ func InitUpgrader(operator operator.DatabaseOperator) error {
 	// v161注册
 	mgr.Register(v161.V161NoticeIDsMigration)
 	mgr.Register(v161.V161LogUpdatedAtRepairMigration)
+	mgr.Register(v161.V161PluginStorageMigration)
 	err := mgr.ApplyAll()
 	if err != nil {
 		return err

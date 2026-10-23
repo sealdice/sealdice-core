@@ -35,6 +35,7 @@ const (
 	LogsDBKey    dbName = "logs"
 	DataDBKey    dbName = "data"
 	CensorsDBKey dbName = "censor"
+	PluginsDBKey dbName = "plugins"
 )
 
 func (s *SQLiteEngine) Close() {
@@ -95,6 +96,10 @@ func (s *SQLiteEngine) GetCensorDB(mode constant.DBMode) *gorm.DB {
 	return s.getDBByModeAndKey(mode, CensorsDBKey)
 }
 
+func (s *SQLiteEngine) GetPluginDB(mode constant.DBMode) *gorm.DB {
+	return s.getDBByModeAndKey(mode, PluginsDBKey)
+}
+
 const defaultDataDir = "./data/default"
 
 func (s *SQLiteEngine) Init(ctx context.Context) error {
@@ -131,6 +136,10 @@ func (s *SQLiteEngine) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	err = s.PluginDBInit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -161,10 +170,11 @@ func (s *SQLiteEngine) DBCheck() {
 		return ok
 	}
 
-	var ok1, ok2, ok3 bool
+	var ok1, ok2, ok3, ok4 bool
 	var dataDB *gorm.DB
 	var logsDB *gorm.DB
 	var censorDB *gorm.DB
+	var pluginDB *gorm.DB
 	var err error
 
 	dbDataPath, _ := filepath.Abs(filepath.Join(dataDir, "data.db"))
@@ -204,6 +214,17 @@ func (s *SQLiteEngine) DBCheck() {
 	fmt.Fprintln(os.Stdout, "data.db:", ok1)
 	fmt.Fprintln(os.Stdout, "data-logs.db:", ok2)
 	fmt.Fprintln(os.Stdout, "data-censor.db:", ok3)
+
+	dbDataPluginsPath, _ := filepath.Abs(filepath.Join(dataDir, "data_plugins.db"))
+	pluginDB, err = SQLiteDBInit(dbDataPluginsPath, false)
+	if err != nil {
+		fmt.Fprintln(os.Stdout, "数据库 data_plugins.db 无法打开")
+	} else {
+		ok4 = checkDB(pluginDB)
+		db, _ := pluginDB.DB()
+		db.Close()
+	}
+	fmt.Fprintln(os.Stdout, "data_plugins.db:", ok4)
 }
 
 // 初始化
@@ -240,5 +261,21 @@ func (s *SQLiteEngine) CensorDBInit() error {
 	}
 	s.readList[CensorsDBKey] = readDB
 	s.writeList[CensorsDBKey] = writeDB
+	return nil
+}
+
+func (s *SQLiteEngine) PluginDBInit() error {
+	path, err := filepath.Abs(filepath.Join(s.DataDir, "data_plugins.db"))
+	if err != nil {
+		return err
+	}
+	readDB, writeDB, err := SQLiteDBRWInit(path)
+	if err != nil {
+		return err
+	}
+	readDB = readDB.WithContext(s.ctx)
+	writeDB = writeDB.WithContext(s.ctx)
+	s.readList[PluginsDBKey] = readDB
+	s.writeList[PluginsDBKey] = writeDB
 	return nil
 }

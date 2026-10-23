@@ -323,6 +323,16 @@ func (dm *DiceManager) Backup(sel BackupSelection, fromAuto bool) (string, error
 			}
 			return nil
 		})
+		// 插件大值文件存储（data/<name>/plugin-files）随备份归档一起打包；
+		// 正文文件按 tmp+rename 原子提交，打包期间不会出现半截可见值。
+		if dirOK(filepath.Join(dataDir, "plugin-files")) {
+			_ = filepath.WalkDir(filepath.Join(dataDir, "plugin-files"), func(path string, info fs.DirEntry, _ error) error {
+				if !info.IsDir() {
+					backup(d, path)
+				}
+				return nil
+			})
+		}
 		extDataDir := filepath.Join(dataDir, "extensions")
 		_ = filepath.WalkDir(extDataDir, func(path string, info fs.DirEntry, err error) error {
 			if info.IsDir() {

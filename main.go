@@ -462,7 +462,10 @@ func main() {
 
 	// 初始化核心
 	diceManager.TryCreateDefault()
-	diceManager.InitDice(uiWriter)
+	if err := diceManager.InitDice(uiWriter); err != nil {
+		log.Errorf("Dice 初始化失败: %v", err)
+		return
+	}
 
 	if opts.JustForTest {
 		diceManager.JustForTest = true
