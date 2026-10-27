@@ -586,7 +586,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 				logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
 				logFile, notice, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
 				if err != nil {
-					reply := err.Error()
+					ctx.Dice.Logger.Errorf("导出日志失败: 群=%s 记录=%s err=%v", group.GroupID, logName, err)
+					reply := logExportErrorReply(err)
 					if strings.Contains(reply, "此log不存在") || strings.Contains(reply, "名字是否正确") {
 						reply += logKeyHintText()
 					}
@@ -1249,6 +1250,18 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 	}
 	keepFile = true
 	return tempLog.Name(), notice, nil
+}
+
+func logExportErrorReply(err error) string {
+	var pathErr *os.PathError
+	if !errors.As(err, &pathErr) || pathErr.Path == "" {
+		return err.Error()
+	}
+
+	// 保留操作和失败原因供用户排查，完整路径仅写入运行日志。
+	replyErr := *pathErr
+	replyErr.Path = filepath.Base(pathErr.Path)
+	return strings.Replace(err.Error(), pathErr.Error(), replyErr.Error(), 1)
 }
 
 func logExportFileURI(filePath string) string {

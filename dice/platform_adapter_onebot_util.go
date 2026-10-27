@@ -931,6 +931,10 @@ func convertSealMsgToMessageChain(msg []message.IMessageElement) (schema.Message
 			if fileVal == "" {
 				continue
 			}
+			// files:// 是内部共享文件标记，发送给 OneBot 时转成标准 file:// URI。
+			if strings.HasPrefix(strings.ToLower(fileVal), "files://") {
+				fileVal = "file://" + fileVal[len("files://"):]
+			}
 			rawMsg = rawMsg.File(fileVal)
 			_, _ = fmt.Fprintf(&cqMessage, "[CQ:file,file=%v]", fileVal)
 		case message.Image:
