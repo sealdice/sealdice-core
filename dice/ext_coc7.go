@@ -1075,6 +1075,11 @@ func RegisterBuiltinExtCoc7(self *Dice) {
 			// http://www.antagonistes.com/files/CoC%20CheatSheet.pdf
 			// v2: (worst) FAIL — REGULAR SUCCESS — HARD SUCCESS — EXTREME SUCCESS (best)
 
+			// coc7r（守秘人伴侣）规则使用新版理智流程
+			if c7rIsGroupOnRule(ctx) {
+				return cmdScCoc7R(ctx, msg, cmdArgs)
+			}
+
 			if len(cmdArgs.Args) == 0 {
 				return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 			}
