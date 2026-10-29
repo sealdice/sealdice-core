@@ -2,6 +2,8 @@
 package dice
 
 import (
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -131,6 +133,21 @@ func prepareC7RTestDB(t *testing.T, d *Dice) {
 	})
 }
 
+// skillValue 从 .st show 的回复里取出某个技能的数值。
+func skillValue(t *testing.T, reply, skill string) int64 {
+	t.Helper()
+	re := regexp.MustCompile(regexp.QuoteMeta(skill) + `:(\d+)`)
+	m := re.FindStringSubmatch(reply)
+	if m == nil {
+		t.Fatalf("回复里找不到技能 %s: %q", skill, reply)
+	}
+	v, err := strconv.ParseInt(m[1], 10, 64)
+	if err != nil {
+		t.Fatalf("解析技能值失败: %v", err)
+	}
+	return v
+}
+
 func drainReply(a *mockPlatformAdapter) {
 	for {
 		select {
@@ -197,10 +214,10 @@ func TestCoc7RCommandRegression(t *testing.T) {
 		t.Fatalf(".ra 困难侦查 输出异常: %q", got)
 	}
 
-	// 6. 奖励骰
+	// 6. 奖励骰：输出里必须出现奖励骰，而不是只把 50 当目标值
 	got = runCmd(t, d, ep, adapter, ".ra b 50")
-	if !strings.Contains(got, "50") {
-		t.Fatalf(".ra b 50 输出异常: %q", got)
+	if !strings.Contains(got, "奖励") {
+		t.Fatalf(".ra b 50 未使用奖励骰: %q", got)
 	}
 
 	// 7. 新版理智判定：单次损失 5 点必然要求 INT 检定
@@ -239,15 +256,15 @@ func TestCoc7RCommandRegression(t *testing.T) {
 		t.Fatalf(".ri 输出异常: %q", got)
 	}
 
-	// 11. 技能成长取五
-	before := runCmd(t, d, ep, adapter, ".st show 侦查")
+	// 11. 技能成长取五：必须正好 +5
+	before := skillValue(t, runCmd(t, d, ep, adapter, ".st show 侦查"), "侦查")
 	got = runCmd(t, d, ep, adapter, ".en5 侦查")
 	if !strings.Contains(got, "成长（取五）") {
 		t.Fatalf(".en5 输出异常: %q", got)
 	}
-	after := runCmd(t, d, ep, adapter, ".st show 侦查")
-	if before == after {
-		t.Fatalf(".en5 未改变技能值: before=%q after=%q", before, after)
+	after := skillValue(t, runCmd(t, d, ep, adapter, ".st show 侦查"), "侦查")
+	if after-before != 5 {
+		t.Fatalf(".en5 应 +5，实际 %d → %d", before, after)
 	}
 
 	// 12. 状态
@@ -442,5 +459,106 @@ func TestCoc7RSpecializationMinimums(t *testing.T) {
 	show := runCmd(t, d, ep, adapter, ".st show 斧 射击:步霰")
 	if !strings.Contains(show, "30") || !strings.Contains(show, "25") {
 		t.Fatalf(".c7r min 未按半值下限修正: %q", show)
+	}
+}
+
+func TestCoc7RRealityCheckLedger(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	// 理智 1、意志 5：现实检定几乎必然失败，且失败 1 点就达到 Changed 阈值
+	runCmd(t, d, ep, adapter, ".st 意志5 理智1")
+
+	var reply string
+	for i := 0; i < 5; i++ {
+		reply = runCmd(t, d, ep, adapter, ".rv")
+		if strings.Contains(reply, "失败") {
+			break
+		}
+	}
+	if !strings.Contains(reply, "失败") {
+		t.Fatalf(".rv 连续成功，无法验证失败路径: %q", reply)
+	}
+	if !strings.Contains(reply, "已 Changed") {
+		t.Fatalf("现实检定的损失未计入 Changed 判定: %q", reply)
+	}
+	status := runCmd(t, d, ep, adapter, ".c7r status")
+	if !strings.Contains(status, "本篇章累计损失 1") {
+		t.Fatalf("现实检定的损失未计入篇章账本: %q", status)
+	}
+}
+
+func TestCoc7RMigrateKeepsDefault(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".st 话术5")
+
+	got := runCmd(t, d, ep, adapter, ".c7r migrate")
+	if !strings.Contains(got, "不低于基础值 10") {
+		t.Fatalf("迁移提示未说明基础值下限: %q", got)
+	}
+	show := runCmd(t, d, ep, adapter, ".st show 说服")
+	if v := skillValue(t, show, "说服"); v != 10 {
+		t.Fatalf("迁移后说服不应低于基础值 10，实际 %d", v)
+	}
+}
+
+func TestCoc7REn5RejectsNonSkill(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".st 力量50 意志50 理智50")
+
+	for _, attr := range []string{"力量", "生命值上限", "理智"} {
+		got := runCmd(t, d, ep, adapter, ".en5 "+attr)
+		if !strings.Contains(got, "未找到技能") {
+			t.Fatalf(".en5 不应接受属性 %s: %q", attr, got)
+		}
+	}
+	// 属性值不能被改动
+	show := runCmd(t, d, ep, adapter, ".st show 力量")
+	if v := skillValue(t, show, "力量"); v != 50 {
+		t.Fatalf(".en5 改动了属性: %q", show)
+	}
+}
+
+func TestCoc7RResetKeepsMythosEvents(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	// 意志 20 → Changed 阈值 4，一次 5 点损失就会 Changed 并触发神话增长
+	runCmd(t, d, ep, adapter, ".st 意志20 智力50 理智50")
+
+	first := runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
+	if !strings.Contains(first, "克苏鲁神话 +5") {
+		t.Fatalf("首次神话冲击应 +5: %q", first)
+	}
+	runCmd(t, d, ep, adapter, ".c7r reset")
+	second := runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
+	if !strings.Contains(second, "克苏鲁神话 +1") {
+		t.Fatalf("重置后不应重新获得首次 +5: %q", second)
+	}
+}
+
+func TestCoc7RCapHint(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".st 意志50 理智50")
+
+	got := runCmd(t, d, ep, adapter, ".sc 0/1D6 --cap 3")
+	if !strings.Contains(got, "--cap=N") {
+		t.Fatalf("--cap 缺少等号时应给出写法提示: %q", got)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	ds "github.com/sealdice/dicescript"
 )
@@ -28,27 +29,61 @@ const (
 	c7rStateKeyPrefix = "coc7r|state|"
 )
 
-// coc7rState 记录单个篇章内的理智账本，按 群 + 玩家 维度保存。
+// coc7rState 记录单个篇章内的理智账本，按 群 + 角色卡 维度保存。
 type coc7rState struct {
 	ChapterLoss  int64 `json:"chapterLoss"`  // 本篇章累计理智损失
 	Changed      bool  `json:"changed"`      // 是否已 Changed
-	MythosEvents int   `json:"mythosEvents"` // 神话来源的 Shock/Changed 次数
+	MythosEvents int   `json:"mythosEvents"` // 神话来源的 Shock/Changed 次数，跨篇章保留
 }
 
-func c7rStateKey(groupID, userID string) string {
-	return c7rStateKeyPrefix + groupID + "|" + userID
+// c7rLocks 按账本键串行化理智的读改写，避免同一角色的并发检定互相覆盖。
+var c7rLocks sync.Map // string -> *sync.Mutex
+
+func c7rLock(key string) func() {
+	v, _ := c7rLocks.LoadOrStore(key, &sync.Mutex{})
+	mu, _ := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
 }
 
-func c7rLoadState(d *Dice, groupID, userID string) coc7rState {
+func c7rStateKey(groupID, cardID string) string {
+	return c7rStateKeyPrefix + groupID + "|" + cardID
+}
+
+// c7rCardID 取当前绑定角色卡的 ID；读不到卡时退化为玩家 ID。
+func c7rCardID(ctx *MsgContext) string {
+	if ctx == nil {
+		return ""
+	}
+	if ctx.Dice != nil {
+		if attrs, err := ctx.Dice.AttrsManager.LoadByCtx(ctx); err == nil && attrs != nil && attrs.ID != "" {
+			return attrs.ID
+		}
+	}
+	if ctx.Player != nil {
+		return ctx.Player.UserID
+	}
+	return ""
+}
+
+// c7rStateKeyFor 返回当前上下文对应的账本键。
+func c7rStateKeyFor(ctx *MsgContext) string {
+	if ctx == nil || ctx.Group == nil {
+		return ""
+	}
+	return c7rStateKey(ctx.Group.GroupID, c7rCardID(ctx))
+}
+
+func c7rLoadState(d *Dice, key string) coc7rState {
 	var st coc7rState
-	if d == nil || groupID == "" || userID == "" {
+	if d == nil || key == "" {
 		return st
 	}
 	ext := d.ExtFind(c7rExtName, false)
 	if ext == nil {
 		return st
 	}
-	raw, err := ext.StorageGet(c7rStateKey(groupID, userID))
+	raw, err := ext.StorageGet(key)
 	if err != nil || raw == "" {
 		return st
 	}
@@ -56,8 +91,8 @@ func c7rLoadState(d *Dice, groupID, userID string) coc7rState {
 	return st
 }
 
-func c7rSaveState(d *Dice, groupID, userID string, st coc7rState) {
-	if d == nil || groupID == "" || userID == "" {
+func c7rSaveState(d *Dice, key string, st coc7rState) {
+	if d == nil || key == "" {
 		return
 	}
 	ext := d.ExtFind(c7rExtName, false)
@@ -68,19 +103,7 @@ func c7rSaveState(d *Dice, groupID, userID string, st coc7rState) {
 	if err != nil {
 		return
 	}
-	_ = ext.StorageSet(c7rStateKey(groupID, userID), string(raw))
-}
-
-func c7rClearState(d *Dice, groupID, userID string) {
-	if d == nil || groupID == "" || userID == "" {
-		return
-	}
-	ext := d.ExtFind(c7rExtName, false)
-	if ext == nil {
-		return
-	}
-	// buntdb 没有单独的 Delete 封装，写入空状态等价于清空。
-	_ = ext.StorageSet(c7rStateKey(groupID, userID), "")
+	_ = ext.StorageSet(key, string(raw))
 }
 
 // c7rIsGroupOnRule 判断当前群是否运行在 coc7r 规则下。
@@ -121,6 +144,13 @@ func c7rCurrentSan(ctx *MsgContext, tmpl *GameSystemTemplate) int64 {
 	}
 	pow := c7rAttrInt(ctx, tmpl, "意志")
 	if pow > 0 {
+		maxSan := 99 - c7rAttrInt(ctx, tmpl, "克苏鲁神话")
+		if maxSan < 0 {
+			maxSan = 0
+		}
+		if pow > maxSan {
+			pow = maxSan
+		}
 		VarSetValueInt64(ctx, key, pow)
 	}
 	return pow
@@ -217,6 +247,17 @@ func c7rEvalLoss(ctx *MsgContext, expr string, fumble bool, half bool, cap int64
 	return c7rLossResult{loss: v}, nil
 }
 
+// c7rCanModifyTarget 只有本人或群管以上可以改动他人的角色卡。
+func c7rCanModifyTarget(ctx, mctx *MsgContext) bool {
+	if ctx == nil || mctx == nil || ctx.Player == nil || mctx.Player == nil {
+		return false
+	}
+	if ctx.Player.UserID == mctx.Player.UserID {
+		return true
+	}
+	return ctx.PrivilegeLevel >= 100
+}
+
 // c7rRequireRule 非 coc7r 群时给出提示并返回 false。
 func c7rRequireRule(ctx *MsgContext, msg *Message) bool {
 	if c7rIsGroupOnRule(ctx) {
@@ -243,6 +284,10 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	}
 	mctx.SystemTemplate = tmpl
 
+	stateKey := c7rStateKeyFor(mctx)
+	unlock := c7rLock(stateKey)
+	defer unlock()
+
 	argText := cmdArgs.CleanArgs
 	argCap := cmdArgs.GetKwarg("cap")
 	argHalf := cmdArgs.GetKwarg("half") != nil
@@ -259,7 +304,11 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	}
 
 	lossCap := int64(0)
-	if argCap != nil && argCap.Value != "" {
+	if argCap != nil {
+		if strings.TrimSpace(argCap.Value) == "" {
+			ReplyToSender(mctx, msg, "损失上限要写成 --cap=N，例如 .sc 0/1D6 --cap=3")
+			return CmdExecuteResult{Matched: true, Solved: true}
+		}
 		if n, err := strconv.ParseInt(argCap.Value, 10, 64); err == nil && n > 0 {
 			lossCap = n
 		}
@@ -291,7 +340,7 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	}
 	VarSetValueInt64(mctx, "理智", sanNew)
 
-	st := c7rLoadState(mctx.Dice, mctx.Group.GroupID, mctx.Player.UserID)
+	st := c7rLoadState(mctx.Dice, stateKey)
 	st.ChapterLoss += loss
 
 	changedThreshold := pow / 5
@@ -359,10 +408,10 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		}
 		st.MythosEvents++
 		cm := c7rAttrInt(mctx, tmpl, "克苏鲁神话") + gain
-		VarSetValueInt64(mctx, "克苏鲁神话", cm)
 		if cm > 99 {
 			cm = 99
 		}
+		VarSetValueInt64(mctx, "克苏鲁神话", cm)
 		fmt.Fprintf(&b, "神话冲击：克苏鲁神话 +%d（当前 %d，理智上限 %d）\n", gain, cm, 99-cm)
 		if sanNew > 99-cm {
 			sanNew = 99 - cm
@@ -381,7 +430,7 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		b.WriteString("理智归零：调查员 Lost，不再是玩家角色\n")
 	}
 
-	c7rSaveState(mctx.Dice, mctx.Group.GroupID, mctx.Player.UserID, st)
+	c7rSaveState(mctx.Dice, stateKey, st)
 
 	ReplyToSender(mctx, msg, strings.TrimRight(b.String(), "\n"))
 	if mctx.Player.AutoSetNameTemplate != "" {
@@ -390,7 +439,7 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
-// cmdC7RRealityCheck 现实检定：成功看破幻觉，失败 -1 理智并触发不自觉反应。
+// cmdC7RRealityCheck 现实检定：成功看破幻觉，失败扣 1 点理智并触发不自觉反应。
 func cmdC7RRealityCheck(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 	if cmdArgs.IsArgEqual(1, "help") {
 		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
@@ -405,6 +454,10 @@ func cmdC7RRealityCheck(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExec
 		return CmdExecuteResult{Matched: true, Solved: true}
 	}
 	mctx.SystemTemplate = tmpl
+
+	stateKey := c7rStateKeyFor(mctx)
+	unlock := c7rLock(stateKey)
+	defer unlock()
 
 	// .rv b / .rv --b：同伴安抚成功带来的奖励骰
 	bonus := false
@@ -442,12 +495,31 @@ func cmdC7RRealityCheck(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExec
 		VarSetValueInt64(mctx, "理智", sanNew)
 		fmt.Fprintf(&b, "理智 %d → %d（-1），幻觉未被识破\n", san, sanNew)
 		b.WriteString("不自觉反应：惊叫 / 掉落手中物品 / 失控移动 / 僵住 / 攻击（由守秘人指定其一）\n")
+
+		// 现实检定的 1 点损失同样计入篇章账本，并参与 Changed 判定
+		threshold := c7rAttrInt(mctx, tmpl, "意志") / 5
+		if threshold < 1 {
+			threshold = 1
+		}
+		st := c7rLoadState(mctx.Dice, stateKey)
+		st.ChapterLoss++
+		newlyChanged := !st.Changed && st.ChapterLoss >= threshold
+		if newlyChanged {
+			st.Changed = true
+		}
+		c7rSaveState(mctx.Dice, stateKey, st)
+		if newlyChanged {
+			fmt.Fprintf(&b, "本篇章累计理智损失 %d/%d → 已 Changed：出现妄想、获得一个恐惧症、Shock 阈值提高到 10，且无法恢复幸运\n", st.ChapterLoss, threshold)
+		}
 		if sanNew == 0 {
 			b.WriteString("理智归零：调查员 Lost，不再是玩家角色\n")
 		}
 	}
 
 	ReplyToSender(mctx, msg, strings.TrimRight(b.String(), "\n"))
+	if mctx.Player.AutoSetNameTemplate != "" {
+		_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
+	}
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
@@ -483,6 +555,10 @@ func cmdC7RTakeFive(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteR
 	}
 
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
+	if !c7rCanModifyTarget(ctx, mctx) {
+		ReplyToSender(ctx, msg, "只能给自己做技能成长，或由群管操作")
+		return CmdExecuteResult{Matched: true, Solved: true}
+	}
 	tmpl := cardRuleCheck(mctx, msg)
 	if tmpl == nil {
 		return CmdExecuteResult{Matched: true, Solved: true}
@@ -495,7 +571,7 @@ func cmdC7RTakeFive(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteR
 		skillName = strings.TrimSpace(skillName[:idx])
 	}
 	key := tmpl.GetAlias(skillName)
-	if key == "" || !c7rSkillExists(mctx, tmpl, key) {
+	if key == "" || !c7rIsSkill(tmpl, key) {
 		ReplyToSender(mctx, msg, fmt.Sprintf("未找到技能「%s」", skillName))
 		return CmdExecuteResult{Matched: true, Solved: true}
 	}
@@ -514,23 +590,21 @@ func cmdC7RTakeFive(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteR
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
-// c7rSkillExists 判断技能是否属于当前模板（默认值、计算值或已存值）。
-func c7rSkillExists(ctx *MsgContext, tmpl *GameSystemTemplate, key string) bool {
+// c7rIsSkill 判断 key 是否是技能：模板里的技能默认项，或由属性推导的技能。
+// 属性（力量、意志等）与派生值（生命值上限等）不算技能。
+func c7rIsSkill(tmpl *GameSystemTemplate, key string) bool {
 	if tmpl == nil {
 		return false
 	}
 	if _, exists := tmpl.Attrs.Defaults[key]; exists {
 		return true
 	}
-	if _, exists := tmpl.Attrs.DefaultsComputed[key]; exists {
-		return true
+	for _, name := range []string{"闪避", "母语", "安抚"} {
+		if tmpl.GetAlias(name) == key {
+			return true
+		}
 	}
-	attrs, err := ctx.Dice.AttrsManager.LoadByCtx(ctx)
-	if err != nil || attrs == nil {
-		return false
-	}
-	_, exists := attrs.LoadX(key)
-	return exists
+	return false
 }
 
 // cmdC7RHub .c7r 规则辅助入口。
@@ -578,7 +652,7 @@ func c7rHelpText() string {
 	return strings.Join([]string{
 		"coc7r（守秘人伴侣）规则扩展：",
 		".set coc7r // 切换到本规则（切回七版用 .set coc7）",
-		".sc <成功损失>/<失败损失> // 新版理智判定，可加 --cap N、--half、--mythos",
+		".sc <成功损失>/<失败损失> // 新版理智判定，可加 --cap=N、--half、--mythos",
 		".rv [b] // 现实检定，b 表示同伴安抚成功带来的奖励骰",
 		".ri // 圆桌式先攻，掷骰决定行动方向",
 		".en5 <技能> // 技能成长取五，直接 +5",
@@ -587,7 +661,7 @@ func c7rHelpText() string {
 		".c7r new // 新版建卡流程与个人兴趣点",
 		".c7r min // 按专精下限修正格斗/射击技能（半值规则）",
 		".c7r migrate // 合并旧卡的取悦/话术/恐吓等技能",
-		".c7r reset // 清空本篇章理智账本",
+		".c7r reset // 清空篇章损失与 Changed（神话冲击次数保留）",
 	}, "\n")
 }
 
@@ -620,6 +694,9 @@ var (
 
 func c7rSpecializationMinimums(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
+	if !c7rCanModifyTarget(ctx, mctx) {
+		return "只能改自己的角色卡，或由群管操作"
+	}
 	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
 	if tmpl == nil {
 		return "当前群没有可用的规则模板"
@@ -673,7 +750,7 @@ func c7rStatusText(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	san := c7rCurrentSan(mctx, tmpl)
 	pow := c7rAttrInt(mctx, tmpl, "意志")
 	cm := c7rAttrInt(mctx, tmpl, "克苏鲁神话")
-	st := c7rLoadState(mctx.Dice, mctx.Group.GroupID, mctx.Player.UserID)
+	st := c7rLoadState(mctx.Dice, c7rStateKeyFor(mctx))
 	threshold := pow / 5
 	if threshold < 1 {
 		threshold = 1
@@ -688,8 +765,16 @@ func c7rStatusText(ctx *MsgContext, cmdArgs *CmdArgs) string {
 
 func c7rResetState(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
-	c7rClearState(mctx.Dice, mctx.Group.GroupID, mctx.Player.UserID)
-	return fmt.Sprintf("已清空 %s 在本群的篇章理智账本", mctx.Player.Name)
+	if !c7rCanModifyTarget(ctx, mctx) {
+		return "只能重置自己的篇章账本，或由群管操作"
+	}
+	key := c7rStateKeyFor(mctx)
+	st := c7rLoadState(mctx.Dice, key)
+	st.ChapterLoss = 0
+	st.Changed = false
+	c7rSaveState(mctx.Dice, key, st)
+	return fmt.Sprintf("已清空 %s 的篇章损失与 Changed 状态；神话冲击次数保留（%d 次），避免下次重复获得首次 +5",
+		mctx.Player.Name, st.MythosEvents)
 }
 
 // c7rDerivedSkills 可选规则：技能基础值由属性推导（守秘人伴侣 p23-25）。
@@ -753,6 +838,9 @@ func maxI64(a, b int64) int64 {
 
 func c7rDeriveBases(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
+	if !c7rCanModifyTarget(ctx, mctx) {
+		return "只能改自己的角色卡，或由群管操作"
+	}
 	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
 	if tmpl == nil {
 		return "当前群没有可用的规则模板"
@@ -817,6 +905,9 @@ var c7rMigratePairs = []struct {
 
 func c7rMigrateLegacy(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
+	if !c7rCanModifyTarget(ctx, mctx) {
+		return "只能迁移自己的角色卡，或由群管操作"
+	}
 	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
 	if tmpl == nil {
 		return "当前群没有可用的规则模板"
@@ -829,9 +920,13 @@ func c7rMigrateLegacy(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	lines := make([]string, 0, 4)
 	for _, pair := range c7rMigratePairs {
 		targetKey := tmpl.GetAlias(pair.target)
-		best := int64(-1)
+		// 目标技能不会低于模板基础值，避免合并后反而降级
+		def := int64(tmpl.Attrs.Defaults[targetKey])
+		best := def
 		if v, exists := attrs.LoadX(targetKey); exists && v != nil && v.TypeId == ds.VMTypeInt {
-			best = int64(v.Value.(ds.IntType))
+			if cur := int64(v.Value.(ds.IntType)); cur > best {
+				best = cur
+			}
 		}
 		found := make([]string, 0, 3)
 		for _, old := range pair.from {
@@ -849,8 +944,12 @@ func c7rMigrateLegacy(ctx *MsgContext, cmdArgs *CmdArgs) string {
 		if len(found) == 0 || best < 0 {
 			continue
 		}
-		attrs.Store(targetKey, ds.NewIntVal(ds.IntType(best)))
-		lines = append(lines, fmt.Sprintf("%s ← %s，取最高值 %d", targetKey, strings.Join(found, "、"), best))
+		if best > def {
+			attrs.Store(targetKey, ds.NewIntVal(ds.IntType(best)))
+		} else {
+			attrs.Delete(targetKey)
+		}
+		lines = append(lines, fmt.Sprintf("%s ← %s，取最高值 %d（不低于基础值 %d）", targetKey, strings.Join(found, "、"), best, def))
 	}
 
 	if v, exists := attrs.LoadX("射击:冲锋枪"); exists && v != nil && v.TypeId == ds.VMTypeInt {
