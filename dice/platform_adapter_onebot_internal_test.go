@@ -183,7 +183,7 @@ func (m *onebotTestEmitter) GetDroppedEchoCount() uint64 { return 0 }
 
 func TestCheckBotGroupRoleOnebotBypassesCache(t *testing.T) {
 	em := &onebotTestEmitter{
-		groupMemberInfo: &emitterTypes.GroupMemberInfo{Role: "admin"},
+		groupMemberInfo: &emitterTypes.GroupMemberInfo{GroupId: 2010, UserId: 10010, Role: "admin"},
 	}
 	pa := &PlatformAdapterOnebot{
 		ctx:         t.Context(),

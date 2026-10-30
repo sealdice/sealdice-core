@@ -36,11 +36,11 @@ const dismissConfirmCleanupInterval = 30 * time.Minute
 
 const (
 	errGetGroupMemberInfoNil       = "get_group_member_info returned nil"
-	errGetGroupMemberInfoEmptyRole = "empty role from get_group_member_info"
+	errGetGroupMemberInfoEmptyRole = "empty or unknown role from get_group_member_info"
 )
 
 func getDismissConfirmKeyForGroup(ctx *MsgContext, operatorID string, targetGroupID string) string {
-	return fmt.Sprintf("%s:%s:%s", ctx.EndPoint.ID, targetGroupID, operatorID)
+	return fmt.Sprintf("%s:%s:%s:%s", ctx.EndPoint.ID, ctx.EndPoint.UserID, targetGroupID, operatorID)
 }
 
 func cleanupExpiredDismissConfirmCodes() {
@@ -96,7 +96,7 @@ func getOnebotBotQQID(ctx *MsgContext) (int64, bool) {
 
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
-		if pa.sendEmitter == nil {
+		if pa == nil || pa.sendEmitter == nil {
 			return 0, false
 		}
 		info, err := pa.sendEmitter.GetLoginInfo(pa.ctx)
@@ -126,16 +126,18 @@ func normalizeQQGroupRole(role string) string {
 
 func parseQQGroupRole(role string) (string, bool) {
 	normalized := normalizeQQGroupRole(role)
-	if normalized == "" {
+	switch normalized {
+	case "owner", "admin", "member":
+		return normalized, true
+	default:
 		return "", false
 	}
-	return normalized, true
 }
 
 // checkBotGroupRole 查询 bot 在指定群中归一化后的角色(owner/admin/member)。
 // 返回值: ok 表示该适配器是否支持并成功完成角色检查;
 // detail 在 ok=true 时为归一化后的角色字符串,在 ok=false 时为失败原因描述。
-// 不支持角色检查的适配器返回 ok=false, 调用方应保持原有行为, 不做阻断。
+// 不支持角色检查、查询失败或角色未知时返回 ok=false，QQ 退群必须阻断。
 func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
 		return "context invalid", false
@@ -143,43 +145,35 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 
 	// Permission changes must be visible immediately; cached member data can retain a stale role.
 	const bypassCache = true
+	botID, ok := getOnebotBotQQID(ctx)
+	groupQQID := ExtractQQEmitterGroupID(strings.TrimSpace(groupID))
+	if !ok || groupQQID <= 0 {
+		return "cannot resolve bot/group id", false
+	}
 
+	// 各协议实现的成员资料字段不尽相同，身份判断只依赖本次查询返回的角色。
+	var rawRole string
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
-		if pa.sendEmitter == nil {
+		if pa == nil || pa.sendEmitter == nil || pa.ctx == nil {
 			return "onebot emitter unavailable", false
 		}
-		botID, ok := getOnebotBotQQID(ctx)
-		if !ok {
-			return "cannot resolve bot qq id", false
-		}
-		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, ExtractQQEmitterGroupID(groupID), botID, bypassCache)
+		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, groupQQID, botID, bypassCache)
 		if err != nil || memberInfo == nil {
 			if err != nil {
 				return fmt.Sprintf("get_group_member_info failed: %v", err), false
 			}
 			return errGetGroupMemberInfoNil, false
 		}
-		role, ok := parseQQGroupRole(memberInfo.Role)
-		if !ok {
-			return errGetGroupMemberInfoEmptyRole, false
-		}
-		return role, true
+		rawRole = memberInfo.Role
 	case *PlatformAdapterGocq:
-		botIDRaw := strings.TrimSpace(UserIDExtract(ctx.EndPoint.UserID))
-		groupIDRaw := strings.TrimSpace(UserIDExtract(groupID))
-		if botIDRaw == "" || groupIDRaw == "" {
-			return "cannot resolve bot/group id", false
-		}
+		botIDRaw := strconv.FormatInt(botID, 10)
+		groupIDRaw := strconv.FormatInt(groupQQID, 10)
 		memberInfo := pa.getGroupMemberInfo(groupIDRaw, botIDRaw, bypassCache)
 		if memberInfo == nil {
 			return errGetGroupMemberInfoNil, false
 		}
-		role, ok := parseQQGroupRole(memberInfo.Role)
-		if !ok {
-			return errGetGroupMemberInfoEmptyRole, false
-		}
-		return role, true
+		rawRole = memberInfo.Role
 	case *PlatformAdapterMilky:
 		memberInfo, err := pa.getGroupMemberInfo(groupID, ctx.EndPoint.UserID, bypassCache)
 		if err != nil {
@@ -188,14 +182,15 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		if memberInfo == nil {
 			return errGetGroupMemberInfoNil, false
 		}
-		role, ok := parseQQGroupRole(memberInfo.Role)
-		if !ok {
-			return errGetGroupMemberInfoEmptyRole, false
-		}
-		return role, true
+		rawRole = memberInfo.Role
 	default:
 		return "adapter does not support group role check", false
 	}
+	role, ok := parseQQGroupRole(rawRole)
+	if !ok {
+		return errGetGroupMemberInfoEmptyRole, false
+	}
+	return role, true
 }
 
 func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {
@@ -229,7 +224,7 @@ func isDismissConfirmCode(text string) bool {
 	return true
 }
 
-func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGroupID string, targetGroup *GroupInfo) CmdExecuteResult {
+func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGroupID string, targetGroup *GroupInfo, permit *GroupQuitPermit) CmdExecuteResult {
 	ReplyToSender(ctx, msg, DiceFormatTmpl(ctx, "核心:骰子退群预告"))
 
 	userName := ctx.Dice.Parent.TryGetUserName(msg.Sender.UserID)
@@ -245,62 +240,35 @@ func (d *Dice) executeDismissOperation(ctx *MsgContext, msg *Message, targetGrou
 	ctx.Notice(txt, NoticeTypeGroup)
 
 	time.Sleep(3 * time.Second)
+	if !QuitGroupSafely(ctx, targetGroupID, permit) {
+		ReplyToSender(ctx, msg, groupQuitCancelledMessage(targetGroupID))
+		return CmdExecuteResult{Matched: true, Solved: true}
+	}
 	if targetGroup != nil {
 		targetGroup.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
 		targetGroup.MarkDirty(ctx.Dice)
 	}
-	ctx.EndPoint.Adapter.QuitGroup(ctx, targetGroupID)
 
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
 func (d *Dice) executeDismissWithConfirm(ctx *MsgContext, msg *Message, targetGroupID string, targetGroup *GroupInfo, inputCode string, hasExtraArgs bool, confirmCommand string) CmdExecuteResult {
-	processDismissConfirmation := func(roleDetail string, issueLogTpl string, issueReplyTpl string, successLogTpl string) CmdExecuteResult {
-		confirmKey := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, targetGroupID)
-		if inputCode == "" || hasExtraArgs {
-			confirmCode := generateFourDigitCode()
-			confirmCmdWithCode := fmt.Sprintf("%s %s", confirmCommand, confirmCode)
-			storeDismissConfirmCode(confirmKey, confirmCode)
-			d.Logger.Infof(issueLogTpl, targetGroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
-			ReplyToSender(ctx, msg, fmt.Sprintf(issueReplyTpl, confirmCmdWithCode))
-			return CmdExecuteResult{Matched: true, Solved: true}
-		}
-
-		confirmCode, ok := loadDismissConfirmCode(confirmKey)
-		if !ok || inputCode != confirmCode {
-			d.Logger.Warnf("指令退群确认失败: 群组<%s>中，操作者<%s>提供的确认码无效，本次不执行退群。", targetGroupID, msg.Sender.UserID)
-			ReplyToSender(ctx, msg, fmt.Sprintf("退群确认码无效，请重新输入 `%s` 获取新的确认码。", confirmCommand))
-			return CmdExecuteResult{Matched: true, Solved: true}
-		}
-
-		d.Logger.Infof(successLogTpl, targetGroupID, msg.Sender.UserID, ctx.EndPoint.UserID, roleDetail)
-		dismissConfirmCodes.Delete(confirmKey)
-		return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
-	}
-
-	if needConfirm, checked, detail := shouldDismissRequireOwnerConfirm(ctx, targetGroupID); checked {
-		if needConfirm {
-			return processDismissConfirmation(
-				detail,
-				"指令退群需二次确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；当前检测到该账号身份为%s，已发出确认码。",
-				"当前骰子账号在本群是群主，继续 `%s` 将会直接解散群聊。\n请在当前群内重新输入上面的完整命令进行二次确认。",
-				"指令退群二次确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；因该账号为%s，这将导致群聊被解散。",
-			)
-		}
-	} else if ctx.EndPoint.ProtocolType == "onebot" || ctx.EndPoint.Platform == "QQ" {
-		return processDismissConfirmation(
-			detail,
-			"指令退群进入安全确认: 群组<%s>中，操作者<%s>请求让骰子账号<%s>退出；但当前无法确认该账号群内身份(%s)，为避免误解散群聊，已改为二次确认。",
-			"当前无法确认骰子账号在本群的身份，为避免误解散群聊，已启用安全确认。\n如确认仍要退出，请在当前群内重新输入 `%s`。",
-			"指令退群安全确认通过: 群组<%s>中，操作者<%s>确认让骰子账号<%s>退出；此前未能确认该账号群内身份(%s)。",
-		)
-	}
-
-	if inputCode != "" || hasExtraArgs {
+	if hasExtraArgs {
 		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
 	}
-
-	return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup)
+	permit, confirmation := PrepareGroupQuit(ctx, targetGroupID, msg.Sender.UserID, inputCode)
+	if confirmation != nil {
+		text := confirmation.Message
+		if confirmation.ConfirmCode != "" {
+			text += fmt.Sprintf("\n请重新输入 `%s %s` 进行二次确认。", confirmCommand, confirmation.ConfirmCode)
+		}
+		ReplyToSender(ctx, msg, text)
+		return CmdExecuteResult{Matched: true, Solved: true}
+	}
+	if inputCode != "" && permit == nil {
+		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
+	}
+	return d.executeDismissOperation(ctx, msg, targetGroupID, targetGroup, permit)
 }
 
 func shouldShowBestHelpResult(hits docengine.MatchCollection, bestTitle, query string, minRelativeGap float64) bool {
@@ -1168,7 +1136,7 @@ func (d *Dice) registerCoreCommands() {
 .master relogin // 30s后重新登录，有机会清掉风控(仅master可用)
 .master backup // 做一次备份
 .master reload deck/js/helpdoc // 重新加载牌堆/js/帮助文档
-.master quitgroup <群组ID> [<理由>] // 从指定群组中退出，必须在同一平台使用
+.master quitgroup <群组ID> [<理由>] [--confirm=<确认码>] // 从指定群组中退出，群主需二次确认
 .master jsclear <插件ID> // 清除指定插件的存储，随后重载JS环境`
 
 	cmdMaster := &CmdItemInfo{
@@ -1455,6 +1423,19 @@ func (d *Dice) registerCoreCommands() {
 					ReplyToSender(ctx, msg, fmt.Sprintf("目标群组不在当前平台，请前往%s完成操作", platform))
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
+				inputCode := ""
+				if arg := cmdArgs.GetKwarg("confirm"); arg != nil {
+					inputCode = arg.Value
+				}
+				permit, confirmation := PrepareGroupQuit(ctx, gp.GroupID, msg.Sender.UserID, inputCode)
+				if confirmation != nil {
+					text := confirmation.Message
+					if confirmation.ConfirmCode != "" {
+						text += fmt.Sprintf("\n请重新输入 `.master quitgroup %s --confirm=%s` 进行二次确认。", gp.GroupID, confirmation.ConfirmCode)
+					}
+					ReplyToSender(ctx, msg, text)
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 
 				// 既然是骰主自己操作，就不通知了
 				// 除非有多骰主……
@@ -1478,9 +1459,12 @@ func (d *Dice) registerCoreCommands() {
 				}
 				// SetBotOffAtGroup(mctx, gp.GroupID)
 				time.Sleep(3 * time.Second)
+				if !QuitGroupSafely(mctx, gp.GroupID, permit) {
+					ReplyToSender(ctx, msg, groupQuitCancelledMessage(gp.GroupID))
+					return CmdExecuteResult{Matched: true, Solved: true}
+				}
 				gp.DiceIDExistsMap.Delete(mctx.EndPoint.UserID)
 				gp.MarkDirty(mctx.Dice)
-				mctx.EndPoint.Adapter.QuitGroup(mctx, gp.GroupID)
 
 				return CmdExecuteResult{Matched: true, Solved: true}
 			case "jsclear":
