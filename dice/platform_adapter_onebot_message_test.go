@@ -27,6 +27,42 @@ func TestConvertSealMsgToMessageChainUsesFileElementURL(t *testing.T) {
 	}
 }
 
+func TestConvertSealMsgToMessageChainNormalizesSharedFileURI(t *testing.T) {
+	const escapedPath = "/shared/log%20with%20%23%25.txt"
+	const wantURI = "file://" + escapedPath
+	tests := []struct {
+		name    string
+		element message.FileElement
+	}{
+		{
+			name:    "URL",
+			element: message.FileElement{File: "log with #%.txt", URL: "files://" + escapedPath},
+		},
+		{
+			name:    "File fallback",
+			element: message.FileElement{File: "files://" + escapedPath},
+		},
+		{
+			name:    "uppercase scheme",
+			element: message.FileElement{URL: "FILES://" + escapedPath},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			chain, cqMessage := convertSealMsgToMessageChain([]message.IMessageElement{&test.element})
+			if len(chain) != 1 || chain[0].Type != "file" {
+				t.Fatalf("message chain = %#v, want one file segment", chain)
+			}
+			if got := gjson.GetBytes(chain[0].Data, "file").String(); got != wantURI {
+				t.Fatalf("OneBot file value = %q, want %q", got, wantURI)
+			}
+			if want := "[CQ:file,file=" + wantURI + "]"; cqMessage != want {
+				t.Fatalf("CQ message = %q, want %q", cqMessage, want)
+			}
+		})
+	}
+}
+
 func TestConvertSealMsgToMessageChainPreservesDefaultResourceParameters(t *testing.T) {
 	elements := message.ConvertStringMessage("[CQ:video,file=opaque-video-id,cache=0,timeout=30]")
 	if len(elements) != 1 {

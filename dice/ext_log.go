@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -605,15 +605,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 				logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
 				logFile, notice, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
 				if err != nil {
-					reply := err.Error()
+					ctx.Dice.Logger.Errorf("导出日志失败: 群=%s 记录=%s err=%v", group.GroupID, logName, err)
+					reply := logExportErrorReply(err)
 					if strings.Contains(reply, "此log不存在") || strings.Contains(reply, "名字是否正确") {
 						reply += logKeyHintText()
 					}
 					ReplyToSenderRaw(ctx, msg, reply, "skip")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				defer os.Remove(logFile)
-
 				var emails []string
 				if len(cmdArgs.Args) > 2 {
 					emails = cmdArgs.Args[2:]
@@ -647,12 +646,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
 				}
 
-				var uri string
-				if runtime.GOOS == "windows" {
-					uri = "files:///" + logFile
-				} else {
-					uri = "files://" + logFile
-				}
+				uri := logExportFileURI(logFile)
 				SendFileToSenderRaw(ctx, msg, uri, "skip")
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
 				reply := DiceFormatTmpl(ctx, "日志:记录_导出_成功")
@@ -1179,15 +1173,25 @@ func LogEditByID(ctx *MsgContext, groupID, content string, messageID interface{}
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, string, error) {
-	// 创建临时文件
 	tempPattern, notice := storylog.BuildTempPattern(fileNamePrefix)
-	tempLog, err := os.CreateTemp("", tempPattern)
+	exportDir, err := filepath.Abs(filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports"))
 	if err != nil {
-		return "", notice, errors.New("log导出出现未知错误")
+		return "", notice, fmt.Errorf("解析日志导出目录失败: %w", err)
 	}
+	if mkdirErr := os.MkdirAll(exportDir, 0o755); mkdirErr != nil {
+		return "", notice, fmt.Errorf("创建日志导出目录失败: %w", mkdirErr)
+	}
+
+	// 日志导出文件需要被 OneBot/NapCat 等外部进程从共享数据卷读取，
+	// 因此直接落在 data/default/log-exports，而不是系统临时目录。
+	tempLog, err := os.CreateTemp(exportDir, tempPattern)
+	if err != nil {
+		return "", notice, fmt.Errorf("创建日志导出文件失败: %w", err)
+	}
+	keepFile := false
 	defer func() {
 		_ = tempLog.Close()
-		if err != nil {
+		if !keepFile {
 			_ = os.Remove(tempLog.Name()) //nolint:gosec
 		}
 	}()
@@ -1259,7 +1263,35 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 		return "", notice, errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
 
+	// 仅在文件完整写入后开放共享读取，避免外部进程读到半成品。
+	if err := tempLog.Chmod(0o644); err != nil {
+		return "", notice, fmt.Errorf("设置日志导出文件权限失败: %w", err)
+	}
+	keepFile = true
 	return tempLog.Name(), notice, nil
+}
+
+func logExportErrorReply(err error) string {
+	var pathErr *os.PathError
+	if !errors.As(err, &pathErr) || pathErr.Path == "" {
+		return err.Error()
+	}
+
+	// 保留操作和失败原因供用户排查，完整路径仅写入运行日志。
+	replyErr := *pathErr
+	replyErr.Path = filepath.Base(pathErr.Path)
+	return strings.Replace(err.Error(), pathErr.Error(), replyErr.Error(), 1)
+}
+
+func logExportFileURI(filePath string) string {
+	if absolutePath, err := filepath.Abs(filePath); err == nil {
+		filePath = absolutePath
+	}
+	uriPath := filepath.ToSlash(filePath)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	return (&url.URL{Scheme: "files", Path: uriPath}).String()
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, string, error) {
