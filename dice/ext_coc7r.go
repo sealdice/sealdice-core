@@ -3,7 +3,7 @@ package dice
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,20 +13,21 @@ import (
 
 // coc7r（克苏鲁的呼唤 第七版·守秘人伴侣）规则扩展
 //
-// 本扩展实现 CHA23197-H《Keeper Companion》(2026) 中与骰子/角色卡相关的部分：
-//   - .sc  新版理智判定：失败必触发不自觉反应；单次损失≥5 时投 INT 决定是否 Shock；
-//     Shock 持续 1D10 轮；神话来源的 Shock/Changed 会带来克苏鲁神话技能增长；
-//     单个篇章累计损失达到 POW/5 时转为 Changed；理智归零为 Lost。
-//   - .rv  现实检定（现实检定失败扣 1 点理智并触发不自觉反应）。
-//   - .ri  圆桌式先攻（掷骰决定顺时针/逆时针）。
-//   - .en5 技能成长取五（Take Five）。
-//   - .c7r 规则辅助：状态、派生基础值、旧卡迁移、重置篇章损失。
+// 本扩展只改写 .sc 的结算流程，并提供一个 .c7r 入口管理状态与可选规则开关：
+//   - .sc  成功仍按规则书投损失；失败必触发不自觉反应；单次损失≥5（Changed 后≥10）
+//     投 INT 决定是否 Shock；单篇累计损失达 POW/5 转为 Changed；理智归零为 Lost。
+//   - .c7r 篇章账本、Shock 状态、可选规则开关、旧卡迁移。
+//
+// 现实检定、圆桌先攻、成长取五都不新增指令：
+// 现实检定等价于 .sc 0/1（同伴安抚成功时 .sc b 0/1），成长取五等价于 .en <技能>+5，
+// 圆桌先攻收在 .c7r ri 下面，避免占用顶层指令名。
 //
 // 判定、属性读写、房规索引沿用 coc7 扩展的既有实现，避免出现两套不一致的规则。
 
 const (
 	c7rExtName        = "coc7r"
 	c7rStateKeyPrefix = "coc7r|state|"
+	c7rRulesKeyPrefix = "coc7r|rules|"
 )
 
 // coc7rState 记录单个篇章内的理智账本，按 群 + 角色卡 维度保存。
@@ -36,6 +37,22 @@ type coc7rState struct {
 	MythosEvents int   `json:"mythosEvents"` // 神话来源的 Shock/Changed 次数，跨篇章保留
 	Shock        bool  `json:"shock"`        // 是否处于 Shock（期间不再损失理智）
 	ShockRounds  int64 `json:"shockRounds"`  // 触发时掷出的 1D10 轮数，仅供提示
+}
+
+// coc7rRules 记录单个群的可选规则开关。
+// sanity 默认开启：重写的理智章节是本规则集的主干，关掉后 .sc 回到七版流程。
+// mythos 默认关闭：神话冲击提升克苏鲁神话技能属于可选条款，只由 .sc --mythos 触发。
+type coc7rRules struct {
+	Sanity bool `json:"sanity"`
+	Mythos bool `json:"mythos"`
+}
+
+func c7rDefaultRules() coc7rRules {
+	return coc7rRules{Sanity: true, Mythos: false}
+}
+
+func c7rRulesKey(groupID string) string {
+	return c7rRulesKeyPrefix + groupID
 }
 
 // c7rLocks 按账本键串行化理智的读改写，避免同一角色的并发检定互相覆盖。
@@ -106,6 +123,40 @@ func c7rSaveState(d *Dice, key string, st coc7rState) {
 		return
 	}
 	_ = ext.StorageSet(key, string(raw))
+}
+
+func c7rLoadRules(d *Dice, groupID string) coc7rRules {
+	rules := c7rDefaultRules()
+	if d == nil || groupID == "" {
+		return rules
+	}
+	ext := d.ExtFind(c7rExtName, false)
+	if ext == nil {
+		return rules
+	}
+	raw, err := ext.StorageGet(c7rRulesKey(groupID))
+	if err != nil || raw == "" {
+		return rules
+	}
+	if err = json.Unmarshal([]byte(raw), &rules); err != nil {
+		return c7rDefaultRules()
+	}
+	return rules
+}
+
+func c7rSaveRules(d *Dice, groupID string, rules coc7rRules) error {
+	if d == nil || groupID == "" {
+		return fmt.Errorf("缺少群信息")
+	}
+	ext := d.ExtFind(c7rExtName, false)
+	if ext == nil {
+		return fmt.Errorf("coc7r 扩展未加载")
+	}
+	raw, err := json.Marshal(rules)
+	if err != nil {
+		return err
+	}
+	return ext.StorageSet(c7rRulesKey(groupID), string(raw))
 }
 
 // c7rIsGroupOnRule 判断当前群是否运行在 coc7r 规则下。
@@ -186,9 +237,50 @@ func c7rRollDie(ctx *MsgContext, sides int64) int64 {
 	return v
 }
 
-// c7rRollD100 掷 D100，bonus 为真时按 COC 奖励骰规则额外掷十位骰取小。
-func c7rRollD100(ctx *MsgContext, bonus bool) (int64, string) {
-	if !bonus {
+// c7rBPTokenRe 匹配 .sc 开头的奖惩骰标记：b、b2、p、p3 …
+var c7rBPTokenRe = regexp.MustCompile(`^([bBpP])(\d{0,2})$`)
+
+// c7rParseDicePrefix 解析表达式开头的奖励骰/惩罚骰标记，返回剩余文本。
+// 支持 b/b2/p/p2 这类写法，与 .ra 保持一致；同时写 b 和 p 会互相抵消。
+func c7rParseDicePrefix(text string) (bonus, penalty int, rest string) {
+	rest = strings.TrimSpace(text)
+	for rest != "" {
+		token := rest
+		if idx := strings.IndexAny(rest, " \t"); idx >= 0 {
+			token = rest[:idx]
+		}
+		m := c7rBPTokenRe.FindStringSubmatch(token)
+		if m == nil {
+			break
+		}
+		count := 1
+		if m[2] != "" {
+			if n, err := strconv.Atoi(m[2]); err == nil {
+				count = n
+			}
+		}
+		if count < 1 {
+			count = 1
+		}
+		// 上限只是防止误输入，规则书里最多也就两三颗
+		if count > 9 {
+			count = 9
+		}
+		if strings.EqualFold(m[1], "b") {
+			bonus += count
+		} else {
+			penalty += count
+		}
+		rest = strings.TrimSpace(rest[len(token):])
+	}
+	return bonus, penalty, rest
+}
+
+// c7rRollD100WithDice 掷 D100，按 COC 规则结算奖励骰/惩罚骰。
+// 奖励骰多掷 count 颗十位骰取小，惩罚骰取大；个位骰只掷一次。
+func c7rRollD100WithDice(ctx *MsgContext, bonus, penalty int) (int64, string) {
+	net := bonus - penalty
+	if net == 0 {
 		v, ok := c7rEvalInt(ctx, "1d100", RollExtraFlags{DisableBlock: true})
 		if !ok || v < 1 || v > 100 {
 			v = 1
@@ -196,31 +288,37 @@ func c7rRollD100(ctx *MsgContext, bonus bool) (int64, string) {
 		return v, ""
 	}
 
+	count := net
+	label := "奖励骰"
+	if count < 0 {
+		count = -count
+		label = "惩罚骰"
+	}
+	if count > 9 {
+		count = 9
+	}
+
 	units := c7rRollDie(ctx, 10)
 	if units == 10 {
 		units = 0
 	}
-	tensA := c7rRollDie(ctx, 10)
-	if tensA == 10 {
-		tensA = 0
+	tens := make([]string, 0, count+1)
+	pick := int64(-1)
+	for i := 0; i <= count; i++ {
+		digit := c7rRollDie(ctx, 10)
+		if digit == 10 {
+			digit = 0
+		}
+		tens = append(tens, strconv.FormatInt(digit, 10))
+		val := digit*10 + units
+		if val == 0 {
+			val = 100
+		}
+		if pick < 0 || (net > 0 && val < pick) || (net < 0 && val > pick) {
+			pick = val
+		}
 	}
-	tensB := c7rRollDie(ctx, 10)
-	if tensB == 10 {
-		tensB = 0
-	}
-	a := tensA*10 + units
-	b := tensB*10 + units
-	if a == 0 {
-		a = 100
-	}
-	if b == 0 {
-		b = 100
-	}
-	pick := a
-	if b < pick {
-		pick = b
-	}
-	return pick, fmt.Sprintf("奖励骰：十位 %d/%d，个位 %d", tensA, tensB, units)
+	return pick, fmt.Sprintf("%s×%d：十位 %s，个位 %d", label, count, strings.Join(tens, "/"), units)
 }
 
 // c7rLossResult 解析并结算理智损失表达式。
@@ -249,7 +347,7 @@ func c7rEvalLoss(ctx *MsgContext, expr string, fumble bool, half bool, cap int64
 	return c7rLossResult{loss: v}, nil
 }
 
-// c7rCanModifyTarget 只有本人或群管以上可以改动他人的角色卡。
+// c7rCanModifyTarget 只有本人或骰主可以改动他人的角色卡。
 func c7rCanModifyTarget(ctx, mctx *MsgContext) bool {
 	if ctx == nil || mctx == nil || ctx.Player == nil || mctx.Player == nil {
 		return false
@@ -258,15 +356,6 @@ func c7rCanModifyTarget(ctx, mctx *MsgContext) bool {
 		return true
 	}
 	return ctx.PrivilegeLevel >= 100
-}
-
-// c7rRequireRule 非 coc7r 群时给出提示并返回 false。
-func c7rRequireRule(ctx *MsgContext, msg *Message) bool {
-	if c7rIsGroupOnRule(ctx) {
-		return true
-	}
-	ReplyToSender(ctx, msg, "该指令属于 coc7r（守秘人伴侣）规则，先用 .set coc7r 切换")
-	return false
 }
 
 // cmdScCoc7R 新版理智判定。
@@ -285,15 +374,26 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		return CmdExecuteResult{Matched: true, Solved: true}
 	}
 	mctx.SystemTemplate = tmpl
+	rules := c7rLoadRules(mctx.Dice, mctx.Group.GroupID)
 
 	stateKey := c7rStateKeyFor(mctx)
 	unlock := c7rLock(stateKey)
 	defer unlock()
 
-	argText := cmdArgs.CleanArgs
+	var st coc7rState
+	if rules.Sanity {
+		st = c7rLoadState(mctx.Dice, stateKey)
+		if st.Shock {
+			msgText := fmt.Sprintf("%s 正处于 Shock，期间不再损失理智，本次不结算。\n用 .c7r shock clear 结束（安抚成功或 1D10 轮结束）", mctx.Player.Name)
+			ReplyToSender(mctx, msg, msgText)
+			return CmdExecuteResult{Matched: true, Solved: true}
+		}
+	}
+
 	argCap := cmdArgs.GetKwarg("cap")
 	argHalf := cmdArgs.GetKwarg("half") != nil
-	mythosSource := cmdArgs.GetKwarg("mythos") != nil || cmdArgs.GetKwarg("m") != nil
+	mythosSource := rules.Mythos && (cmdArgs.GetKwarg("mythos") != nil || cmdArgs.GetKwarg("m") != nil)
+	bonusDice, penaltyDice, argText := c7rParseDicePrefix(cmdArgs.CleanArgs)
 
 	succExpr := "0"
 	failExpr := argText
@@ -316,18 +416,11 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		}
 	}
 
-	st := c7rLoadState(mctx.Dice, stateKey)
-	if st.Shock {
-		msgText := fmt.Sprintf("%s 正处于 Shock，期间不再损失理智，本次不结算。\n用 .c7r shock clear 结束（安抚成功或 1D10 轮结束）", mctx.Player.Name)
-		ReplyToSender(mctx, msg, msgText)
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-
 	san := c7rCurrentSan(mctx, tmpl)
 	pow := c7rAttrInt(mctx, tmpl, "意志")
 	intel := c7rAttrInt(mctx, tmpl, "智力")
 
-	d100, diceDetail := c7rRollD100(mctx, false)
+	d100, diceDetail := c7rRollD100WithDice(mctx, bonusDice, penaltyDice)
 	rank, _ := ResultCheck(mctx, mctx.Group.CocRuleIndex, d100, san, 0)
 	success := rank > 0
 	fumble := rank == -2
@@ -349,22 +442,6 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	}
 	VarSetValueInt64(mctx, "理智", sanNew)
 
-	st.ChapterLoss += loss
-
-	changedThreshold := pow / 5
-	if changedThreshold < 1 {
-		changedThreshold = 1
-	}
-	// Shock 阈值按“本次事件发生前”的状态判断：刚刚 Changed 的那一次仍按 5 点计算
-	shockThreshold := int64(5)
-	if st.Changed {
-		shockThreshold = 10
-	}
-	newlyChanged := !st.Changed && st.ChapterLoss >= changedThreshold
-	if newlyChanged {
-		st.Changed = true
-	}
-
 	var b strings.Builder
 	verdict := "成功"
 	switch {
@@ -384,6 +461,36 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		fmt.Fprintf(&b, "理智 %d → %d（无损失）\n", san, sanNew)
 	}
 
+	// sanity 关闭时回到七版流程：只结算损失并给出疯狂提示，不记账、不判 Shock/Changed/Lost
+	if !rules.Sanity {
+		if sanNew == 0 {
+			b.WriteString(DiceFormatTmpl(mctx, "COC:提示_永久疯狂") + "\n")
+		} else if loss >= 5 {
+			b.WriteString(DiceFormatTmpl(mctx, "COC:提示_临时疯狂") + "\n")
+		}
+		ReplyToSender(mctx, msg, strings.TrimRight(b.String(), "\n"))
+		if mctx.Player.AutoSetNameTemplate != "" {
+			_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
+		}
+		return CmdExecuteResult{Matched: true, Solved: true}
+	}
+
+	st.ChapterLoss += loss
+
+	changedThreshold := pow / 5
+	if changedThreshold < 1 {
+		changedThreshold = 1
+	}
+	// Shock 阈值按“本次事件发生前”的状态判断：刚刚 Changed 的那一次仍按 5 点计算
+	shockThreshold := int64(5)
+	if st.Changed {
+		shockThreshold = 10
+	}
+	newlyChanged := !st.Changed && st.ChapterLoss >= changedThreshold
+	if newlyChanged {
+		st.Changed = true
+	}
+
 	// 失败必触发；成功但仍有理智损失（1-4 点）同样触发
 	if !success || loss >= 1 {
 		b.WriteString("不自觉反应：惊叫 / 掉落手中物品 / 失控移动 / 僵住 / 攻击（由守秘人指定其一）\n")
@@ -392,7 +499,7 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	// 单次损失达标 → INT 检定决定是否 Shock
 	shocked := false
 	if loss >= shockThreshold {
-		intRoll, intDetail := c7rRollD100(mctx, false)
+		intRoll, intDetail := c7rRollD100WithDice(mctx, 0, 0)
 		intSuccess := intRoll <= intel
 		if intDetail != "" {
 			intDetail = "（" + intDetail + "）"
@@ -449,103 +556,8 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
-// cmdC7RRealityCheck 现实检定：成功看破幻觉，失败扣 1 点理智并触发不自觉反应。
-func cmdC7RRealityCheck(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-	if cmdArgs.IsArgEqual(1, "help") {
-		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-	}
-	if !c7rRequireRule(ctx, msg) {
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-
-	mctx := GetCtxProxyFirst(ctx, cmdArgs)
-	tmpl := cardRuleCheck(mctx, msg)
-	if tmpl == nil {
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-	mctx.SystemTemplate = tmpl
-
-	stateKey := c7rStateKeyFor(mctx)
-	unlock := c7rLock(stateKey)
-	defer unlock()
-
-	st := c7rLoadState(mctx.Dice, stateKey)
-	if st.Shock {
-		ReplyToSender(mctx, msg, fmt.Sprintf("%s 正处于 Shock，期间不再损失理智，本次现实检定不结算。\n用 .c7r shock clear 结束（安抚成功或 1D10 轮结束）", mctx.Player.Name))
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-
-	// .rv b / .rv --b：同伴安抚成功带来的奖励骰
-	bonus := false
-	for _, arg := range cmdArgs.Args {
-		if arg == "b" || arg == "B" || arg == "--bonus" {
-			bonus = true
-		}
-	}
-	if cmdArgs.GetKwarg("b") != nil || cmdArgs.GetKwarg("bonus") != nil {
-		bonus = true
-	}
-
-	san := c7rCurrentSan(mctx, tmpl)
-	d100, detail := c7rRollD100(mctx, bonus)
-	success := d100 <= san
-
-	var b strings.Builder
-	verdict := "失败"
-	if success {
-		verdict = "成功"
-	}
-	if detail != "" {
-		fmt.Fprintf(&b, "%s 的现实检定：D100=%d/%d %s（%s）\n", mctx.Player.Name, d100, san, verdict, detail)
-	} else {
-		fmt.Fprintf(&b, "%s 的现实检定：D100=%d/%d %s\n", mctx.Player.Name, d100, san, verdict)
-	}
-
-	if success {
-		b.WriteString("看破幻觉，守秘人须如实描述角色真正感知到的东西；在再次损失理智前，妄想不再生效\n")
-	} else {
-		sanNew := san - 1
-		if sanNew < 0 {
-			sanNew = 0
-		}
-		VarSetValueInt64(mctx, "理智", sanNew)
-		fmt.Fprintf(&b, "理智 %d → %d（-1），幻觉未被识破\n", san, sanNew)
-		b.WriteString("不自觉反应：惊叫 / 掉落手中物品 / 失控移动 / 僵住 / 攻击（由守秘人指定其一）\n")
-
-		// 现实检定的 1 点损失同样计入篇章账本，并参与 Changed 判定
-		threshold := c7rAttrInt(mctx, tmpl, "意志") / 5
-		if threshold < 1 {
-			threshold = 1
-		}
-		st.ChapterLoss++
-		newlyChanged := !st.Changed && st.ChapterLoss >= threshold
-		if newlyChanged {
-			st.Changed = true
-		}
-		c7rSaveState(mctx.Dice, stateKey, st)
-		if newlyChanged {
-			fmt.Fprintf(&b, "本篇章累计理智损失 %d/%d → 已 Changed：出现妄想、获得一个恐惧症、Shock 阈值提高到 10，且无法恢复幸运\n", st.ChapterLoss, threshold)
-		}
-		if sanNew == 0 {
-			b.WriteString("理智归零：调查员 Lost，不再是玩家角色\n")
-		}
-	}
-
-	ReplyToSender(mctx, msg, strings.TrimRight(b.String(), "\n"))
-	if mctx.Player.AutoSetNameTemplate != "" {
-		_, _ = SetPlayerGroupCardByTemplate(mctx, mctx.Player.AutoSetNameTemplate)
-	}
-	return CmdExecuteResult{Matched: true, Solved: true}
-}
-
-// cmdC7RInitiative 圆桌式先攻：偶数向左手边，奇数向右手边。
-func cmdC7RInitiative(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-	if cmdArgs.IsArgEqual(1, "help") {
-		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-	}
-	if !c7rRequireRule(ctx, msg) {
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
+// c7rInitiativeText 圆桌式先攻：偶数向左手边，奇数向右手边。
+func c7rInitiativeText(ctx *MsgContext) string {
 	roll := c7rRollDie(ctx, 6)
 	direction := "左手边"
 	if roll%2 == 1 {
@@ -555,91 +567,7 @@ func cmdC7RInitiative(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecut
 	if roll%2 == 1 {
 		parity = "奇数"
 	}
-	text := fmt.Sprintf("回合计序：1D6=%d（%s）→ 由发起攻击者开始，沿%s依次行动；本轮确定方向后，整场战斗沿用", roll, parity, direction)
-	ReplyToSender(ctx, msg, text)
-	return CmdExecuteResult{Matched: true, Solved: true}
-}
-
-// cmdC7RTakeFive 技能成长取五：不投骰，直接 +5。
-func cmdC7RTakeFive(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-	if len(cmdArgs.Args) < 1 || cmdArgs.IsArgEqual(1, "help") {
-		return CmdExecuteResult{Matched: true, Solved: true, ShowHelp: true}
-	}
-	if !c7rRequireRule(ctx, msg) {
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-
-	mctx := GetCtxProxyFirst(ctx, cmdArgs)
-	if !c7rCanModifyTarget(ctx, mctx) {
-		ReplyToSender(ctx, msg, "只能给自己做技能成长，或由群管操作")
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-	tmpl := cardRuleCheck(mctx, msg)
-	if tmpl == nil {
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-	mctx.SystemTemplate = tmpl
-
-	skillName := strings.TrimSpace(strings.Join(cmdArgs.Args, " "))
-	// @ 信息不参与技能名
-	if idx := strings.Index(skillName, "@"); idx >= 0 {
-		skillName = strings.TrimSpace(skillName[:idx])
-	}
-	key := tmpl.GetAlias(skillName)
-	if key == "" || !c7rIsSkill(tmpl, key) {
-		ReplyToSender(mctx, msg, fmt.Sprintf("未找到技能「%s」", skillName))
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-
-	// 克苏鲁神话与信用评级不能通过成长检定提升（书 p51 训练条款）
-	for _, blocked := range []string{"克苏鲁神话", "信用评级"} {
-		if key == tmpl.GetAlias(blocked) {
-			ReplyToSender(mctx, msg, fmt.Sprintf("「%s」不能通过成长检定提升", key))
-			return CmdExecuteResult{Matched: true, Solved: true}
-		}
-	}
-
-	old := c7rAttrInt(mctx, tmpl, key)
-	if old >= 99 {
-		ReplyToSender(mctx, msg, fmt.Sprintf("「%s」已经是 %d，无需再成长", key, old))
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-
-	// Take Five 只把成长量换成 5，成长检定本身仍要投：D100 高于当前技能才通过
-	roll, detail := c7rRollD100(mctx, false)
-	detailWrap := ""
-	if detail != "" {
-		detailWrap = "（" + detail + "）"
-	}
-	if roll <= old {
-		ReplyToSender(mctx, msg, fmt.Sprintf("%s 的「%s」成长检定：D100=%d/%d%s 未通过，本次没有成长", mctx.Player.Name, key, roll, old, detailWrap))
-		return CmdExecuteResult{Matched: true, Solved: true}
-	}
-
-	newVal := old + 5
-	if newVal > 99 {
-		newVal = 99
-	}
-	VarSetValueInt64(mctx, key, newVal)
-	ReplyToSender(mctx, msg, fmt.Sprintf("%s 的「%s」成长检定：D100=%d/%d%s 通过（取五）：%d → %d", mctx.Player.Name, key, roll, old, detailWrap, old, newVal))
-	return CmdExecuteResult{Matched: true, Solved: true}
-}
-
-// c7rIsSkill 判断 key 是否是技能：模板里的技能默认项，或由属性推导的技能。
-// 属性（力量、意志等）与派生值（生命值上限等）不算技能。
-func c7rIsSkill(tmpl *GameSystemTemplate, key string) bool {
-	if tmpl == nil {
-		return false
-	}
-	if _, exists := tmpl.Attrs.Defaults[key]; exists {
-		return true
-	}
-	for _, name := range []string{"闪避", "母语", "安抚"} {
-		if tmpl.GetAlias(name) == key {
-			return true
-		}
-	}
-	return false
+	return fmt.Sprintf("回合计序：1D6=%d（%s）→ 由发起攻击者开始，沿%s依次行动；本轮确定方向后，整场战斗沿用", roll, parity, direction)
 }
 
 // cmdC7RHub .c7r 规则辅助入口。
@@ -653,16 +581,14 @@ func cmdC7RHub(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
 	switch sub {
 	case "", "help":
 		ReplyToSender(ctx, msg, c7rHelpText())
+	case "rule":
+		ReplyToSender(ctx, msg, c7rRuleCommand(ctx, cmdArgs))
+	case "ri":
+		ReplyToSender(ctx, msg, c7rInitiativeText(ctx))
 	case "status":
 		ReplyToSender(ctx, msg, c7rStatusText(ctx, cmdArgs))
-	case "derive":
-		ReplyToSender(ctx, msg, c7rDeriveBases(ctx, cmdArgs))
 	case "migrate":
 		ReplyToSender(ctx, msg, c7rMigrateLegacy(ctx, cmdArgs))
-	case "new":
-		ReplyToSender(ctx, msg, c7rNewInvestigator(ctx, cmdArgs))
-	case "min":
-		ReplyToSender(ctx, msg, c7rSpecializationMinimums(ctx, cmdArgs))
 	case "reset":
 		ReplyToSender(ctx, msg, c7rResetState(ctx, cmdArgs))
 	case "recover":
@@ -675,112 +601,96 @@ func cmdC7RHub(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
+func c7rRuleLine(name string, on bool, desc string) string {
+	state := "关"
+	if on {
+		state = "开"
+	}
+	return fmt.Sprintf("%s：%s  %s", name, state, desc)
+}
+
+// c7rRuleCommand 查看或切换可选规则。
+func c7rRuleCommand(ctx *MsgContext, cmdArgs *CmdArgs) string {
+	rules := c7rLoadRules(ctx.Dice, ctx.Group.GroupID)
+	name := strings.ToLower(strings.TrimSpace(cmdArgs.GetArgN(2)))
+
+	if name == "" {
+		return strings.Join([]string{
+			"可选规则：",
+			c7rRuleLine("sanity", rules.Sanity, "重写的理智流程：Shock / Changed / Lost"),
+			c7rRuleLine("mythos", rules.Mythos, "神话来源的冲击提升克苏鲁神话技能（.sc --mythos）"),
+			"切换：.c7r rule <sanity|mythos> on|off",
+		}, "\n")
+	}
+
+	var target *bool
+	switch name {
+	case "sanity", "理智":
+		target = &rules.Sanity
+	case "mythos", "神话":
+		target = &rules.Mythos
+	default:
+		return fmt.Sprintf("未知的可选规则「%s」，可用：sanity、mythos", name)
+	}
+
+	action := strings.ToLower(strings.TrimSpace(cmdArgs.GetArgN(3)))
+	switch action {
+	case "on", "enable", "开", "启用":
+		*target = true
+	case "off", "disable", "关", "关闭":
+		*target = false
+	case "":
+		state := "关"
+		if *target {
+			state = "开"
+		}
+		return fmt.Sprintf("可选规则 %s 当前为：%s", name, state)
+	default:
+		return fmt.Sprintf("用法：.c7r rule %s on|off", name)
+	}
+
+	if err := c7rSaveRules(ctx.Dice, ctx.Group.GroupID, rules); err != nil {
+		return "保存可选规则失败：" + err.Error()
+	}
+	state := "关闭"
+	if *target {
+		state = "开启"
+	}
+	return fmt.Sprintf("已%s可选规则 %s", state, name)
+}
+
 func c7rScHelpText() string {
 	return strings.Join([]string{
 		"理智检定（守秘人伴侣版）：",
 		".sc <成功损失>/<失败损失> // 例：.sc 0/1D6、.sc 1/1D4+1",
+		".sc b 0/1 // 奖励骰，现实检定与同伴安抚成功都用这个；多个写 b2、b3",
+		".sc p 0/1 // 惩罚骰，多个写 p2、p3；b 与 p 同时写会互相抵消",
 		"  --cap=N   单次损失上限（用于“习惯恐惧”房规）",
 		"  --half    损失减半",
-		"  --mythos  本次冲击来自神话：Shock/Changed 时增加克苏鲁神话技能（首次 +5，之后 +1）",
+		"  --mythos  本次冲击来自神话：Shock/Changed 时增加克苏鲁神话技能（需开启 mythos 可选规则）",
 		"失败必触发不自觉反应；单次损失 ≥5（Changed 后 ≥10）投 INT，成功则陷入 Shock 1D10 轮",
+		"关掉 sanity 可选规则后，.sc 回到七版流程：只结算损失并给出疯狂提示",
 	}, "\n")
 }
 
 func c7rHelpText() string {
 	return strings.Join([]string{
-		"coc7r（守秘人伴侣）规则扩展：",
+		"coc7r（守秘人伴侣）规则：",
 		".set coc7r // 切换到本规则（切回七版用 .set coc7）",
 		".sc <成功损失>/<失败损失> // 新版理智判定，可加 --cap=N、--half、--mythos",
-		".rv [b] // 现实检定，b 表示同伴安抚成功带来的奖励骰",
-		".ri // 圆桌式先攻，掷骰决定行动方向",
-		".en5 <技能> // 成长检定，通过后按取五 +5（克苏鲁神话、信用评级除外）",
-		".c7r status // 查看本篇章理智账本",
-		".c7r derive // 按属性推导技能基础值（可选规则）",
-		".c7r new // 新版建卡流程与个人兴趣点",
-		".c7r min // 按专精下限修正格斗/射击技能（半值规则）",
-		".c7r migrate // 合并旧卡的取悦/话术/恐吓等技能",
-		".c7r reset // 开新篇章：清空篇章损失与 Shock（Changed 保留）",
-		".c7r recover // 解除 Changed（需休整一周并改写背景）",
+		".c7r rule [名字] [on|off] // 查看或切换可选规则（sanity / mythos）",
+		".c7r status [@人] // 篇章账本：累计损失、Changed、Shock、神话次数",
+		".c7r ri // 圆桌式先攻：掷 1D6，偶数沿左手边、奇数沿右手边，整场战斗沿用",
+		".c7r migrate [@人] // 合并旧卡的取悦/话术/恐吓等技能",
+		".c7r reset [@人] // 开新篇章：清空篇章损失与 Shock（Changed 保留）",
+		".c7r recover [@人] // 解除 Changed（需休整一周并改写背景）",
 		".c7r shock [clear] // 查看或解除 Shock 状态",
+		"",
+		"建卡：职业列出的技能值直接抄到卡上（已含基础值）；个人兴趣点 = 教育 + 智力；",
+		"宗教学按专精记录，多个信仰写成「宗教学(基督教)」这类独立键。",
+		"现实检定用 .sc 0/1，同伴安抚成功写 .sc b 0/1（多颗奖励骰写 b2），失败由守秘人描述不自觉反应。",
+		"成长取五用 .en <技能>+5（.en 默认成长量是 1d10，写死就是固定值），专精技能写全名，如 .en 射击:手枪+5。",
 	}, "\n")
-}
-
-func c7rNewInvestigator(ctx *MsgContext, cmdArgs *CmdArgs) string {
-	mctx := GetCtxProxyFirst(ctx, cmdArgs)
-	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
-	if tmpl == nil {
-		return "当前群没有可用的规则模板"
-	}
-	edu := c7rAttrInt(mctx, tmpl, "教育")
-	intel := c7rAttrInt(mctx, tmpl, "智力")
-	app := c7rAttrInt(mctx, tmpl, "外貌")
-	lines := []string{
-		"新版建卡流程：",
-		"1. 选一个职业，直接把职业列出的技能值抄到卡上（已含基础值，不用再算点数）",
-		"2. 个人兴趣点 = 教育 + 智力，可分配到任意技能（克苏鲁神话除外），可加在职业技能上",
-		"3. 想在职业内部调整，只能在职业列出的技能之间挪点，且不能低于基础值",
-		"4. 信用评级可以直接用技能点或个人兴趣点调整",
-		fmt.Sprintf("按当前属性：教育 %d + 智力 %d = 个人兴趣点 %d；外貌 %d → 安抚基础值 %d", edu, intel, edu+intel, app, app/5),
-		"可选：.c7r derive 按属性推导全部技能基础值（守秘人伴侣 p23-25 的可选规则）",
-		"注意：宗教学按专精记录，模板里的 10 是单个专精的起始值；多个信仰请写成「宗教学(基督教)」这类独立键",
-		"注意：.coc 仍是七版建卡（3D6×5 那套），新版 2D6+5 八次分配与 480 点池尚未实现",
-	}
-	return strings.Join(lines, "\n")
-}
-
-// c7rFightingSkills / c7rFirearmsSkills 对应书中“专精下限”可选规则。
-var (
-	c7rFightingSkills = []string{"斗殴", "斧", "链锯", "连枷", "绞索", "矛", "剑", "鞭"}
-	c7rFirearmsSkills = []string{"射击:弓", "射击:手枪", "射击:重武器", "射击:火焰喷射器", "射击:机枪", "射击:步霰"}
-)
-
-func c7rSpecializationMinimums(ctx *MsgContext, cmdArgs *CmdArgs) string {
-	mctx := GetCtxProxyFirst(ctx, cmdArgs)
-	if !c7rCanModifyTarget(ctx, mctx) {
-		return "只能改自己的角色卡，或由群管操作"
-	}
-	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
-	if tmpl == nil {
-		return "当前群没有可用的规则模板"
-	}
-	attrs, err := mctx.Dice.AttrsManager.LoadByCtx(mctx)
-	if err != nil || attrs == nil {
-		return "读不到角色卡"
-	}
-
-	lines := make([]string, 0, 4)
-	apply := func(group []string, label string) {
-		highest := int64(0)
-		for _, name := range group {
-			if v := c7rAttrInt(mctx, tmpl, name); v > highest {
-				highest = v
-			}
-		}
-		if highest <= 0 {
-			return
-		}
-		minVal := highest / 2
-		raised := make([]string, 0, len(group))
-		for _, name := range group {
-			key := tmpl.GetAlias(name)
-			cur := c7rAttrInt(mctx, tmpl, name)
-			if cur >= minVal {
-				continue
-			}
-			attrs.Store(key, ds.NewIntVal(ds.IntType(minVal)))
-			raised = append(raised, fmt.Sprintf("%s %d→%d", key, cur, minVal))
-		}
-		if len(raised) > 0 {
-			lines = append(lines, fmt.Sprintf("%s（最高 %d，下限 %d）：%s", label, highest, minVal, strings.Join(raised, "、")))
-		}
-	}
-	apply(c7rFightingSkills, "格斗专精")
-	apply(c7rFirearmsSkills, "射击专精")
-
-	if len(lines) == 0 {
-		return "格斗/射击专精都已在半值下限之上，无需修正"
-	}
-	return "已按专精下限规则修正：\n" + strings.Join(lines, "\n")
 }
 
 func c7rStatusText(ctx *MsgContext, cmdArgs *CmdArgs) string {
@@ -793,6 +703,7 @@ func c7rStatusText(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	pow := c7rAttrInt(mctx, tmpl, "意志")
 	cm := c7rAttrInt(mctx, tmpl, "克苏鲁神话")
 	st := c7rLoadState(mctx.Dice, c7rStateKeyFor(mctx))
+	rules := c7rLoadRules(mctx.Dice, mctx.Group.GroupID)
 	threshold := pow / 5
 	if threshold < 1 {
 		threshold = 1
@@ -805,14 +716,21 @@ func c7rStatusText(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	if st.Shock {
 		shock = fmt.Sprintf("是（约 %d 轮）", st.ShockRounds)
 	}
-	return fmt.Sprintf("%s 的 coc7r 状态：\n理智 %d/%d，意志 %d（Changed 阈值 %d）\n本篇章累计损失 %d\nChanged：%s\nShock：%s\n神话冲击次数：%d",
-		mctx.Player.Name, san, 99-cm, pow, threshold, st.ChapterLoss, changed, shock, st.MythosEvents)
+	stateText := func(on bool) string {
+		if on {
+			return "开"
+		}
+		return "关"
+	}
+	ruleText := fmt.Sprintf("sanity %s、mythos %s", stateText(rules.Sanity), stateText(rules.Mythos))
+	return fmt.Sprintf("%s 的 coc7r 状态：\n理智 %d/%d，意志 %d（Changed 阈值 %d）\n本篇章累计损失 %d\nChanged：%s\nShock：%s\n神话冲击次数：%d\n可选规则：%s",
+		mctx.Player.Name, san, 99-cm, pow, threshold, st.ChapterLoss, changed, shock, st.MythosEvents, ruleText)
 }
 
 func c7rResetState(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
 	if !c7rCanModifyTarget(ctx, mctx) {
-		return "只能重置自己的篇章账本，或由群管操作"
+		return "只能重置自己的篇章账本，或由骰主操作"
 	}
 	key := c7rStateKeyFor(mctx)
 	st := c7rLoadState(mctx.Dice, key)
@@ -832,7 +750,7 @@ func c7rResetState(ctx *MsgContext, cmdArgs *CmdArgs) string {
 func c7rRecoverChanged(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
 	if !c7rCanModifyTarget(ctx, mctx) {
-		return "只能恢复自己的角色，或由群管操作"
+		return "只能恢复自己的角色，或由骰主操作"
 	}
 	key := c7rStateKeyFor(mctx)
 	st := c7rLoadState(mctx.Dice, key)
@@ -856,7 +774,7 @@ func c7rShockCommand(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	switch sub {
 	case "clear", "end", "off":
 		if !c7rCanModifyTarget(ctx, mctx) {
-			return "只能解除自己的 Shock，或由群管操作"
+			return "只能解除自己的 Shock，或由骰主操作"
 		}
 		if !st.Shock {
 			return "当前不在 Shock"
@@ -874,122 +792,6 @@ func c7rShockCommand(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	}
 }
 
-// c7rDerivedSkills 可选规则：技能基础值由属性推导（守秘人伴侣 p23-25）。
-// 只写入卡上没有显式设置过的技能，避免覆盖玩家已分配的技能点。
-var c7rDerivedSkills = map[string]func(ch map[string]int64) int64{
-	"会计":       func(ch map[string]int64) int64 { return ch["教育"] / 10 },
-	"表演":       func(ch map[string]int64) int64 { return maxI64(ch["智力"], ch["意志"]) / 10 },
-	"动物驯养":     func(ch map[string]int64) int64 { return ch["意志"] / 10 },
-	"估价":       func(ch map[string]int64) int64 { return ch["教育"] / 10 },
-	"斧":        func(ch map[string]int64) int64 { return ch["力量"] / 5 },
-	"射击:弓":     func(ch map[string]int64) int64 { return ch["敏捷"] / 5 },
-	"斗殴":       func(ch map[string]int64) int64 { return maxI64(ch["敏捷"], ch["力量"]) / 2 },
-	"链锯":       func(ch map[string]int64) int64 { return ch["力量"] / 5 },
-	"攀爬":       func(ch map[string]int64) int64 { return maxI64(ch["敏捷"], ch["力量"]) / 2 },
-	"计算机使用":    func(ch map[string]int64) int64 { return ch["教育"] / 10 },
-	"乔装":       func(ch map[string]int64) int64 { return ch["智力"] / 10 },
-	"汽车驾驶":     func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"电气维修":     func(ch map[string]int64) int64 { return ch["教育"] / 5 },
-	"美术":       func(ch map[string]int64) int64 { return ch["敏捷"] / 10 },
-	"急救":       func(ch map[string]int64) int64 { return ch["教育"] / 2 },
-	"连枷":       func(ch map[string]int64) int64 { return ch["敏捷"] / 5 },
-	"射击:火焰喷射器": func(ch map[string]int64) int64 { return ch["敏捷"] / 5 },
-	"伪造":       func(ch map[string]int64) int64 { return maxI64(ch["敏捷"], ch["教育"]) / 10 },
-	"绞索":       func(ch map[string]int64) int64 { return ch["敏捷"] / 5 },
-	"射击:手枪":    func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"射击:重武器":   func(ch map[string]int64) int64 { return ch["力量"] / 5 },
-	"历史":       func(ch map[string]int64) int64 { return ch["教育"] / 10 },
-	"跳跃":       func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"法律":       func(ch map[string]int64) int64 { return ch["教育"] / 10 },
-	"图书馆使用":    func(ch map[string]int64) int64 { return ch["教育"] / 2 },
-	"聆听":       func(ch map[string]int64) int64 { return ch["智力"] / 2 },
-	"射击:机枪":    func(ch map[string]int64) int64 { return ch["力量"] / 5 },
-	"机械维修":     func(ch map[string]int64) int64 { return ch["智力"] / 5 },
-	"博物学":      func(ch map[string]int64) int64 { return ch["智力"] / 5 },
-	"导航":       func(ch map[string]int64) int64 { return ch["智力"] / 5 },
-	"神秘学":      func(ch map[string]int64) int64 { return ch["教育"] / 10 },
-	"说服":       func(ch map[string]int64) int64 { return ch["外貌"] / 5 },
-	"摄影":       func(ch map[string]int64) int64 { return maxI64(ch["敏捷"], ch["教育"]) / 10 },
-	"心理学":      func(ch map[string]int64) int64 { return ch["智力"] / 5 },
-	"宗教学":      func(ch map[string]int64) int64 { return ch["教育"] / 5 },
-	"骑术":       func(ch map[string]int64) int64 { return ch["敏捷"] / 10 },
-	"射击:步霰":    func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"妙手":       func(ch map[string]int64) int64 { return ch["敏捷"] / 5 },
-	"矛":        func(ch map[string]int64) int64 { return ch["力量"] / 2 },
-	"侦查":       func(ch map[string]int64) int64 { return ch["智力"] / 2 },
-	"潜行":       func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"剑":        func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"生存":       func(ch map[string]int64) int64 { return ch["教育"] / 5 },
-	"游泳":       func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"投掷":       func(ch map[string]int64) int64 { return ch["敏捷"] / 2 },
-	"追踪":       func(ch map[string]int64) int64 { return ch["智力"] / 5 },
-	"鞭":        func(ch map[string]int64) int64 { return ch["敏捷"] / 5 },
-}
-
-func maxI64(a, b int64) int64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func c7rDeriveBases(ctx *MsgContext, cmdArgs *CmdArgs) string {
-	mctx := GetCtxProxyFirst(ctx, cmdArgs)
-	if !c7rCanModifyTarget(ctx, mctx) {
-		return "只能改自己的角色卡，或由群管操作"
-	}
-	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
-	if tmpl == nil {
-		return "当前群没有可用的规则模板"
-	}
-	ch := map[string]int64{
-		"力量": c7rAttrInt(mctx, tmpl, "力量"),
-		"敏捷": c7rAttrInt(mctx, tmpl, "敏捷"),
-		"体质": c7rAttrInt(mctx, tmpl, "体质"),
-		"体型": c7rAttrInt(mctx, tmpl, "体型"),
-		"外貌": c7rAttrInt(mctx, tmpl, "外貌"),
-		"智力": c7rAttrInt(mctx, tmpl, "智力"),
-		"意志": c7rAttrInt(mctx, tmpl, "意志"),
-		"教育": c7rAttrInt(mctx, tmpl, "教育"),
-	}
-	attrs, err := mctx.Dice.AttrsManager.LoadByCtx(mctx)
-	if err != nil || attrs == nil {
-		return "读不到角色卡"
-	}
-
-	applied := make([]string, 0, len(c7rDerivedSkills))
-	for skill, fn := range c7rDerivedSkills {
-		key := tmpl.GetAlias(skill)
-		if _, exists := attrs.LoadX(key); exists {
-			continue // 玩家已分配过技能点
-		}
-		val := fn(ch)
-		if val < 0 {
-			val = 0
-		}
-		// 与基础值相同就不用写到卡上，默认值本来就是它
-		if def, ok := tmpl.Attrs.Defaults[key]; ok && int64(def) == val {
-			continue
-		}
-		attrs.Store(key, ds.NewIntVal(ds.IntType(val)))
-		applied = append(applied, fmt.Sprintf("%s %d", key, val))
-	}
-	if len(applied) == 0 {
-		return "所有可用派生技能都已有数值，未做改动"
-	}
-	sort.Strings(applied)
-	// 每行 5 项，避免一长串糊在一起
-	lines := make([]string, 0, len(applied)/5+1)
-	for i := 0; i < len(applied); i += 5 {
-		end := i + 5
-		if end > len(applied) {
-			end = len(applied)
-		}
-		lines = append(lines, strings.Join(applied[i:end], "、"))
-	}
-	return fmt.Sprintf("已按属性写入 %d 项技能基础值：\n%s", len(applied), strings.Join(lines, "\n"))
-}
-
 // c7rMigratePairs 旧技能 → 新技能的合并关系。
 var c7rMigratePairs = []struct {
 	target string
@@ -1003,7 +805,7 @@ var c7rMigratePairs = []struct {
 func c7rMigrateLegacy(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	mctx := GetCtxProxyFirst(ctx, cmdArgs)
 	if !c7rCanModifyTarget(ctx, mctx) {
-		return "只能迁移自己的角色卡，或由群管操作"
+		return "只能迁移自己的角色卡，或由骰主操作"
 	}
 	tmpl := mctx.Group.GetCharTemplate(mctx.Dice)
 	if tmpl == nil {
@@ -1064,9 +866,10 @@ func c7rMigrateLegacy(ctx *MsgContext, cmdArgs *CmdArgs) string {
 func RegisterBuiltinExtCoc7R(self *Dice) {
 	helpSc := strings.Join([]string{
 		".sc <成功损失>/<失败损失> // 例：.sc 0/1D6",
+		".sc b 0/1 // 奖励骰（b2、b3 为多颗）；惩罚骰用 p、p2",
 		"  --cap N   单次损失上限（用于“习惯恐惧”房规）",
 		"  --half    损失减半",
-		"  --mythos  本次冲击来自神话（Shock/Changed 时增加克苏鲁神话技能）",
+		"  --mythos  本次冲击来自神话（需开启 mythos 可选规则）",
 	}, "\n")
 
 	cmdSc := &CmdItemInfo{
@@ -1079,38 +882,9 @@ func RegisterBuiltinExtCoc7R(self *Dice) {
 		},
 	}
 
-	cmdReality := &CmdItemInfo{
-		Name:          "rv",
-		ShortHelp:     ".rv [b] // 现实检定",
-		Help:          "现实检定:\n.rv // 投 D100 对抗当前理智\n.rv b // 同伴安抚成功，获得一个奖励骰\n成功看破幻觉；失败扣 1 点理智并触发不自觉反应",
-		AllowDelegate: true,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			return cmdC7RRealityCheck(ctx, msg, cmdArgs)
-		},
-	}
-
-	cmdInit := &CmdItemInfo{
-		Name:      "ri",
-		ShortHelp: ".ri // 圆桌式先攻",
-		Help:      "圆桌式先攻:\n.ri // 掷 1D6，偶数沿左手边、奇数沿右手边依次行动\n整场战斗沿用同一方向",
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			return cmdC7RInitiative(ctx, msg, cmdArgs)
-		},
-	}
-
-	cmdTakeFive := &CmdItemInfo{
-		Name:          "en5",
-		ShortHelp:     ".en5 <技能> // 技能成长取五",
-		Help:          "技能成长取五:\n.en5 <技能> // 不投骰，技能直接 +5（上限 99）",
-		AllowDelegate: true,
-		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			return cmdC7RTakeFive(ctx, msg, cmdArgs)
-		},
-	}
-
 	cmdHub := &CmdItemInfo{
 		Name:      "c7r",
-		ShortHelp: ".c7r help|status|derive|migrate|reset // coc7r 规则辅助",
+		ShortHelp: ".c7r help|rule|status|ri|migrate|reset // coc7r 规则辅助",
 		Help:      c7rHelpText(),
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			return cmdC7RHub(ctx, msg, cmdArgs)
@@ -1119,7 +893,7 @@ func RegisterBuiltinExtCoc7R(self *Dice) {
 
 	theExt := &ExtInfo{
 		Name:       c7rExtName,
-		Version:    "1.0.0",
+		Version:    "1.1.0",
 		Brief:      "克苏鲁的呼唤第七版·守秘人伴侣（Keeper Companion）规则支持",
 		AutoActive: true,
 		Author:     "ShiaNyaa",
@@ -1129,11 +903,10 @@ func RegisterBuiltinExtCoc7R(self *Dice) {
 		},
 		GetDescText: GetExtensionDesc,
 		CmdMap: CmdMapCls{
-			"rv":  cmdReality,
-			"ri":  cmdInit,
-			"en5": cmdTakeFive,
 			"c7r": cmdHub,
-			"sc":  cmdSc,
+			// .sc 的入口在 coc7 扩展里按 group.System 分流；这里保留一份，
+			// 以便 coc7 扩展被单独关闭时 coc7r 群仍可用。
+			"sc": cmdSc,
 		},
 	}
 	self.RegisterExtension(theExt)

@@ -85,31 +85,6 @@ func TestCoc7RTemplateBasics(t *testing.T) {
 	}
 }
 
-func TestCoc7RDerivedSkillFormulas(t *testing.T) {
-	ch := map[string]int64{
-		"力量": 60, "敏捷": 40, "体质": 50, "体型": 50,
-		"外貌": 50, "智力": 70, "意志": 50, "教育": 65,
-	}
-	cases := map[string]int64{
-		"斗殴":    30, // max(敏捷40, 力量60)/2
-		"攀爬":    30,
-		"说服":    10, // 外貌50/5
-		"侦查":    35, // 智力70/2
-		"图书馆使用": 32, // 教育65/2
-		"斧":     12, // 力量60/5
-		"急救":    32, // 教育65/2
-	}
-	for skill, want := range cases {
-		fn := c7rDerivedSkills[skill]
-		if fn == nil {
-			t.Fatalf("缺少派生公式: %s", skill)
-		}
-		if got := fn(ch); got != want {
-			t.Fatalf("%s = %d, want %d", skill, got, want)
-		}
-	}
-}
-
 // ---------------------------------------------------------------------------
 // 指令回归：真实跑一遍 ExecuteNew，覆盖 coc7r 全部对外指令
 // ---------------------------------------------------------------------------
@@ -240,52 +215,25 @@ func TestCoc7RCommandRegression(t *testing.T) {
 		t.Fatalf(".sc 累计损失未触发 Changed: %q", got)
 	}
 
-	// 9. 现实检定
-	got = runCmd(t, d, ep, adapter, ".rv")
-	if !strings.Contains(got, "现实检定") {
-		t.Fatalf(".rv 输出异常: %q", got)
-	}
-
-	// 10. 圆桌先攻
-	got = runCmd(t, d, ep, adapter, ".ri")
+	// 9. 圆桌先攻（收在 .c7r 下面，不占用顶层 .ri）
+	got = runCmd(t, d, ep, adapter, ".c7r ri")
 	if !strings.Contains(got, "回合计序") {
-		t.Fatalf(".ri 输出异常: %q", got)
+		t.Fatalf(".c7r ri 输出异常: %q", got)
 	}
 
-	// 11. 技能成长取五：先过成长检定，通过后必须正好 +5
-	before := skillValue(t, runCmd(t, d, ep, adapter, ".st show 侦查"), "侦查")
-	passed := false
-	for i := 0; i < 6; i++ {
-		got = runCmd(t, d, ep, adapter, ".en5 侦查")
-		if strings.Contains(got, "通过（取五）") {
-			passed = true
-			break
-		}
-		if !strings.Contains(got, "未通过") {
-			t.Fatalf(".en5 输出异常: %q", got)
-		}
-	}
-	if !passed {
-		t.Fatal(".en5 连续六次成长检定未通过")
-	}
-	after := skillValue(t, runCmd(t, d, ep, adapter, ".st show 侦查"), "侦查")
-	if after-before != 5 {
-		t.Fatalf(".en5 应 +5，实际 %d → %d", before, after)
+	// 10. 可选规则列表
+	got = runCmd(t, d, ep, adapter, ".c7r rule")
+	if !strings.Contains(got, "sanity") || !strings.Contains(got, "mythos") {
+		t.Fatalf(".c7r rule 输出异常: %q", got)
 	}
 
-	// 12. 状态
+	// 11. 状态
 	got = runCmd(t, d, ep, adapter, ".c7r status")
-	if !strings.Contains(got, "本篇章累计损失") {
+	if !strings.Contains(got, "本篇章累计损失") || !strings.Contains(got, "可选规则") {
 		t.Fatalf(".c7r status 输出异常: %q", got)
 	}
 
-	// 13. 派生基础值
-	got = runCmd(t, d, ep, adapter, ".c7r derive")
-	if !strings.Contains(got, "技能基础值") && !strings.Contains(got, "未做改动") {
-		t.Fatalf(".c7r derive 输出异常: %q", got)
-	}
-
-	// 14. 旧卡迁移
+	// 12. 旧卡迁移
 	runCmd(t, d, ep, adapter, ".st 话术40")
 	got = runCmd(t, d, ep, adapter, ".c7r migrate")
 	if !strings.Contains(got, "旧卡迁移完成") || !strings.Contains(got, "说服 ← 话术 40") {
@@ -296,19 +244,13 @@ func TestCoc7RCommandRegression(t *testing.T) {
 		t.Fatalf("迁移后说服不是 40: %q", got)
 	}
 
-	// 15. 新版建卡指引
-	got = runCmd(t, d, ep, adapter, ".c7r new")
-	if !strings.Contains(got, "个人兴趣点") {
-		t.Fatalf(".c7r new 输出异常: %q", got)
-	}
-
-	// 16. 重置篇章账本
+	// 13. 重置篇章账本
 	got = runCmd(t, d, ep, adapter, ".c7r reset")
 	if !strings.Contains(got, "已清空") {
 		t.Fatalf(".c7r reset 输出异常: %q", got)
 	}
 
-	// 17. 制卡
+	// 14. 制卡
 	got = runCmd(t, d, ep, adapter, ".coc")
 	if !strings.Contains(got, "人物作成") {
 		t.Fatalf(".coc 输出异常: %q", got)
@@ -398,7 +340,7 @@ func TestCoc7RSwitchBackRequiresFormat(t *testing.T) {
 	}
 }
 
-func TestCoc7RComputedReassureAndMythos(t *testing.T) {
+func TestCoc7RComputedReassure(t *testing.T) {
 	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
 	t.Cleanup(cleanup)
 	prepareC7RTestDB(t, d)
@@ -411,24 +353,104 @@ func TestCoc7RComputedReassureAndMythos(t *testing.T) {
 	if !strings.Contains(got, "/10") {
 		t.Fatalf("安抚基础值应为 10: %q", got)
 	}
+}
 
-	// 现实检定奖励骰
-	got = runCmd(t, d, ep, adapter, ".rv b")
-	if !strings.Contains(got, "奖励骰") {
-		t.Fatalf(".rv b 未使用奖励骰: %q", got)
+// 可选规则开关：关闭 sanity 后 .sc 回到七版流程，既不提示不自觉反应，也不记账。
+func TestCoc7RRuleSanityToggle(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".st 意志50 智力50 理智50")
+
+	got := runCmd(t, d, ep, adapter, ".c7r rule")
+	if !strings.Contains(got, "sanity：开") {
+		t.Fatalf("sanity 应默认开启: %q", got)
+	}
+	if !strings.Contains(got, "mythos：关") {
+		t.Fatalf("mythos 应默认关闭: %q", got)
 	}
 
-	// 两次 5 点神话冲击，累计 10 点触发 Changed，必然获得克苏鲁神话技能
-	runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
-	runCmd(t, d, ep, adapter, ".c7r shock clear")
-	runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
-	got = runCmd(t, d, ep, adapter, ".c7r status")
-	if strings.Contains(got, "神话冲击次数：0") {
-		t.Fatalf("神话冲击未记账: %q", got)
+	if got = runCmd(t, d, ep, adapter, ".c7r rule sanity off"); !strings.Contains(got, "已关闭") {
+		t.Fatalf(".c7r rule sanity off 输出异常: %q", got)
+	}
+
+	got = runCmd(t, d, ep, adapter, ".sc 5/5")
+	if strings.Contains(got, "不自觉反应") || strings.Contains(got, "INT 检定") {
+		t.Fatalf("sanity 关闭后仍走了新版流程: %q", got)
+	}
+	if !strings.Contains(got, "理智检定") {
+		t.Fatalf("sanity 关闭后没有正常结算: %q", got)
+	}
+	status := runCmd(t, d, ep, adapter, ".c7r status")
+	if !strings.Contains(status, "本篇章累计损失 0") {
+		t.Fatalf("sanity 关闭后不应记账: %q", status)
+	}
+
+	if got = runCmd(t, d, ep, adapter, ".c7r rule sanity on"); !strings.Contains(got, "已开启") {
+		t.Fatalf(".c7r rule sanity on 输出异常: %q", got)
+	}
+	got = runCmd(t, d, ep, adapter, ".sc 5/5")
+	if !strings.Contains(got, "不自觉反应") {
+		t.Fatalf("sanity 重新开启后未恢复新版流程: %q", got)
 	}
 }
 
-func TestCoc7RUnknownSkillAndWrongRule(t *testing.T) {
+// 奖惩骰解析：b2 / p2 与 .ra 保持一致，b 与 p 同时写会抵消。
+func TestCoc7RBonusPenaltyDice(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".st 意志50 智力50 理智50")
+
+	got := runCmd(t, d, ep, adapter, ".sc b2 0/1")
+	if !strings.Contains(got, "奖励骰×2") {
+		t.Fatalf(".sc b2 未按两颗奖励骰结算: %q", got)
+	}
+
+	got = runCmd(t, d, ep, adapter, ".sc p2 0/1")
+	if !strings.Contains(got, "惩罚骰×2") {
+		t.Fatalf(".sc p2 未按两颗惩罚骰结算: %q", got)
+	}
+
+	got = runCmd(t, d, ep, adapter, ".sc b p 0/1")
+	if strings.Contains(got, "奖励骰") || strings.Contains(got, "惩罚骰") {
+		t.Fatalf("b 与 p 同时写应互相抵消: %q", got)
+	}
+}
+
+// 神话冲击需要显式开启 mythos 可选规则。
+func TestCoc7RMythosRequiresToggle(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	// 意志 5 → Changed 阈值 1，一次 5 点损失必然 Changed
+	runCmd(t, d, ep, adapter, ".st 意志5 智力50 理智50 克苏鲁神话0")
+
+	got := runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
+	if strings.Contains(got, "克苏鲁神话 +") {
+		t.Fatalf("mythos 默认关闭时不应提升克苏鲁神话: %q", got)
+	}
+
+	runCmd(t, d, ep, adapter, ".c7r shock clear")
+	runCmd(t, d, ep, adapter, ".c7r recover")
+	runCmd(t, d, ep, adapter, ".c7r reset")
+	if got = runCmd(t, d, ep, adapter, ".c7r rule mythos on"); !strings.Contains(got, "已开启") {
+		t.Fatalf(".c7r rule mythos on 输出异常: %q", got)
+	}
+
+	got = runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
+	if !strings.Contains(got, "克苏鲁神话 +5") {
+		t.Fatalf("开启 mythos 后首次神话冲击应 +5: %q", got)
+	}
+}
+
+func TestCoc7RUnknownRuleAndWrongRule(t *testing.T) {
 	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
 	t.Cleanup(cleanup)
 	prepareC7RTestDB(t, d)
@@ -445,95 +467,9 @@ func TestCoc7RUnknownSkillAndWrongRule(t *testing.T) {
 
 	runCmd(t, d, ep, adapter, ".set coc7r")
 	runCmd(t, d, ep, adapter, ".st fmt")
-	got = runCmd(t, d, ep, adapter, ".en5 不存在的技能")
-	if !strings.Contains(got, "未找到技能") {
-		t.Fatalf(".en5 未知技能未报错: %q", got)
-	}
-}
-
-func TestCoc7RSpecializationMinimums(t *testing.T) {
-	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
-	t.Cleanup(cleanup)
-	prepareC7RTestDB(t, d)
-
-	runCmd(t, d, ep, adapter, ".set coc7r")
-	runCmd(t, d, ep, adapter, ".st 斗殴60 斧15 射击:手枪50 射击:步霰10")
-
-	got := runCmd(t, d, ep, adapter, ".c7r min")
-	if !strings.Contains(got, "斗殴") && !strings.Contains(got, "格斗专精") {
-		t.Fatalf(".c7r min 输出异常: %q", got)
-	}
-	// 斧 应被抬到 斗殴60 的一半 30；步霰 抬到手枪50 的一半 25
-	show := runCmd(t, d, ep, adapter, ".st show 斧 射击:步霰")
-	if !strings.Contains(show, "30") || !strings.Contains(show, "25") {
-		t.Fatalf(".c7r min 未按半值下限修正: %q", show)
-	}
-}
-
-func TestCoc7RRealityCheckLedger(t *testing.T) {
-	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
-	t.Cleanup(cleanup)
-	prepareC7RTestDB(t, d)
-
-	runCmd(t, d, ep, adapter, ".set coc7r")
-	// 理智 1、意志 5：现实检定几乎必然失败，且失败 1 点就达到 Changed 阈值
-	runCmd(t, d, ep, adapter, ".st 意志5 理智1")
-
-	var reply string
-	for i := 0; i < 5; i++ {
-		reply = runCmd(t, d, ep, adapter, ".rv")
-		if strings.Contains(reply, "失败") {
-			break
-		}
-	}
-	if !strings.Contains(reply, "失败") {
-		t.Fatalf(".rv 连续成功，无法验证失败路径: %q", reply)
-	}
-	if !strings.Contains(reply, "已 Changed") {
-		t.Fatalf("现实检定的损失未计入 Changed 判定: %q", reply)
-	}
-	status := runCmd(t, d, ep, adapter, ".c7r status")
-	if !strings.Contains(status, "本篇章累计损失 1") {
-		t.Fatalf("现实检定的损失未计入篇章账本: %q", status)
-	}
-}
-
-func TestCoc7RMigrateKeepsDefault(t *testing.T) {
-	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
-	t.Cleanup(cleanup)
-	prepareC7RTestDB(t, d)
-
-	runCmd(t, d, ep, adapter, ".set coc7r")
-	runCmd(t, d, ep, adapter, ".st 话术5")
-
-	got := runCmd(t, d, ep, adapter, ".c7r migrate")
-	if !strings.Contains(got, "不低于基础值 10") {
-		t.Fatalf("迁移提示未说明基础值下限: %q", got)
-	}
-	show := runCmd(t, d, ep, adapter, ".st show 说服")
-	if v := skillValue(t, show, "说服"); v != 10 {
-		t.Fatalf("迁移后说服不应低于基础值 10，实际 %d", v)
-	}
-}
-
-func TestCoc7REn5RejectsNonSkill(t *testing.T) {
-	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
-	t.Cleanup(cleanup)
-	prepareC7RTestDB(t, d)
-
-	runCmd(t, d, ep, adapter, ".set coc7r")
-	runCmd(t, d, ep, adapter, ".st 力量50 意志50 理智50")
-
-	for _, attr := range []string{"力量", "生命值上限", "理智"} {
-		got := runCmd(t, d, ep, adapter, ".en5 "+attr)
-		if !strings.Contains(got, "未找到技能") {
-			t.Fatalf(".en5 不应接受属性 %s: %q", attr, got)
-		}
-	}
-	// 属性值不能被改动
-	show := runCmd(t, d, ep, adapter, ".st show 力量")
-	if v := skillValue(t, show, "力量"); v != 50 {
-		t.Fatalf(".en5 改动了属性: %q", show)
+	got = runCmd(t, d, ep, adapter, ".c7r rule 不存在的规则 on")
+	if !strings.Contains(got, "未知的可选规则") {
+		t.Fatalf("未知可选规则未报错: %q", got)
 	}
 }
 
@@ -543,6 +479,7 @@ func TestCoc7RResetKeepsMythosEvents(t *testing.T) {
 	prepareC7RTestDB(t, d)
 
 	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".c7r rule mythos on")
 	// 意志 20 → Changed 阈值 4，一次 5 点损失就会 Changed 并触发神话增长
 	runCmd(t, d, ep, adapter, ".st 意志20 智力50 理智50")
 
@@ -582,26 +519,21 @@ func TestCoc7RCapHint(t *testing.T) {
 	}
 }
 
-func TestCoc7REn5RejectsNoGainSkills(t *testing.T) {
+func TestCoc7RMigrateKeepsDefault(t *testing.T) {
 	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
 	t.Cleanup(cleanup)
 	prepareC7RTestDB(t, d)
 
 	runCmd(t, d, ep, adapter, ".set coc7r")
-	runCmd(t, d, ep, adapter, ".st 克苏鲁神话5 信用评级30 理智50")
+	runCmd(t, d, ep, adapter, ".st 话术5")
 
-	for _, skill := range []string{"克苏鲁神话", "信用评级"} {
-		got := runCmd(t, d, ep, adapter, ".en5 "+skill)
-		if !strings.Contains(got, "不能通过成长检定") {
-			t.Fatalf(".en5 不应提升 %s: %q", skill, got)
-		}
+	got := runCmd(t, d, ep, adapter, ".c7r migrate")
+	if !strings.Contains(got, "不低于基础值 10") {
+		t.Fatalf("迁移提示未说明基础值下限: %q", got)
 	}
-	show := runCmd(t, d, ep, adapter, ".st show 克苏鲁神话 信用评级")
-	if v := skillValue(t, show, "克苏鲁神话"); v != 5 {
-		t.Fatalf("克苏鲁神话被改动: %q", show)
-	}
-	if v := skillValue(t, show, "信用评级"); v != 30 {
-		t.Fatalf("信用评级被改动: %q", show)
+	show := runCmd(t, d, ep, adapter, ".st show 说服")
+	if v := skillValue(t, show, "说服"); v != 10 {
+		t.Fatalf("迁移后说服不应低于基础值 10，实际 %d", v)
 	}
 }
 
@@ -629,6 +561,32 @@ func TestCoc7RMovementFormula(t *testing.T) {
 	}
 }
 
+// 成长取五直接复用 .en 的成长表达式：.en <技能>+5，专精技能也要能写全名。
+func TestCoc7RTakeFiveViaEn(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".st 射击:手枪20")
+
+	before := skillValue(t, runCmd(t, d, ep, adapter, ".st show 射击:手枪"), "射击:手枪")
+	grown := false
+	for i := 0; i < 10; i++ {
+		runCmd(t, d, ep, adapter, ".en 射击:手枪+5")
+		if v := skillValue(t, runCmd(t, d, ep, adapter, ".st show 射击:手枪"), "射击:手枪"); v > before {
+			grown = true
+			break
+		}
+	}
+	if !grown {
+		t.Fatal(".en 射击:手枪+5 连续十次都未成长，正则可能没吃掉冒号")
+	}
+	after := skillValue(t, runCmd(t, d, ep, adapter, ".st show 射击:手枪"), "射击:手枪")
+	if after-before != 5 {
+		t.Fatalf("取五应 +5，实际 %d → %d", before, after)
+	}
+}
 func TestCoc7RShockBlocksSanityLoss(t *testing.T) {
 	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
 	t.Cleanup(cleanup)
