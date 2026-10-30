@@ -1,3 +1,7 @@
+overrides:
+  'postcss-selector-parser@^6.0.0': '^6.1.4'
+  'source-map-js@^1.0.0': '^1.2.2'
+
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - core-js
