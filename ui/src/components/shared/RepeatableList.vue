@@ -52,14 +52,14 @@ const emit = defineEmits<{
   width: 100%;
   min-width: 0;
   flex-direction: column;
-  gap: var(--sd-space-sm);
+  gap: var(--sd-space-md);
 }
 
 .sd-repeatable-list__items {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--sd-space-sm);
+  gap: var(--sd-space-xs);
 }
 
 .sd-repeatable-list__footer {

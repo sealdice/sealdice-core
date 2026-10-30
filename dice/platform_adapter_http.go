@@ -34,6 +34,7 @@ type HTTPTestSegment struct {
 }
 
 type HTTPTestMessage struct {
+	Seq            uint64            `json:"seq"`
 	ID             string            `json:"id"`
 	MessageType    string            `json:"messageType"`
 	ConversationID string            `json:"conversationId"`

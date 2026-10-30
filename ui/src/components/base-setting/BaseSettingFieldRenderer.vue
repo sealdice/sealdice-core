@@ -1,7 +1,7 @@
 <template>
   <SettingRow
     :label="field.label"
-    :description="getBaseSettingFieldFeedback(field)"
+    :description="fieldFeedback"
     :layout="getBaseSettingFieldLayout(field)"
     :highlighted="highlighted"
     :data-field-id="field.id"
@@ -33,6 +33,7 @@
       <n-switch
         v-else-if="field.kind === 'boolean' && fieldKey"
         :value="Boolean(fieldValue)"
+        :disabled="fieldDisabled"
         @update:value="updateBoolean"
       />
 
@@ -44,6 +45,13 @@
         :show-count="Boolean(field.maxLength)"
         @update:value="updateFieldValue(fieldKey, $event)"
       />
+
+      <div v-if="field.kind === 'text' && field.previewSample" class="name-card-template-preview">
+        <span class="name-card-template-preview-label">预览：</span>
+        <span class="name-card-template-preview-value" :style="previewStyle">
+          {{ field.previewSample }}
+        </span>
+      </div>
 
       <n-input
         v-else-if="field.kind === 'password' && fieldKey"
@@ -178,6 +186,42 @@ const fieldValue = computed(() => {
   if (!fieldKey.value) return undefined;
   return props.model[fieldKey.value as keyof BaseSettingValueModel];
 });
+const fieldDisabled = computed(() => {
+  const condition = props.field.disabledWhen;
+  if (!condition) return false;
+  return props.model[condition.key] === condition.equals;
+});
+const fieldFeedback = computed(() =>
+  fieldDisabled.value && props.field.disabledHint
+    ? props.field.disabledHint
+    : getBaseSettingFieldFeedback(props.field)
+);
+const previewStyle = computed(() => {
+  const raw = String(fieldValue.value ?? '').trim();
+  const template = raw || props.field.previewFallback || '';
+  const fontTag = template.match(/<font\b([^>]*)>/i);
+  const attrs = fontTag?.[1] ?? '';
+  const color = previewAttr(attrs, 'color');
+  const size = previewAttr(attrs, 'size');
+  const style: Record<string, string> = {};
+  if (/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(color)) style.color = color;
+  if (/^\d+$/.test(size)) style.fontSize = previewFontSize(size);
+  return style;
+});
+
+function previewAttr(attrs: string, name: string): string {
+  const match = attrs.match(new RegExp(`${name}\\s*=\\s*["']?([^"'\\s>]+)`, 'i'));
+  return match?.[1] ?? '';
+}
+
+function previewFontSize(size: string): string {
+  const value = Number.parseInt(size, 10);
+  if (value <= 1) return 'x-small';
+  if (value === 2) return 'small';
+  if (value === 4) return 'large';
+  if (value >= 5) return 'x-large';
+  return 'medium';
+}
 
 const pairValues = computed(() =>
   props.field.keys.map(key => props.model[key as keyof BaseSettingValueModel])
@@ -274,6 +318,18 @@ async function handleUpload(options: UploadCustomRequestOptions) {
 
 .unlock-code-text {
   font-weight: 700;
+}
+
+.name-card-template-preview {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--n-color-embedded, rgba(127, 127, 127, 0.08));
+}
+
+.name-card-template-preview-label {
+  margin-right: 0.5rem;
+  opacity: 0.65;
 }
 
 .number-pair {

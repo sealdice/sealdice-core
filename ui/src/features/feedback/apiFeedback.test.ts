@@ -29,8 +29,8 @@ it('相同全局故障只展示一个弹窗，已经打开的弹窗跟随主题�
   theme.setThemeMode('light');
   feedback = createApiFeedback();
   const error = new ApiError({ status: 500, statusText: '', data: { detail: '存储失败' } });
-  feedback.report(error, vi.fn());
-  feedback.report(error, vi.fn());
+  feedback.report(error);
+  feedback.report(error);
   await nextTick();
   expect(document.querySelectorAll('.n-dialog')).toHaveLength(1);
   const dialog = document.querySelector('.n-dialog')!;

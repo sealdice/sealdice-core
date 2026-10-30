@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,6 +26,41 @@ type officialQQTransportFunc func(ctx context.Context, method, url string, body 
 
 func (f officialQQTransportFunc) Transport(ctx context.Context, method, url string, body interface{}) ([]byte, error) {
 	return f(ctx, method, url, body)
+}
+
+func TestOfficialQQWebhookHandlerValidation(t *testing.T) {
+	pa := &PlatformAdapterOfficialQQ{AppID: "app", AppSecret: "secret"}
+	handler := newOfficialQQWebhookHandler(pa, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(
+		`{"op":13,"d":{"plain_token":"plain","event_ts":"123456"}}`,
+	))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var rsp dto.WHValidationRsp
+	if err := json.Unmarshal(rec.Body.Bytes(), &rsp); err != nil {
+		t.Fatalf("decode validation response: %v", err)
+	}
+	if rsp.PlainToken != "plain" || rsp.Signature == "" {
+		t.Fatalf("validation response = %#v", rsp)
+	}
+}
+
+func TestOfficialQQWebhookHandlerStillVerifiesDispatchSignature(t *testing.T) {
+	pa := &PlatformAdapterOfficialQQ{AppID: "app", AppSecret: "secret"}
+	handler := newOfficialQQWebhookHandler(pa, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(`{"op":0,"d":{}}`))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
 }
 
 func TestServerOfficialQQSkipsRunningSessionBeforeStateChange(t *testing.T) {

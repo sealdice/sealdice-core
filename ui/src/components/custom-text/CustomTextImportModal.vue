@@ -6,7 +6,7 @@
     :mask-closable="false"
     :close-on-esc="false"
     :closable="false"
-    class="the-dialog"
+    class="the-dialog custom-text-import-modal"
   >
     <n-flex class="import-options" align="center" justify="space-between" size="small" wrap>
       <n-flex align="center" size="small" wrap>
@@ -19,7 +19,7 @@
       <n-checkbox v-model:checked="compact">紧凑</n-checkbox>
     </n-flex>
 
-    <n-flex vertical>
+    <n-flex vertical class="import-body">
       <n-text tag="strong">以下为导出内容，可以复制给别人</n-text>
       <n-input
         v-model:value="content"
@@ -69,9 +69,35 @@ const emit = defineEmits<{
 <style scoped>
 .import-options {
   margin-bottom: var(--sd-space-sm);
+  flex: none;
 }
 
-.import-edit :deep(textarea) {
-  max-height: 65vh;
+/* 让文本框占满卡片剩余高度：内容再长也只在文本框内部滚动，
+   避免自动高度把整个弹窗顶出视口、页脚按钮不可见。 */
+.import-body {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.import-edit {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* 卡片根节点由 naive-ui 渲染，作用域样式无法命中，使用全局选择器限定在当前弹窗。 */
+:global(.custom-text-import-modal.n-card) {
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+}
+
+:global(.custom-text-import-modal > .n-card-content) {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+:global(.custom-text-import-modal > .n-card-header),
+:global(.custom-text-import-modal > .n-card__footer) {
+  flex: none;
 }
 </style>

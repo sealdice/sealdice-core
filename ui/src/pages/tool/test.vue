@@ -24,7 +24,13 @@
           </NRadioButton>
         </NRadioGroup>
         <NTag :type="toolTest.realtimeActive.value ? 'success' : 'warning'" size="small">
-          {{ toolTest.realtimeActive.value ? '实时连接' : '兼容轮询' }}
+          {{
+            toolTest.realtimeTransport.value === 'polling'
+              ? '轮询'
+              : toolTest.realtimeTransport.value === 'sse'
+                ? 'SSE'
+                : '未连接'
+          }}
         </NTag>
         <NPopover placement="bottom-end" trigger="click">
           <template #trigger>

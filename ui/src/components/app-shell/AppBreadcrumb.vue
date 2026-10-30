@@ -25,6 +25,7 @@
           <n-breadcrumb-item
             v-for="(item, index) in visibleBreadcrumbItems"
             :key="`${index}-${item.label}`"
+            :clickable="Boolean(item.to)"
           >
             <RouterLink v-if="item.to" :to="item.to">
               {{ item.label }}

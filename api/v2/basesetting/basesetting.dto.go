@@ -26,6 +26,8 @@ type BaseSettingValueResp struct {
 	QQEnablePoke             bool                                `json:"QQEnablePoke"`
 	OfficialQQFileSendBase64 bool                                `json:"officialQQFileSendBase64"`
 	OfficialQQUseMarkdown    bool                                `json:"officialQQUseMarkdown"`
+	OfficialQQUseNameCard    bool                                `json:"officialQQUseNameCard"`
+	OfficialQQNameCardTmpl   string                              `json:"officialQQUseNameCardTemplate"`
 	TextCmdTrustOnly         bool                                `json:"textCmdTrustOnly"`
 	IgnoreUnaddressedBotCmd  bool                                `json:"ignoreUnaddressedBotCmd"`
 	AliveNoticeEnable        bool                                `json:"aliveNoticeEnable"`
@@ -75,6 +77,8 @@ type BaseSettingPatch struct {
 	QQEnablePoke             *bool                                `json:"QQEnablePoke,omitempty"`
 	OfficialQQFileSendBase64 *bool                                `json:"officialQQFileSendBase64,omitempty"`
 	OfficialQQUseMarkdown    *bool                                `json:"officialQQUseMarkdown,omitempty"`
+	OfficialQQUseNameCard    *bool                                `json:"officialQQUseNameCard,omitempty"`
+	OfficialQQNameCardTmpl   *string                              `json:"officialQQUseNameCardTemplate,omitempty"`
 	TextCmdTrustOnly         *bool                                `json:"textCmdTrustOnly,omitempty"`
 	IgnoreUnaddressedBotCmd  *bool                                `json:"ignoreUnaddressedBotCmd,omitempty"`
 	AliveNoticeEnable        *bool                                `json:"aliveNoticeEnable,omitempty"`

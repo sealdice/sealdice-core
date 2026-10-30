@@ -61,7 +61,7 @@
 - HTTP 边界在 `src/api/client.ts`：只负责认证头、令牌续期、错误归一化和会话清理，不导入组件库、主题或页面模块。
   - `src/api/errors.ts` 定义纯错误类型和展示归属；迟到的旧请求不能清理或覆盖新会话。
   - `main.ts` 将 `features/feedback/apiFeedback.ts` 的全局展示回调注入客户端，应用卸载时释放两者。
-  - 网络故障、非登录 401、404 和 500 交给全局展示；参数错误、展示模式限制和其他业务错误由来源页面处理。
+  - 网络故障、404 和 500 交给全局展示；非登录 401 清理会话后由 `AppUnlockDialog` 统一引导重新登录，不再额外弹出全局错误框。参数错误、展示模式限制和其他业务错误由来源页面处理。
   - 页面捕获接口错误后使用 `notifyError(error, message, fallback)`，已全局反馈或被取消的请求不再弹第二次 toast；本地校验可以直接提示。
 - 登录态直接通过 `features/auth/store.ts` 的 `useAuthStore()` 读取，响应式引用用 `storeToRefs()`。不新增转发型 `state.ts`，不在页面读写 localStorage。
 - Vue Query 全局缓存和重试策略在 `src/queryClient.ts`；查询继续使用生成客户端，禁止自行维护第二套服务端缓存。

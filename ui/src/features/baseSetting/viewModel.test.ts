@@ -249,6 +249,8 @@ it('基础设置只提交实际变更的字段', () => {
     QQEnablePoke: false,
     officialQQFileSendBase64: false,
     officialQQUseMarkdown: false,
+    officialQQUseNameCard: false,
+    officialQQUseNameCardTemplate: '<font color="#FF0000" size="1">{card}</font>',
     textCmdTrustOnly: false,
     ignoreUnaddressedBotCmd: false,
     aliveNoticeEnable: false,

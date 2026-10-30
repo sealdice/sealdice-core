@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"sealdice-core/dice"
+	"sealdice-core/utils/networkhealth"
 	sharedflight "sealdice-core/utils/singleflight"
 )
 
@@ -171,13 +172,13 @@ func checkUidExists(c echo.Context, uid string) bool {
 	return false
 }
 
-var networkHealthChecks sharedflight.Group[networkHealthResult]
+var networkHealthChecks sharedflight.Group[networkhealth.Result]
 
 func checkNetworkHealth(c echo.Context) error {
 	result, err := networkHealthChecks.Do(
 		c.Request().Context(),
 		"network-health",
-		func() (networkHealthResult, error) { return runNetworkHealthCheck(), nil },
+		func() (networkhealth.Result, error) { return runNetworkHealthCheck(), nil },
 	)
 	if err != nil {
 		return err
@@ -185,7 +186,7 @@ func checkNetworkHealth(c echo.Context) error {
 
 	return Success(&c, Response{
 		"total":     result.Total,
-		"ok":        result.Ok, // 被 targets 代替，可废弃，但先为接口兼容保留
+		"ok":        result.OK, // 被 targets 代替，可废弃，但先为接口兼容保留
 		"targets":   result.Targets,
 		"timestamp": result.Timestamp,
 	})

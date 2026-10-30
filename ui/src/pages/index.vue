@@ -92,12 +92,6 @@
             <strong class="network-result__value is-success">良好</strong>
             <span>所有服务均可正常访问</span>
           </template>
-          <template
-            v-else-if="networkHealth.ok.includes('sign') && networkHealth.ok.includes('seal')"
-          >
-            <strong class="network-result__value is-primary">一般</strong>
-            <span>核心服务当前可用</span>
-          </template>
           <template v-else-if="networkHealth.total !== 0 && networkHealth.ok.length === 0">
             <strong class="network-result__value is-error">中断</strong>
             <span>外部服务暂时不可访问</span>
@@ -109,11 +103,9 @@
         </div>
 
         <div v-if="networkHealth.timestamp !== 0" class="network-health-targets">
-          <span v-for="target in networkTargets" :key="target.key" class="network-target">
-            <n-icon
-              :color="getWebsiteHealthOK(target.key) ? 'var(--sd-success)' : 'var(--sd-error)'"
-            >
-              <i-tabler-circle-check-filled v-if="getWebsiteHealthOK(target.key)" />
+          <span v-for="target in networkHealth.targets" :key="target.target" class="network-target">
+            <n-icon :color="target.ok ? 'var(--sd-success)' : 'var(--sd-error)'">
+              <i-tabler-circle-check-filled v-if="target.ok" />
               <i-tabler-circle-x-filled v-else />
             </n-icon>
             {{ target.label }}
@@ -127,21 +119,34 @@
         <div class="log-title">
           <h2>运行日志</h2>
           <n-tag :type="logStream.connected ? 'success' : 'warning'" size="small" round>
-            {{ logStream.connected ? '实时连接中' : '未连接' }}
+            {{
+              logStream.transport === 'polling'
+                ? '轮询'
+                : logStream.transport === 'sse'
+                  ? 'SSE'
+                  : '未连接'
+            }}
           </n-tag>
         </div>
         <div class="log-controls">
           <n-checkbox v-model:checked="displayReverse">最新在前</n-checkbox>
           <n-checkbox v-model:checked="autoRefresh">保持刷新</n-checkbox>
           <n-button size="small" secondary @click="logStream.reconnect">重连</n-button>
-          <n-button size="small" type="primary" secondary @click="scrollToLatestLog">
+          <n-button
+            size="small"
+            type="primary"
+            secondary
+            :disabled="!logOverflow || logAtLatest"
+            :aria-label="logAtLatest ? '已在最新日志' : '跳到最新一条日志'"
+            @click="scrollToLatestLog"
+          >
             <template #icon>
               <n-icon>
                 <i-tabler-chevron-up v-if="displayReverse" />
                 <i-tabler-chevron-down v-else />
               </n-icon>
             </template>
-            最新日志
+            {{ logAtLatest ? '已是最新' : '跳到最新' }}
           </n-button>
         </div>
       </div>
@@ -171,7 +176,7 @@
 </template>
 
 <script setup lang="tsx">
-import { computed, ref, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
 import { useQuery } from '@tanstack/vue-query';
 import { filesize } from 'filesize';
@@ -187,7 +192,6 @@ import { applyLogDisplayUpdate, type BaseLogEntry } from '@/features/base/logStr
 import {
   formatNetworkHealthRelativeTime,
   formatNetworkHealthTimestamp,
-  isNetworkHealthTargetOK,
   normalizeNetworkHealthData,
 } from '@/features/base/networkHealth';
 import { formatRuntimeSummary } from '@/features/base/runtimeSummary';
@@ -240,14 +244,11 @@ const isContainerMode = computed(() => overview.value?.runtime.containerMode ===
 const displayReverse = ref(true);
 const autoRefresh = ref(true);
 const visibleLogs = ref<BaseLogEntry[]>([]);
-const networkTargets = [
-  { key: 'seal', label: '官网' },
-  { key: 'sign', label: 'Lagrange Sign' },
-  { key: 'google', label: 'Google' },
-  { key: 'github', label: 'GitHub' },
-];
 const logsContainer = useTemplateRef<HTMLElement>('logsContainer');
 const logTable = useTemplateRef<DataTableInst>('logTable');
+const logOverflow = ref(false);
+const logAtLatest = ref(true);
+let logScrollElement: HTMLElement | null = null;
 const logStream = useBaseLogStreamStore();
 logStream.ensureInitialized();
 const networkHealth = computed(() =>
@@ -312,11 +313,7 @@ function refreshNetworkHealth() {
   void networkHealthQuery.refetch();
 }
 
-function getWebsiteHealthOK(target: string): boolean {
-  return isNetworkHealthTargetOK(networkHealth.value, target);
-}
-
-// 「最新日志」始终跳到最新那一条：倒序显示时它在顶部，正序显示时在尾部。
+// 「跳到最新」始终跳到最新那一条：倒序显示时它在顶部，正序显示时在尾部。
 // 走表格实例的 scrollTo，因为虚拟滚动下真正的滚动元素是内部的 .v-vl，
 // .n-data-table-base-table-body 只是外层 scrollbar 包装，对它 scrollTo 不会生效。
 function scrollToLatestLog() {
@@ -342,6 +339,38 @@ function getLogScrollElement(): HTMLElement | null {
     root.querySelector<HTMLElement>('.n-data-table-base-table-body')
   );
 }
+
+function updateLogScrollState() {
+  const element = getLogScrollElement();
+  if (element !== logScrollElement) {
+    logScrollElement?.removeEventListener('scroll', updateLogScrollState);
+    logScrollElement = element;
+    logScrollElement?.addEventListener('scroll', updateLogScrollState, { passive: true });
+  }
+
+  if (!element) {
+    logOverflow.value = false;
+    logAtLatest.value = true;
+    return;
+  }
+
+  const maxScrollTop = element.scrollHeight - element.clientHeight;
+  logOverflow.value = maxScrollTop > 1;
+  logAtLatest.value =
+    maxScrollTop <= 1 ||
+    (displayReverse.value ? element.scrollTop <= 1 : element.scrollTop >= maxScrollTop - 1);
+}
+
+async function refreshLogScrollState() {
+  await nextTick();
+  requestAnimationFrame(updateLogScrollState);
+}
+
+watch([logData, displayReverse, isMobile], refreshLogScrollState, { flush: 'post' });
+onMounted(refreshLogScrollState);
+onBeforeUnmount(() => {
+  logScrollElement?.removeEventListener('scroll', updateLogScrollState);
+});
 
 type LogLevelTone = 'neutral' | 'info' | 'warning' | 'error';
 

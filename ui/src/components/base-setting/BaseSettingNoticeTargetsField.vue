@@ -4,6 +4,7 @@
       v-for="(target, index) in targets"
       :key="index"
       :title="`通知目标 ${index + 1}`"
+      inline
       show-enabled
       :enabled="target.enabled"
       enabled-label="启用通知目标"
@@ -12,27 +13,24 @@
       @remove="removeTarget(index)"
     >
       <div class="notice-target-fields">
-        <label class="notice-target-field">
-          <n-text depth="3" class="notice-target-field__label">ID</n-text>
+        <div class="notice-target-control notice-target-control--id">
           <n-input
-            class="notice-target-id"
             :value="target.id"
-            placeholder="平台:账号或群组 ID"
+            placeholder="QQ:12345"
             @update:value="updateTarget(index, { id: $event })"
           />
-        </label>
-        <label class="notice-target-field">
-          <n-text depth="3" class="notice-target-field__label">通知项</n-text>
+        </div>
+        <div class="notice-target-control notice-target-control--types">
           <n-select
-            class="notice-target-types"
             :value="target.noticeTypes"
             :options="noticeTypeOptions"
+            placeholder="通知项"
             multiple
             clearable
             max-tag-count="responsive"
             @update:value="updateTarget(index, { noticeTypes: $event as NoticeType[] })"
           />
-        </label>
+        </div>
       </div>
     </RepeatableItem>
   </RepeatableList>
@@ -94,33 +92,19 @@ function removeTarget(index: number) {
 
 <style scoped>
 .notice-target-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--sd-space-sm);
-  container-type: inline-size;
-}
-
-.notice-target-field {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sd-space-sm);
+  gap: var(--sd-space-xs);
 }
 
-.notice-target-field__label {
-  font-size: 0.85rem;
+.notice-target-control--id {
+  width: 11rem;
+  max-width: 100%;
 }
 
-.notice-target-id,
-.notice-target-types {
-  min-width: 0;
-}
-
-@container (max-width: 420px) {
-  .notice-target-field {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--sd-space-xs);
-  }
+.notice-target-control--types {
+  width: 20rem;
+  max-width: 100%;
 }
 </style>

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/tidwall/buntdb"
 
@@ -26,6 +27,12 @@ func resolveStorage(d *dice.Dice, name string) (*extStorage, error) {
 	}
 	ext, ok := d.JsExtRegistry.Load(name)
 	if !ok || ext == nil {
+		// 列表以脚本的 @name 展示，而注册表以 seal.ext.new/register 的名字为键，
+		// 两者可能不同；通过脚本来源匹配到对应扩展。
+		ext = findStorageExtensionByScript(d, name)
+		ok = ext != nil
+	}
+	if !ok || ext == nil {
 		return nil, errors.New("未找到扩展：" + name)
 	}
 	realExt := ext.GetRealExt()
@@ -36,6 +43,34 @@ func resolveStorage(d *dice.Dice, name string) (*extStorage, error) {
 		return nil, err
 	}
 	return &extStorage{d: d, ext: realExt}, nil
+}
+
+func findStorageExtensionByScript(d *dice.Dice, name string) *dice.ExtInfo {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	for _, script := range d.JsScriptList {
+		if script == nil || (script.Name != name && script.Filename != name) {
+			continue
+		}
+		var found *dice.ExtInfo
+		d.JsExtRegistry.Range(func(_ string, ext *dice.ExtInfo) bool {
+			if ext == nil {
+				return true
+			}
+			realExt := ext.GetRealExt()
+			if realExt != nil && realExt.Source == script {
+				found = realExt
+				return false
+			}
+			return true
+		})
+		if found != nil {
+			return found
+		}
+	}
+	return nil
 }
 
 // listKeys returns a paginated subset of keys matching keyword (glob pattern).
