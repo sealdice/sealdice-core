@@ -2,10 +2,13 @@
 package dice
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -41,6 +44,65 @@ func appendTestLog(t *testing.T, mockDB *mockDatabaseOperator, groupID, logName 
 	})
 	if !ok {
 		t.Fatalf("LogAppend failed for %q", logName)
+	}
+}
+
+func TestGetLogTxtUsesSharedLogExportDirectory(t *testing.T) {
+	mockDB := newLogAliasTestDB(t)
+	const groupID, logName = "QQ-Group:1010", "shared-export"
+	appendTestLog(t, mockDB, groupID, logName)
+	dataDir := t.TempDir()
+	ctx := &MsgContext{Dice: &Dice{
+		BaseConfig: BaseConfig{DataDir: dataDir},
+		DBOperator: mockDB,
+		Logger:     sealdiceLogger.M(),
+	}}
+
+	logFile, _, err := GetLogTxt(ctx, groupID, logName, "export")
+	if err != nil {
+		t.Fatalf("GetLogTxt: %v", err)
+	}
+	if want := filepath.Join(dataDir, "log-exports"); filepath.Dir(logFile) != want {
+		t.Fatalf("export path = %q, want directory %q", logFile, want)
+	}
+	content, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("read exported log: %v", err)
+	}
+	if !strings.Contains(string(content), "tester(user)") || !strings.Contains(string(content), "line") {
+		t.Fatalf("exported log missing source entry: %q", content)
+	}
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(logFile)
+		if err != nil {
+			t.Fatalf("stat exported log: %v", err)
+		}
+		if got := info.Mode().Perm(); got != 0o644 {
+			t.Fatalf("exported log permissions = %#o, want 0644", got)
+		}
+	}
+}
+
+func TestLogExportFileURIEscapesPath(t *testing.T) {
+	uri := logExportFileURI(filepath.Join(t.TempDir(), "log with #%.txt"))
+	if !strings.HasPrefix(uri, "files://") || !strings.HasSuffix(uri, "/log%20with%20%23%25.txt") {
+		t.Fatalf("unexpected shared file URI: %q", uri)
+	}
+}
+
+func TestLogExportErrorReply(t *testing.T) {
+	pathErr := &os.PathError{Op: "open", Path: filepath.Join(t.TempDir(), "export.txt"), Err: os.ErrPermission}
+	for _, test := range []struct {
+		err  error
+		want string
+	}{
+		{pathErr, "open export.txt: permission denied"},
+		{fmt.Errorf("导出失败: %w", pathErr), "导出失败: open export.txt: permission denied"},
+		{errors.New("此log不存在"), "此log不存在"},
+	} {
+		if got := logExportErrorReply(test.err); got != test.want {
+			t.Fatalf("logExportErrorReply(%v) = %q, want %q", test.err, got, test.want)
+		}
 	}
 }
 
