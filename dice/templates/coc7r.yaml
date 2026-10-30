@@ -139,7 +139,7 @@ attrs: # 属性
     $STR_SIZ_SUM: 力量 + 体型
     DB: $STR_SIZ_SUM < 65 ? -2, $STR_SIZ_SUM < 85 ? -1, $STR_SIZ_SUM < 125 ? 0, $STR_SIZ_SUM < 165 ? 1d4, $STR_SIZ_SUM < 205 ? 1d6, 1 ? (($STR_SIZ_SUM - 205) / 80 + 2)d6
     体格: $STR_SIZ_SUM < 65 ? -2, $STR_SIZ_SUM < 85 ? -1, $STR_SIZ_SUM < 125 ? 0, $STR_SIZ_SUM < 165 ? 1, $STR_SIZ_SUM < 205 ? 2, 1 ? (($STR_SIZ_SUM - 205) / 80 + 3)
-    移动力: 敏捷 > 体型 && 力量 > 体型 ? 9, 敏捷 < 体型 && 力量 < 体型 ? 7, 1 ? 8
+    移动力: 力量 > 体型 && 敏捷 > 体型 ? 9, 力量 > 体型 || 敏捷 > 体型 ? 8, 1 ? 7
     生命值上限: (体质 + 体型) / 10
     魔法值上限: 意志 / 5
     理智上限: 99 - 克苏鲁神话

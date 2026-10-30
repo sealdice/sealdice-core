@@ -225,20 +225,16 @@ func TestCoc7RCommandRegression(t *testing.T) {
 	if !strings.Contains(got, "理智检定") {
 		t.Fatalf(".sc 输出异常: %q", got)
 	}
-	// 规则：只有理智检定本身失败才触发不自觉反应（首行为检定结论）
-	firstLine := strings.SplitN(got, "\n", 2)[0]
-	sanFailed := strings.Contains(firstLine, "失败")
-	if sanFailed && !strings.Contains(got, "不自觉反应") {
-		t.Fatalf(".sc 失败未提示不自觉反应: %q", got)
-	}
-	if !sanFailed && strings.Contains(got, "不自觉反应") {
-		t.Fatalf(".sc 成功却提示了不自觉反应: %q", got)
+	// 失败必触发；成功但掉 1-4 点同样触发。5/5 无论成败都会掉 5 点
+	if !strings.Contains(got, "不自觉反应") {
+		t.Fatalf(".sc 单次掉 5 点未提示不自觉反应: %q", got)
 	}
 	if !strings.Contains(got, "INT 检定") {
 		t.Fatalf(".sc 损失 5 点未触发 INT 检定: %q", got)
 	}
 
 	// 8. 再来一次，累计损失达到 POW/5=10，应转为 Changed
+	runCmd(t, d, ep, adapter, ".c7r shock clear")
 	got = runCmd(t, d, ep, adapter, ".sc 5/5")
 	if !strings.Contains(got, "已 Changed") {
 		t.Fatalf(".sc 累计损失未触发 Changed: %q", got)
@@ -256,11 +252,21 @@ func TestCoc7RCommandRegression(t *testing.T) {
 		t.Fatalf(".ri 输出异常: %q", got)
 	}
 
-	// 11. 技能成长取五：必须正好 +5
+	// 11. 技能成长取五：先过成长检定，通过后必须正好 +5
 	before := skillValue(t, runCmd(t, d, ep, adapter, ".st show 侦查"), "侦查")
-	got = runCmd(t, d, ep, adapter, ".en5 侦查")
-	if !strings.Contains(got, "成长（取五）") {
-		t.Fatalf(".en5 输出异常: %q", got)
+	passed := false
+	for i := 0; i < 6; i++ {
+		got = runCmd(t, d, ep, adapter, ".en5 侦查")
+		if strings.Contains(got, "通过（取五）") {
+			passed = true
+			break
+		}
+		if !strings.Contains(got, "未通过") {
+			t.Fatalf(".en5 输出异常: %q", got)
+		}
+	}
+	if !passed {
+		t.Fatal(".en5 连续六次成长检定未通过")
 	}
 	after := skillValue(t, runCmd(t, d, ep, adapter, ".st show 侦查"), "侦查")
 	if after-before != 5 {
@@ -323,7 +329,8 @@ func TestCoc7RSanityLostAndCap(t *testing.T) {
 		t.Fatalf("理智未归零却判定 Lost: %q", got)
 	}
 
-	// 再扣一次，归零 → Lost
+	// 再扣一次，归零 → Lost（先解除可能的 Shock）
+	runCmd(t, d, ep, adapter, ".c7r shock clear")
 	got = runCmd(t, d, ep, adapter, ".sc 5/5")
 	if !strings.Contains(got, "Lost") {
 		t.Fatalf("理智归零未判定 Lost: %q", got)
@@ -413,6 +420,7 @@ func TestCoc7RComputedReassureAndMythos(t *testing.T) {
 
 	// 两次 5 点神话冲击，累计 10 点触发 Changed，必然获得克苏鲁神话技能
 	runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
+	runCmd(t, d, ep, adapter, ".c7r shock clear")
 	runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
 	got = runCmd(t, d, ep, adapter, ".c7r status")
 	if strings.Contains(got, "神话冲击次数：0") {
@@ -542,7 +550,18 @@ func TestCoc7RResetKeepsMythosEvents(t *testing.T) {
 	if !strings.Contains(first, "克苏鲁神话 +5") {
 		t.Fatalf("首次神话冲击应 +5: %q", first)
 	}
-	runCmd(t, d, ep, adapter, ".c7r reset")
+	// reset 开新篇章：篇章损失清零，Changed 保留
+	resetMsg := runCmd(t, d, ep, adapter, ".c7r reset")
+	if !strings.Contains(resetMsg, "Changed 仍然保留") {
+		t.Fatalf("reset 不应顺带解除 Changed: %q", resetMsg)
+	}
+	status := runCmd(t, d, ep, adapter, ".c7r status")
+	if !strings.Contains(status, "Changed：是") {
+		t.Fatalf("reset 后 Changed 应保留: %q", status)
+	}
+
+	// recover 解除 Changed 后再触发一次，神话仍按 +1 计
+	runCmd(t, d, ep, adapter, ".c7r recover")
 	second := runCmd(t, d, ep, adapter, ".sc 5/5 --mythos")
 	if !strings.Contains(second, "克苏鲁神话 +1") {
 		t.Fatalf("重置后不应重新获得首次 +5: %q", second)
@@ -560,5 +579,92 @@ func TestCoc7RCapHint(t *testing.T) {
 	got := runCmd(t, d, ep, adapter, ".sc 0/1D6 --cap 3")
 	if !strings.Contains(got, "--cap=N") {
 		t.Fatalf("--cap 缺少等号时应给出写法提示: %q", got)
+	}
+}
+
+func TestCoc7REn5RejectsNoGainSkills(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	runCmd(t, d, ep, adapter, ".st 克苏鲁神话5 信用评级30 理智50")
+
+	for _, skill := range []string{"克苏鲁神话", "信用评级"} {
+		got := runCmd(t, d, ep, adapter, ".en5 "+skill)
+		if !strings.Contains(got, "不能通过成长检定") {
+			t.Fatalf(".en5 不应提升 %s: %q", skill, got)
+		}
+	}
+	show := runCmd(t, d, ep, adapter, ".st show 克苏鲁神话 信用评级")
+	if v := skillValue(t, show, "克苏鲁神话"); v != 5 {
+		t.Fatalf("克苏鲁神话被改动: %q", show)
+	}
+	if v := skillValue(t, show, "信用评级"); v != 30 {
+		t.Fatalf("信用评级被改动: %q", show)
+	}
+}
+
+func TestCoc7RMovementFormula(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+
+	cases := []struct {
+		attrs string
+		want  int64
+	}{
+		{".st 力量50 体型50 敏捷50", 7}, // 三项相等：7，不是旧公式的 8
+		{".st 力量60", 8},           // 只有力量高于体型
+		{".st 敏捷60", 9},           // 力量与敏捷都高于体型
+	}
+	for _, c := range cases {
+		runCmd(t, d, ep, adapter, c.attrs)
+		show := runCmd(t, d, ep, adapter, ".st show 移动力")
+		if v := skillValue(t, show, "移动力"); v != c.want {
+			t.Fatalf("%s 后 MOV 应为 %d，实际 %q", c.attrs, c.want, show)
+		}
+	}
+}
+
+func TestCoc7RShockBlocksSanityLoss(t *testing.T) {
+	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	t.Cleanup(cleanup)
+	prepareC7RTestDB(t, d)
+
+	runCmd(t, d, ep, adapter, ".set coc7r")
+	// 意志 99 → Changed 阈值 19，智力 99 让 INT 检定几乎必过，前三次不会 Changed
+	runCmd(t, d, ep, adapter, ".st 意志99 智力99 理智90")
+
+	shocked := false
+	for i := 0; i < 3; i++ {
+		got := runCmd(t, d, ep, adapter, ".sc 5/5")
+		if strings.Contains(got, "陷入 Shock") {
+			shocked = true
+			break
+		}
+	}
+	if !shocked {
+		t.Fatal("三次 INT 检定都失败，无法验证 Shock 状态")
+	}
+
+	sanBefore := skillValue(t, runCmd(t, d, ep, adapter, ".st show 理智"), "理智")
+	blocked := runCmd(t, d, ep, adapter, ".sc 5/5")
+	if !strings.Contains(blocked, "正处于 Shock") {
+		t.Fatalf("Shock 期间应拒绝结算: %q", blocked)
+	}
+	sanAfter := skillValue(t, runCmd(t, d, ep, adapter, ".st show 理智"), "理智")
+	if sanBefore != sanAfter {
+		t.Fatalf("Shock 期间仍掉了理智: %d → %d", sanBefore, sanAfter)
+	}
+
+	if got := runCmd(t, d, ep, adapter, ".c7r shock clear"); !strings.Contains(got, "已解除") {
+		t.Fatalf(".c7r shock clear 输出异常: %q", got)
+	}
+	resumed := runCmd(t, d, ep, adapter, ".sc 5/5")
+	if !strings.Contains(resumed, "（-5）") {
+		t.Fatalf("解除 Shock 后应恢复扣理智: %q", resumed)
 	}
 }

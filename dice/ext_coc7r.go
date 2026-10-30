@@ -34,6 +34,8 @@ type coc7rState struct {
 	ChapterLoss  int64 `json:"chapterLoss"`  // 本篇章累计理智损失
 	Changed      bool  `json:"changed"`      // 是否已 Changed
 	MythosEvents int   `json:"mythosEvents"` // 神话来源的 Shock/Changed 次数，跨篇章保留
+	Shock        bool  `json:"shock"`        // 是否处于 Shock（期间不再损失理智）
+	ShockRounds  int64 `json:"shockRounds"`  // 触发时掷出的 1D10 轮数，仅供提示
 }
 
 // c7rLocks 按账本键串行化理智的读改写，避免同一角色的并发检定互相覆盖。
@@ -314,6 +316,13 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		}
 	}
 
+	st := c7rLoadState(mctx.Dice, stateKey)
+	if st.Shock {
+		msgText := fmt.Sprintf("%s 正处于 Shock，期间不再损失理智，本次不结算。\n用 .c7r shock clear 结束（安抚成功或 1D10 轮结束）", mctx.Player.Name)
+		ReplyToSender(mctx, msg, msgText)
+		return CmdExecuteResult{Matched: true, Solved: true}
+	}
+
 	san := c7rCurrentSan(mctx, tmpl)
 	pow := c7rAttrInt(mctx, tmpl, "意志")
 	intel := c7rAttrInt(mctx, tmpl, "智力")
@@ -340,7 +349,6 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 	}
 	VarSetValueInt64(mctx, "理智", sanNew)
 
-	st := c7rLoadState(mctx.Dice, stateKey)
 	st.ChapterLoss += loss
 
 	changedThreshold := pow / 5
@@ -376,8 +384,8 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		fmt.Fprintf(&b, "理智 %d → %d（无损失）\n", san, sanNew)
 	}
 
-	// 失败必然触发不自觉反应
-	if !success {
+	// 失败必触发；成功但仍有理智损失（1-4 点）同样触发
+	if !success || loss >= 1 {
 		b.WriteString("不自觉反应：惊叫 / 掉落手中物品 / 失控移动 / 僵住 / 攻击（由守秘人指定其一）\n")
 	}
 
@@ -392,7 +400,9 @@ func cmdScCoc7R(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResul
 		if intSuccess {
 			shocked = true
 			rounds := c7rRollDie(mctx, 10)
-			fmt.Fprintf(&b, "损失 ≥%d，INT 检定：D100=%d/%d 成功 → 陷入 Shock，持续 1D10=%d 轮\n", shockThreshold, intRoll, intel, rounds)
+			st.Shock = true
+			st.ShockRounds = rounds
+			fmt.Fprintf(&b, "损失 ≥%d，INT 检定：D100=%d/%d 成功 → 陷入 Shock，持续 1D10=%d 轮（用 .c7r shock clear 结束）\n", shockThreshold, intRoll, intel, rounds)
 			b.WriteString("Shock 表现（五选一）：Fight 攻击 / Flight 逃离 / Freeze 僵住 / Faint 昏倒 / Fawn 讨好\n")
 			b.WriteString("Shock 期间不再损失理智；结束后进入 Aftershock，直到当天结束都容易出现妄想\n")
 		} else {
@@ -459,6 +469,12 @@ func cmdC7RRealityCheck(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExec
 	unlock := c7rLock(stateKey)
 	defer unlock()
 
+	st := c7rLoadState(mctx.Dice, stateKey)
+	if st.Shock {
+		ReplyToSender(mctx, msg, fmt.Sprintf("%s 正处于 Shock，期间不再损失理智，本次现实检定不结算。\n用 .c7r shock clear 结束（安抚成功或 1D10 轮结束）", mctx.Player.Name))
+		return CmdExecuteResult{Matched: true, Solved: true}
+	}
+
 	// .rv b / .rv --b：同伴安抚成功带来的奖励骰
 	bonus := false
 	for _, arg := range cmdArgs.Args {
@@ -501,7 +517,6 @@ func cmdC7RRealityCheck(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExec
 		if threshold < 1 {
 			threshold = 1
 		}
-		st := c7rLoadState(mctx.Dice, stateKey)
 		st.ChapterLoss++
 		newlyChanged := !st.Changed && st.ChapterLoss >= threshold
 		if newlyChanged {
@@ -576,17 +591,37 @@ func cmdC7RTakeFive(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteR
 		return CmdExecuteResult{Matched: true, Solved: true}
 	}
 
+	// 克苏鲁神话与信用评级不能通过成长检定提升（书 p51 训练条款）
+	for _, blocked := range []string{"克苏鲁神话", "信用评级"} {
+		if key == tmpl.GetAlias(blocked) {
+			ReplyToSender(mctx, msg, fmt.Sprintf("「%s」不能通过成长检定提升", key))
+			return CmdExecuteResult{Matched: true, Solved: true}
+		}
+	}
+
 	old := c7rAttrInt(mctx, tmpl, key)
 	if old >= 99 {
 		ReplyToSender(mctx, msg, fmt.Sprintf("「%s」已经是 %d，无需再成长", key, old))
 		return CmdExecuteResult{Matched: true, Solved: true}
 	}
+
+	// Take Five 只把成长量换成 5，成长检定本身仍要投：D100 高于当前技能才通过
+	roll, detail := c7rRollD100(mctx, false)
+	detailWrap := ""
+	if detail != "" {
+		detailWrap = "（" + detail + "）"
+	}
+	if roll <= old {
+		ReplyToSender(mctx, msg, fmt.Sprintf("%s 的「%s」成长检定：D100=%d/%d%s 未通过，本次没有成长", mctx.Player.Name, key, roll, old, detailWrap))
+		return CmdExecuteResult{Matched: true, Solved: true}
+	}
+
 	newVal := old + 5
 	if newVal > 99 {
 		newVal = 99
 	}
 	VarSetValueInt64(mctx, key, newVal)
-	ReplyToSender(mctx, msg, fmt.Sprintf("%s 的「%s」成长（取五）：%d → %d", mctx.Player.Name, key, old, newVal))
+	ReplyToSender(mctx, msg, fmt.Sprintf("%s 的「%s」成长检定：D100=%d/%d%s 通过（取五）：%d → %d", mctx.Player.Name, key, roll, old, detailWrap, old, newVal))
 	return CmdExecuteResult{Matched: true, Solved: true}
 }
 
@@ -629,8 +664,11 @@ func cmdC7RHub(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult
 	case "min":
 		ReplyToSender(ctx, msg, c7rSpecializationMinimums(ctx, cmdArgs))
 	case "reset":
-		reply := c7rResetState(ctx, cmdArgs)
-		ReplyToSender(ctx, msg, reply)
+		ReplyToSender(ctx, msg, c7rResetState(ctx, cmdArgs))
+	case "recover":
+		ReplyToSender(ctx, msg, c7rRecoverChanged(ctx, cmdArgs))
+	case "shock":
+		ReplyToSender(ctx, msg, c7rShockCommand(ctx, cmdArgs))
 	default:
 		ReplyToSender(ctx, msg, c7rHelpText())
 	}
@@ -655,13 +693,15 @@ func c7rHelpText() string {
 		".sc <成功损失>/<失败损失> // 新版理智判定，可加 --cap=N、--half、--mythos",
 		".rv [b] // 现实检定，b 表示同伴安抚成功带来的奖励骰",
 		".ri // 圆桌式先攻，掷骰决定行动方向",
-		".en5 <技能> // 技能成长取五，直接 +5",
+		".en5 <技能> // 成长检定，通过后按取五 +5（克苏鲁神话、信用评级除外）",
 		".c7r status // 查看本篇章理智账本",
 		".c7r derive // 按属性推导技能基础值（可选规则）",
 		".c7r new // 新版建卡流程与个人兴趣点",
 		".c7r min // 按专精下限修正格斗/射击技能（半值规则）",
 		".c7r migrate // 合并旧卡的取悦/话术/恐吓等技能",
-		".c7r reset // 清空篇章损失与 Changed（神话冲击次数保留）",
+		".c7r reset // 开新篇章：清空篇章损失与 Shock（Changed 保留）",
+		".c7r recover // 解除 Changed（需休整一周并改写背景）",
+		".c7r shock [clear] // 查看或解除 Shock 状态",
 	}, "\n")
 }
 
@@ -682,6 +722,8 @@ func c7rNewInvestigator(ctx *MsgContext, cmdArgs *CmdArgs) string {
 		"4. 信用评级可以直接用技能点或个人兴趣点调整",
 		fmt.Sprintf("按当前属性：教育 %d + 智力 %d = 个人兴趣点 %d；外貌 %d → 安抚基础值 %d", edu, intel, edu+intel, app, app/5),
 		"可选：.c7r derive 按属性推导全部技能基础值（守秘人伴侣 p23-25 的可选规则）",
+		"注意：宗教学按专精记录，模板里的 10 是单个专精的起始值；多个信仰请写成「宗教学(基督教)」这类独立键",
+		"注意：.coc 仍是七版建卡（3D6×5 那套），新版 2D6+5 八次分配与 480 点池尚未实现",
 	}
 	return strings.Join(lines, "\n")
 }
@@ -759,8 +801,12 @@ func c7rStatusText(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	if st.Changed {
 		changed = "是"
 	}
-	return fmt.Sprintf("%s 的 coc7r 状态：\n理智 %d/%d，意志 %d（Changed 阈值 %d）\n本篇章累计损失 %d\nChanged：%s\n神话冲击次数：%d",
-		mctx.Player.Name, san, 99-cm, pow, threshold, st.ChapterLoss, changed, st.MythosEvents)
+	shock := "否"
+	if st.Shock {
+		shock = fmt.Sprintf("是（约 %d 轮）", st.ShockRounds)
+	}
+	return fmt.Sprintf("%s 的 coc7r 状态：\n理智 %d/%d，意志 %d（Changed 阈值 %d）\n本篇章累计损失 %d\nChanged：%s\nShock：%s\n神话冲击次数：%d",
+		mctx.Player.Name, san, 99-cm, pow, threshold, st.ChapterLoss, changed, shock, st.MythosEvents)
 }
 
 func c7rResetState(ctx *MsgContext, cmdArgs *CmdArgs) string {
@@ -771,10 +817,61 @@ func c7rResetState(ctx *MsgContext, cmdArgs *CmdArgs) string {
 	key := c7rStateKeyFor(mctx)
 	st := c7rLoadState(mctx.Dice, key)
 	st.ChapterLoss = 0
-	st.Changed = false
+	st.Shock = false
+	st.ShockRounds = 0
 	c7rSaveState(mctx.Dice, key, st)
-	return fmt.Sprintf("已清空 %s 的篇章损失与 Changed 状态；神话冲击次数保留（%d 次），避免下次重复获得首次 +5",
-		mctx.Player.Name, st.MythosEvents)
+	changedTip := ""
+	if st.Changed {
+		changedTip = "；Changed 仍然保留，恢复要用 .c7r recover"
+	}
+	return fmt.Sprintf("已清空 %s 的篇章损失%s。神话冲击次数保留（%d 次），避免下次重复获得首次 +5",
+		mctx.Player.Name, changedTip, st.MythosEvents)
+}
+
+// c7rRecoverChanged 恢复 Changed：书里要求休整一周并改写背景，这里只负责改状态。
+func c7rRecoverChanged(ctx *MsgContext, cmdArgs *CmdArgs) string {
+	mctx := GetCtxProxyFirst(ctx, cmdArgs)
+	if !c7rCanModifyTarget(ctx, mctx) {
+		return "只能恢复自己的角色，或由群管操作"
+	}
+	key := c7rStateKeyFor(mctx)
+	st := c7rLoadState(mctx.Dice, key)
+	if !st.Changed {
+		return fmt.Sprintf("%s 当前不是 Changed，无需恢复", mctx.Player.Name)
+	}
+	st.Changed = false
+	st.Shock = false
+	st.ShockRounds = 0
+	c7rSaveState(mctx.Dice, key, st)
+	return fmt.Sprintf("已解除 %s 的 Changed。前提是至少休整一周，并改写一条背景元素（标为 locked）", mctx.Player.Name)
+}
+
+// c7rShockCommand 查看或解除 Shock 状态。
+func c7rShockCommand(ctx *MsgContext, cmdArgs *CmdArgs) string {
+	mctx := GetCtxProxyFirst(ctx, cmdArgs)
+	key := c7rStateKeyFor(mctx)
+	st := c7rLoadState(mctx.Dice, key)
+	sub := strings.ToLower(cmdArgs.GetArgN(2))
+
+	switch sub {
+	case "clear", "end", "off":
+		if !c7rCanModifyTarget(ctx, mctx) {
+			return "只能解除自己的 Shock，或由群管操作"
+		}
+		if !st.Shock {
+			return "当前不在 Shock"
+		}
+		st.Shock = false
+		st.ShockRounds = 0
+		c7rSaveState(mctx.Dice, key, st)
+		return fmt.Sprintf("已解除 %s 的 Shock", mctx.Player.Name)
+	default:
+		if !st.Shock {
+			return fmt.Sprintf("%s 当前不在 Shock", mctx.Player.Name)
+		}
+		return fmt.Sprintf("%s 正处于 Shock，触发时掷出 %d 轮；期间不损失理智。安抚成功或轮数结束后用 .c7r shock clear 解除",
+			mctx.Player.Name, st.ShockRounds)
+	}
 }
 
 // c7rDerivedSkills 可选规则：技能基础值由属性推导（守秘人伴侣 p23-25）。
