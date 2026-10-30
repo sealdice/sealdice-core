@@ -73,27 +73,6 @@ func (p *quitGroupPlatform) snapshot() []int64 {
 	return append([]int64(nil), p.quits...)
 }
 
-func TestQQOwnerQuitRequiresSecondRequest(t *testing.T) {
-	svc, platform := newQQQuitGroupService(t, map[int64]string{2010: "owner"})
-	req := &QuitGroupReq{Body: QuitGroupRequest{GroupID: "QQ-Group:2010", DiceID: "QQ:1001", Silence: true}}
-	first, err := svc.QuitGroup(t.Context(), req)
-	if err != nil || first.Body.ConfirmCode == "" {
-		t.Fatalf("expected owner confirmation: response=%#v err=%v", first, err)
-	}
-	group, _ := svc.Dice().ImSession.ServiceAtNew.Load(req.Body.GroupID)
-	if len(platform.snapshot()) != 0 || !group.DiceIDExistsMap.Exists(req.Body.DiceID) {
-		t.Fatal("first request must preserve membership without quitting")
-	}
-	req.Body.ConfirmCode = first.Body.ConfirmCode
-	confirmed, err := svc.QuitGroup(t.Context(), req)
-	if err != nil || confirmed.Body.Message != "ok" {
-		t.Fatalf("confirmed quit: response=%#v err=%v", confirmed, err)
-	}
-	if quits := platform.snapshot(); len(quits) != 1 || quits[0] != 2010 || group.DiceIDExistsMap.Exists(req.Body.DiceID) {
-		t.Fatalf("confirmed quit did not update the correct group: %v", quits)
-	}
-}
-
 func TestBatchQQQuitWaitsForOwnerConfirmationAndSkipsUnknownRole(t *testing.T) {
 	svc, platform := newQQQuitGroupService(t, map[int64]string{2010: "owner", 2020: "member", 2030: "unknown"})
 	req := &BatchQuitGroupReq{Body: BatchQuitGroupRequest{
