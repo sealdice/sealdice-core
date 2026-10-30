@@ -490,10 +490,11 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 	userResult := checkBlackList(uid, "user", "", ctx)
 	if !userResult.Passed {
 		if userResult.BanInfo != nil && groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > userResult.BanInfo.BanTime {
-			text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
-			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
-			time.Sleep(1 * time.Second)
-			p.QuitGroup(ctx, diceGroupID)
+			quitGroupForBlacklistAsync(ctx, diceGroupID, func(ctx *MsgContext) {
+				text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
+				ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
+				time.Sleep(1 * time.Second)
+			})
 		}
 	}
 	// 这群有问题
@@ -501,10 +502,11 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 	if !groupResult.Passed {
 		// 如果是被ban之后拉群，判定为强制拉群
 		if groupResult.BanInfo != nil && groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > groupResult.BanInfo.BanTime {
-			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", groupResult.BanInfo.toText(ctx.Dice))
-			ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
-			time.Sleep(1 * time.Second)
-			p.QuitGroup(ctx, diceGroupID)
+			quitGroupForBlacklistAsync(ctx, diceGroupID, func(ctx *MsgContext) {
+				text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", groupResult.BanInfo.toText(ctx.Dice))
+				ReplyGroupRaw(ctx, &Message{GroupID: diceGroupID}, text, "")
+				time.Sleep(1 * time.Second)
+			})
 		}
 	}
 	return result

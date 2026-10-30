@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -89,10 +90,10 @@ type PlatformAdapterGocq struct {
 	InPackGoCqhttpDisconnectedCH chan int `json:"-"                        yaml:"-"`                   // 信号量，用于关闭连接
 	IgnoreFriendRequest          bool     `json:"ignoreFriendRequest"      yaml:"ignoreFriendRequest"` // 忽略好友请求处理开关
 
-	customEcho     int64                          `yaml:"-"` // 自定义返回标记
-	echoMap        *SyncMap[any, chan *MessageQQ] `yaml:"-"`
-	echoMap2       *SyncMap[any, *echoMapInfo]    `yaml:"-"`
-	Implementation string                         `json:"implementation" yaml:"implementation"`
+	customEcho     atomic.Int64                  `yaml:"-"` // 自定义返回标记
+	echoMap        SyncMap[any, chan *MessageQQ] `yaml:"-"`
+	echoMap2       *SyncMap[any, *echoMapInfo]   `yaml:"-"`
+	Implementation string                        `json:"implementation" yaml:"implementation"`
 
 	UseSignServer    bool              `json:"useSignServer"    yaml:"useSignServer"`
 	SignServerConfig *SignServerConfig `json:"signServerConfig" yaml:"signServerConfig"`
@@ -127,6 +128,7 @@ type OnebotUserInfo struct {
 	MaxMemberCount  int32  `json:"max_member_count"`
 	Card            string `json:"card"`
 	Role            string `json:"role"`
+	JoinTime        int64  `json:"join_time"`
 }
 
 type MessageQQBase struct {
@@ -162,12 +164,13 @@ type MessageQQBase struct {
 		MaxMemberCount  int32           `json:"max_member_count"`
 
 		// 群成员信息
-		Card string `json:"card"`
-		Role string `json:"role"`
+		Card     string `json:"card"`
+		Role     string `json:"role"`
+		JoinTime int64  `json:"join_time"`
 	} `json:"data"`
-	Retcode int64 `json:"retcode"`
-	// Status string `json:"status"`
-	Echo json.RawMessage `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
+	Retcode int64           `json:"retcode"`
+	Status  string          `json:"status"`
+	Echo    json.RawMessage `json:"echo"` // 声明类型而不是interface的原因是interface下数字不能正确转换
 
 	Msg string `json:"msg"`
 	// Status  interface{} `json:"status"`
@@ -588,10 +591,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
-								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-								time.Sleep(1 * time.Second)
-								pa.QuitGroup(ctx, groupID)
+								quitGroupForBlacklistAsync(ctx, groupID, func(ctx *MsgContext) {
+									text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
+									ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+									time.Sleep(1 * time.Second)
+								})
 							}
 							return
 						}
@@ -603,10 +607,11 @@ func (pa *PlatformAdapterGocq) Serve() int {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
-								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-								time.Sleep(1 * time.Second)
-								pa.QuitGroup(ctx, groupID)
+								quitGroupForBlacklistAsync(ctx, groupID, func(ctx *MsgContext) {
+									text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
+									ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+									time.Sleep(1 * time.Second)
+								})
 							}
 							return
 						}
@@ -623,8 +628,8 @@ func (pa *PlatformAdapterGocq) Serve() int {
 		}
 
 		// 自定义信息
-		if pa.echoMap != nil && msgQQ.Echo != nil {
-			if v, ok := pa.echoMap.Load(string(msgQQ.Echo)); ok {
+		if msgQQ.Echo != nil {
+			if v, ok := pa.echoMap.LoadAndDelete(string(msgQQ.Echo)); ok {
 				v <- msgQQ
 				return
 			}

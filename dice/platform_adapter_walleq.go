@@ -649,10 +649,11 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 						if banInfo.Rank == BanRankBanned && ctx.Dice.Config.BanList.BanBehaviorRefuseInvite {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
-								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-								time.Sleep(1 * time.Second)
-								pa.QuitGroup(ctx, groupID)
+								quitGroupForBlacklistAsync(ctx, groupID, func(ctx *MsgContext) {
+									text := fmt.Sprintf("本次入群为遭遇强制邀请，即将主动退群，因为邀请人%s正处于黑名单上。打扰各位还请见谅。感谢使用海豹核心。", groupInfo.InviteUserID)
+									ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+									time.Sleep(1 * time.Second)
+								})
 							}
 							return
 						}
@@ -664,10 +665,11 @@ func (pa *PlatformAdapterWalleQ) Serve() int {
 						if banInfo.Rank == BanRankBanned {
 							// 如果是被ban之后拉群，判定为强制拉群
 							if groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > banInfo.BanTime {
-								text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
-								ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
-								time.Sleep(1 * time.Second)
-								pa.QuitGroup(ctx, groupID)
+								quitGroupForBlacklistAsync(ctx, groupID, func(ctx *MsgContext) {
+									text := fmt.Sprintf("被群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", banInfo.toText(ctx.Dice))
+									ReplyGroupRaw(ctx, &Message{GroupID: groupID}, text, "")
+									time.Sleep(1 * time.Second)
+								})
 							}
 							return
 						}
