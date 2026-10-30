@@ -4,9 +4,14 @@ package dice
 import (
 	"errors"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	ds "github.com/sealdice/dicescript"
+
+	"sealdice-core/model"
+	"sealdice-core/utils/constant"
 )
 
 type nameCardSpyAdapter struct {
@@ -283,5 +288,95 @@ func TestReplyDoesNotIncludeNameCardForOtherPlatforms(t *testing.T) {
 
 	if len(spy.groupMsgs) != 1 || spy.groupMsgs[0] != "D100=50" {
 		t.Fatalf("group messages = %#v, want [%q]", spy.groupMsgs, "D100=50")
+	}
+}
+
+func TestReplyToSenderEvaluatesNameCardBeforeReturning(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		send        func(*MsgContext, *Message, string)
+		wantMessage string
+	}{
+		{"checked", ReplyToSender, "<b>HP10</b>\ndelegate:alias:reply"},
+		{"unchecked", ReplyToSenderNoCheck, "delegate:alias:<b>HP10</b>\nreply"},
+	} {
+		for _, messageType := range []string{"group", "private"} {
+			t.Run(tc.name+"/"+messageType, func(t *testing.T) {
+				ctx, spy := newNameCardTestContext(t)
+				ctx.MessageType = messageType
+				ctx.Player.AutoSetNameTemplate = "HP{reviewValue}"
+				ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>"
+				ctx.AliasPrefixText = "alias:"
+				ctx.DelegateText = "delegate:"
+				ctx.CreateVmIfNotExists()
+
+				var evaluations atomic.Int32
+				var hp atomic.Int64
+				hp.Store(10)
+				ctx.vm.GlobalValueLoadOverwriteFunc = func(_ string, _ *ds.VMValue) *ds.VMValue {
+					evaluations.Add(1)
+					return ds.NewIntVal(ds.IntType(hp.Load()))
+				}
+				msg := &Message{
+					MessageType: messageType,
+					GroupID:     ctx.Group.GroupID,
+					Sender:      SenderBase{UserID: ctx.Player.UserID},
+				}
+
+				tc.send(ctx, msg, "reply")
+				if got := evaluations.Load(); got != 1 {
+					t.Errorf("name-card evaluations before return = %d, want 1", got)
+				}
+				// 后续命令处理可以继续使用 VM，已排队的回复应保留发送时的名片。
+				hp.Store(20)
+				if result := ctx.Eval("40+2", nil); result.vm.Error != nil {
+					t.Errorf("subsequent evaluation failed: %v", result.vm.Error)
+				}
+				reply, ok := spy.waitForMsg(2 * time.Second)
+				if !ok {
+					t.Fatal("timed out waiting for reply")
+				}
+				if reply != tc.wantMessage {
+					t.Errorf("reply = %q, want %q", reply, tc.wantMessage)
+				}
+				if got := evaluations.Load(); got != 1 {
+					t.Errorf("name-card evaluations after send = %d, want 1", got)
+				}
+			})
+		}
+	}
+}
+
+func TestOfficialQQPCTagWithNameCard(t *testing.T) {
+	ctx, spy := newNameCardTestContext(t)
+	if err := ctx.Dice.DBOperator.GetDataDB(constant.WRITE).AutoMigrate(&model.AttributesItemModel{}); err != nil {
+		t.Fatal(err)
+	}
+	ctx.Group.System = "coc7"
+	ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
+	ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} SAN{理智} HP{生命值}/{生命值上限} DEX{敏捷}"
+	character, err := ctx.Dice.AttrsManager.CharNew(ctx.Player.UserID, "调查员", "coc7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := newGroupMsg(ctx.Group.GroupID, ctx.Player.UserID, ".pc tag 1")
+	args := CommandParse(msg.Message, []string{"pc"}, []string{"."}, msg.Platform, false)
+	result := ctx.Dice.CmdMap["pc"].Solve(ctx, msg, args)
+	if !result.Solved {
+		t.Fatal("pc tag was not handled")
+	}
+	reply, ok := spy.waitForMsg(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for pc tag reply")
+	}
+	if !strings.Contains(reply, "调查员 SAN") || strings.Count(reply, "<font") != 1 || strings.Contains(reply, "错误:") {
+		t.Fatalf("unexpected pc tag reply: %q", reply)
+	}
+	bindingID, err := ctx.Dice.AttrsManager.CharGetBindingId(ctx.Group.GroupID, ctx.Player.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bindingID != character.Id {
+		t.Fatalf("bound character = %q, want %q", bindingID, character.Id)
 	}
 }
