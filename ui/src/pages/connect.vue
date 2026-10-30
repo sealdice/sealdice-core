@@ -12,7 +12,7 @@
     <TipBox v-if="connectionsErrorText" type="error">
       <div class="connect-alert-content">
         <span>{{ connectionsErrorText }}</span>
-        <n-button size="small" secondary @click="retryConnections">
+        <n-button size="small" secondary @click="refreshConnections">
           <template #icon
             ><n-icon><i-tabler-refresh /></n-icon
           ></template>
@@ -54,6 +54,7 @@
         :has-pending-operation="Boolean(pendingEndpointAction)"
         :action-error="endpointOperationErrors[endpoint.id] ?? ''"
         @show-q-r-code="openQRCode($event)"
+        @diagnostics="openDiagnostics"
         @edit="editingEndpoint = $event"
         @toggle-enable="confirmEnable"
         @delete="confirmDelete($event)"
@@ -63,6 +64,15 @@
     <ConnectCreateWizard v-model:show="dialogVisible" @created="onCreated" />
 
     <ConnectEditDialog :endpoint="editingEndpoint" @close="editingEndpoint = null" />
+    <ConnectEndpointDiagnostics
+      v-if="diagnosticTarget"
+      :name="diagnosticTarget.name"
+      :endpoint="diagnosticSnapshot"
+      :loading="connectionsQuery.isFetching.value"
+      :error="diagnosticsError"
+      @close="diagnosticTarget = null"
+      @refresh="refreshConnections"
+    />
 
     <n-modal
       v-model:show="qrDialogVisible"
@@ -110,6 +120,7 @@ import {
 import ConnectCreateWizard from '@/components/connect/ConnectCreateWizard.vue';
 import ConnectEditDialog from '@/components/connect/ConnectEditDialog.vue';
 import ConnectAccountCard from '@/components/connect/ConnectAccountCard.vue';
+import ConnectEndpointDiagnostics from '@/components/connect/ConnectEndpointDiagnostics.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import TipBox from '@/components/shared/TipBox.vue';
@@ -132,10 +143,20 @@ const { connections } = storeToRefs(realtimeConnections);
 const { isTestMode } = useTestMode();
 const dialogVisible = ref(false);
 const editingEndpoint = ref<EndPointInfo | null>(null);
+const diagnosticTarget = ref<{ id: string; name: string } | null>(null);
 const qrDialogVisible = ref(false);
 const qrDialogEndpointId = ref('');
 const endpointOperationErrors = ref<Record<string, string>>({});
 const connectionsQuery = useQuery({ ...getSdApiV2ImconnectionOptions(), enabled: hasAccessToken });
+// Diagnostics reports the latest HTTP snapshot, even when SSE owns the account cards.
+const diagnosticSnapshot = computed(
+  () =>
+    connectionsQuery.data.value?.item.items?.find(item => item.id === diagnosticTarget.value?.id) ??
+    null
+);
+const diagnosticsError = computed(() =>
+  connectionsQuery.isError.value ? '无法读取运行诊断，请重试' : ''
+);
 const connectionsReady = computed(
   () =>
     realtimeConnections.ready || connectionsQuery.isSuccess.value || connectionsQuery.isError.value
@@ -151,6 +172,13 @@ const qrEndpoint = computed(() =>
 );
 const qrWorkflow = computed(() => qrEndpoint.value?.workflow);
 const activeQRCode = computed(() => qrEndpoint.value?.qrcode ?? '');
+watch(hasAccessToken, canAccess => {
+  if (!canAccess) {
+    diagnosticTarget.value = null;
+    qrDialogVisible.value = false;
+    qrDialogEndpointId.value = '';
+  }
+});
 watch(
   () => qrWorkflow.value?.state,
   state => {
@@ -238,13 +266,17 @@ function openQRCode(endpoint: EndPointInfo) {
 function refreshQRCode() {
   if (!hasAccessToken.value) return;
   realtime.reconnect();
-  void connectionsQuery.refetch({ cancelRefetch: false });
+  refreshConnections();
 }
 function onCreated(endpoint: EndPointInfo, showQRCode: boolean) {
   if (showQRCode) openQRCode(endpoint);
 }
-function retryConnections() {
-  void connectionsQuery.refetch();
+function openDiagnostics(endpoint: EndPointInfo) {
+  diagnosticTarget.value = { id: endpoint.id, name: getEndpointTargetLabel(endpoint) };
+  refreshConnections();
+}
+function refreshConnections() {
+  if (hasAccessToken.value) void connectionsQuery.refetch({ cancelRefetch: false });
 }
 </script>
 

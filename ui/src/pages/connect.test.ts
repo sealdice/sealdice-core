@@ -18,6 +18,7 @@ import ConnectPage from './connect.vue';
 import ConnectCreateWizard from '@/components/connect/ConnectCreateWizard.vue';
 import ConnectEditDialog from '@/components/connect/ConnectEditDialog.vue';
 import ConnectAccountCard from '@/components/connect/ConnectAccountCard.vue';
+import ConnectEndpointDiagnostics from '@/components/connect/ConnectEndpointDiagnostics.vue';
 import DynamicForm from '@/components/shared/DynamicForm.vue';
 
 const feedback = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), warning: vi.fn() }));
@@ -55,6 +56,10 @@ beforeEach(() => {
       close() {}
     }
   );
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(null, { status: 503 }))
+  );
   useAuthStore(appPinia).setAccessToken('connect-test');
   useAuthStore(appPinia).finishInitialization();
 });
@@ -74,7 +79,12 @@ function mountPage(component: Component, props = {}) {
     global: {
       plugins: [appPinia, [VueQueryPlugin, { queryClient }]],
       renderStubDefaultSlot: true,
-      stubs: { Modal: { template: '<div><slot /><slot name="action" /></div>' } },
+      stubs: {
+        Modal: {
+          props: { show: Boolean },
+          template: '<div><slot /><slot name="action" /></div>',
+        },
+      },
     },
   });
   return wrapper;
@@ -321,9 +331,11 @@ it('二维码弹窗在 SSE 断开时通过 HTTP 刷新登录进度，并在登�
       config.url?.endsWith('/imconnection/') ? { items: [current] } : { runtime: {} }
     );
   const page = mountPage(ConnectPage);
-  await vi.waitFor(() => expect(page.findComponent(ConnectAccountCard).exists()).toBe(true));
+  await vi.waitFor(() =>
+    expect(page.findComponent(ConnectAccountCard).props('endpoint').qrcode).toBe(current.qrcode)
+  );
   page.getComponent(ConnectAccountCard).vm.$emit('showQRCode', current);
-  await nextTick();
+  await vi.waitFor(() => expect(page.getComponent(NModal).props('show')).toBe(true));
   expect(page.getComponent(NModal).text()).toContain('扫码');
 
   current = {
@@ -339,4 +351,41 @@ it('二维码弹窗在 SSE 断开时通过 HTTP 刷新登录进度，并在登�
   };
   await click('刷新登录状态');
   await vi.waitFor(() => expect(page.getComponent(NModal).props('show')).toBe(false));
+});
+
+it('运行诊断刷新所选账号的快照，并在读取失败时保留上次的结果', async () => {
+  const second = { ...endpoint, id: 'b', nickname: 'Account B' };
+  let items = [endpoint, second];
+  let failRead = false;
+  client.instance.defaults.adapter = async config => {
+    if (!config.url?.endsWith('/imconnection/')) return response(config, { runtime: {} });
+    if (failRead) throw new Error('snapshot unavailable');
+    return response(config, { items });
+  };
+
+  const page = mountPage(ConnectPage);
+  await vi.waitFor(() => expect(page.findAllComponents(ConnectAccountCard)).toHaveLength(2));
+  page.findAllComponents(ConnectAccountCard)[1]!.vm.$emit('diagnostics', second);
+  await nextTick();
+  const diagnostics = () => page.getComponent(ConnectEndpointDiagnostics);
+  expect(diagnostics().props('endpoint')).toMatchObject({ id: 'b', cmdExecutedNum: 0 });
+  await vi.waitFor(() => expect(diagnostics().props('loading')).toBe(false));
+
+  items = [
+    { ...endpoint, cmdExecutedNum: 90 },
+    { ...second, cmdExecutedNum: 8 },
+  ];
+  diagnostics().vm.$emit('refresh');
+  await vi.waitFor(() =>
+    expect(diagnostics().props('endpoint')).toMatchObject({ id: 'b', cmdExecutedNum: 8 })
+  );
+
+  failRead = true;
+  diagnostics().vm.$emit('refresh');
+  await vi.waitFor(() => expect(diagnostics().props('error')).toContain('无法读取运行诊断'));
+  expect(diagnostics().props('endpoint')).toMatchObject({ id: 'b', cmdExecutedNum: 8 });
+
+  diagnostics().vm.$emit('close');
+  await nextTick();
+  expect(page.findComponent(ConnectEndpointDiagnostics).exists()).toBe(false);
 });

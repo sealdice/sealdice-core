@@ -71,6 +71,12 @@
               ></template>
               二维码
             </n-button>
+            <n-button size="small" tertiary @click="emit('diagnostics', endpoint)">
+              <template #icon>
+                <n-icon><i-tabler-activity /></n-icon>
+              </template>
+              运行诊断
+            </n-button>
             <n-button
               size="small"
               secondary
@@ -146,6 +152,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   showQRCode: [endpoint: EndPointInfo];
+  diagnostics: [endpoint: EndPointInfo];
   edit: [endpoint: EndPointInfo];
   toggleEnable: [endpoint: EndPointInfo, enable: boolean];
   delete: [endpoint: EndPointInfo];
