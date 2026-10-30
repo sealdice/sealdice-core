@@ -30,8 +30,8 @@ func groupQuitNeedsRoleCheck(ctx *MsgContext) bool {
 	return ctx != nil && ctx.EndPoint != nil && (ctx.EndPoint.Platform == "QQ" || ctx.EndPoint.ProtocolType == "onebot")
 }
 
-// PrepareGroupQuit checks the current identity and, for owners, requires a second
-// request carrying the previously issued code. Failed identity lookups never allow a quit.
+// PrepareGroupQuit checks the current identity or validates a previously issued
+// owner confirmation. QuitGroupSafely checks the identity again before quitting.
 func PrepareGroupQuit(ctx *MsgContext, groupID, operatorID, inputCode string) (*GroupQuitPermit, *GroupQuitConfirmation) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
 		return nil, &GroupQuitConfirmation{GroupID: groupID, Message: "当前账号不可用，已取消退群。"}
@@ -41,20 +41,6 @@ func PrepareGroupQuit(ctx *MsgContext, groupID, operatorID, inputCode string) (*
 	}
 
 	result := &GroupQuitConfirmation{GroupID: groupID, DiceID: ctx.EndPoint.UserID}
-	needConfirm, ok, detail := shouldDismissRequireOwnerConfirm(ctx, groupID)
-	if !ok {
-		result.Message = "无法确认骰子账号在目标群中的身份，已取消退群，请稍后重试。"
-		logGroupQuitBlocked(ctx, groupID, detail)
-		return nil, result
-	}
-	if !needConfirm {
-		return nil, nil
-	}
-	if ExtractQQEmitterUserID(ctx.EndPoint.UserID) <= 0 {
-		result.Message = "无法确认当前骰子账号，已取消退群，请稍后重试。"
-		return nil, result
-	}
-
 	key := getDismissConfirmKeyForGroup(ctx, operatorID, groupID)
 	if inputCode != "" {
 		code, exists := loadDismissConfirmCode(key)
@@ -63,6 +49,16 @@ func PrepareGroupQuit(ctx *MsgContext, groupID, operatorID, inputCode string) (*
 			return nil, result
 		}
 		return &GroupQuitPermit{endpoint: ctx.EndPoint, groupID: groupID, botID: ctx.EndPoint.UserID, key: key, code: code}, nil
+	}
+
+	needConfirm, ok, detail := shouldDismissRequireOwnerConfirm(ctx, groupID)
+	if !ok {
+		result.Message = "无法确认骰子账号在目标群中的身份，已取消退群，请稍后重试。"
+		logGroupQuitBlocked(ctx, groupID, detail)
+		return nil, result
+	}
+	if !needConfirm {
+		return nil, nil
 	}
 
 	result.ConfirmCode = generateFourDigitCode()

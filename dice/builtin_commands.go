@@ -137,7 +137,7 @@ func parseQQGroupRole(role string) (string, bool) {
 // checkBotGroupRole 查询 bot 在指定群中归一化后的角色(owner/admin/member)。
 // 返回值: ok 表示该适配器是否支持并成功完成角色检查;
 // detail 在 ok=true 时为归一化后的角色字符串,在 ok=false 时为失败原因描述。
-// 不支持角色检查、查询失败或响应身份不匹配时返回 ok=false，QQ 退群必须阻断。
+// 不支持角色检查、查询失败或角色未知时返回 ok=false，QQ 退群必须阻断。
 func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool) {
 	if ctx == nil || ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil {
 		return "context invalid", false
@@ -145,20 +145,18 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 
 	// Permission changes must be visible immediately; cached member data can retain a stale role.
 	const bypassCache = true
-	botID := ExtractQQEmitterUserID(strings.TrimSpace(ctx.EndPoint.UserID))
+	botID, ok := getOnebotBotQQID(ctx)
 	groupQQID := ExtractQQEmitterGroupID(strings.TrimSpace(groupID))
-	if groupQQID <= 0 {
-		return "cannot resolve group id", false
+	if !ok || groupQQID <= 0 {
+		return "cannot resolve bot/group id", false
 	}
 
+	// 各协议实现的成员资料字段不尽相同，身份判断只依赖本次查询返回的角色。
+	var rawRole string
 	switch pa := ctx.EndPoint.Adapter.(type) {
 	case *PlatformAdapterOnebot:
 		if pa == nil || pa.sendEmitter == nil || pa.ctx == nil {
 			return "onebot emitter unavailable", false
-		}
-		botID, ok = getOnebotBotQQID(ctx)
-		if !ok {
-			return "cannot resolve bot qq id", false
 		}
 		memberInfo, err := pa.sendEmitter.GetGroupMemberInfo(pa.ctx, groupQQID, botID, bypassCache)
 		if err != nil || memberInfo == nil {
@@ -167,40 +165,15 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 			}
 			return errGetGroupMemberInfoNil, false
 		}
-		if memberInfo.GroupId != groupQQID || memberInfo.UserId != botID {
-			return "get_group_member_info identity mismatch", false
-		}
-		role, ok := parseQQGroupRole(memberInfo.Role)
-		if !ok {
-			return errGetGroupMemberInfoEmptyRole, false
-		}
-		// SnowLuma can return a synthetic member record when the real lookup misses.
-		// Such a fallback has neither a nickname nor a join time and proves no identity.
-		if role == "member" && memberInfo.Nickname == "" && memberInfo.JoinTime == 0 {
-			return "get_group_member_info returned incomplete membership data", false
-		}
-		return role, true
+		rawRole = memberInfo.Role
 	case *PlatformAdapterGocq:
-		if botID <= 0 {
-			return "cannot resolve bot/group id", false
-		}
 		botIDRaw := strconv.FormatInt(botID, 10)
 		groupIDRaw := strconv.FormatInt(groupQQID, 10)
 		memberInfo := pa.getGroupMemberInfo(groupIDRaw, botIDRaw, bypassCache)
 		if memberInfo == nil {
 			return errGetGroupMemberInfoNil, false
 		}
-		if memberInfo.GroupID != groupIDRaw || memberInfo.UserID != botIDRaw {
-			return "get_group_member_info identity mismatch", false
-		}
-		role, ok := parseQQGroupRole(memberInfo.Role)
-		if !ok {
-			return errGetGroupMemberInfoEmptyRole, false
-		}
-		if role == "member" && memberInfo.Nickname == "" && memberInfo.JoinTime == 0 {
-			return "get_group_member_info returned incomplete membership data", false
-		}
-		return role, true
+		rawRole = memberInfo.Role
 	case *PlatformAdapterMilky:
 		memberInfo, err := pa.getGroupMemberInfo(groupID, ctx.EndPoint.UserID, bypassCache)
 		if err != nil {
@@ -209,17 +182,15 @@ func checkBotGroupRole(ctx *MsgContext, groupID string) (detail string, ok bool)
 		if memberInfo == nil {
 			return errGetGroupMemberInfoNil, false
 		}
-		if botID <= 0 || memberInfo.GroupId != groupQQID || memberInfo.UserId != botID {
-			return "get_group_member_info identity mismatch", false
-		}
-		role, ok := parseQQGroupRole(memberInfo.Role)
-		if !ok {
-			return errGetGroupMemberInfoEmptyRole, false
-		}
-		return role, true
+		rawRole = memberInfo.Role
 	default:
 		return "adapter does not support group role check", false
 	}
+	role, ok := parseQQGroupRole(rawRole)
+	if !ok {
+		return errGetGroupMemberInfoEmptyRole, false
+	}
+	return role, true
 }
 
 func shouldDismissRequireOwnerConfirm(ctx *MsgContext, groupID string) (bool, bool, string) {

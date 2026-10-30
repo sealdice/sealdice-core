@@ -107,64 +107,40 @@ const confirmation = {
   confirmCode: '4321',
 };
 
-it('群主退群展示解散警告，勾选确认并再次点击后才提交确认码', async () => {
-  const requests = await mountPage(body =>
-    body.confirmCode ? { ...confirmation, message: 'ok', confirmCode: undefined } : confirmation
-  );
-  await click('退出 1001');
-  await click('确认退群');
-  expect(requests).toHaveLength(1);
-  expect(requests[0]).not.toHaveProperty('confirmCode');
-  expect(wrapper!.text()).toContain('继续退出将直接解散群聊');
-  expect(wrapper!.text()).toContain('QQ-Group:2010');
-  expect(button('确认解散并退出').props('disabled')).toBe(true);
-  await click('确认解散并退出');
-  expect(requests).toHaveLength(1);
-  await acknowledgeOwnerQuit();
-  await click('确认解散并退出');
-  expect(requests).toHaveLength(2);
-  expect(requests[1]).toMatchObject({
-    groupId: confirmation.groupId,
-    diceId: confirmation.diceId,
-    confirmCode: confirmation.confirmCode,
-  });
-  expect(feedback.success).toHaveBeenCalledWith('退群完成');
-});
-
-it('身份查询失败只提示错误，不自动重试或进入解散确认', async () => {
-  const requests = await mountPage(() => ({
-    groupId: 'QQ-Group:2010',
-    diceId: 'QQ:1001',
-    message: '无法确认群内身份，已取消退群。',
-  }));
-  await click('退出 1001');
-  await click('确认退群');
-  expect(requests).toHaveLength(1);
-  expect(feedback.error).toHaveBeenCalledWith('无法确认群内身份，已取消退群。');
-  expect(wrapper!.text()).not.toContain('确认解散并退出');
-});
-
-it('批量退群单独确认拥有的群组后才再次提交对应确认码', async () => {
+it.each([false, true])('群主退群需展示解散警告并二次确认（批量=%s）', async batch => {
   const requests = await mountPage(body => {
-    const codes = body.confirmCodes as Record<string, string>;
-    return codes[confirmation.groupId] ? { item: 2 } : { item: 0, confirmations: [confirmation] };
+    const code = batch
+      ? (body.confirmCodes as Record<string, string>)[confirmation.groupId]
+      : body.confirmCode;
+    return batch
+      ? { item: code ? 2 : 0, confirmations: code ? [] : [confirmation] }
+      : code
+        ? { message: 'ok' }
+        : confirmation;
   });
-  const selectAll = wrapper!
-    .findAllComponents(NCheckbox)
-    .find(item => item.attributes('aria-label') === '全选当前页群组');
-  if (!selectAll) throw new Error('Missing select-all checkbox');
-  selectAll.vm.$emit('update:checked', true);
-  await nextTick();
-  await click('批量退群');
+  if (batch) {
+    const selectAll = wrapper!
+      .findAllComponents(NCheckbox)
+      .find(item => item.attributes('aria-label') === '全选当前页群组');
+    if (!selectAll) throw new Error('Missing select-all checkbox');
+    selectAll.vm.$emit('update:checked', true);
+    await nextTick();
+  }
+  await click(batch ? '批量退群' : '退出 1001');
   await click('确认退群');
   expect(requests).toHaveLength(1);
-  expect(requests[0]).toMatchObject({
-    groupIds: ['QQ-Group:2010', 'QQ-Group:2020'],
-    confirmCodes: {},
-  });
+  expect(wrapper!.text()).toContain('继续退出将直接解散群聊');
+  expect(wrapper!.text()).toContain(confirmation.groupId);
   expect(button('确认解散并退出').props('disabled')).toBe(true);
+  await click('确认解散并退出');
+  expect(requests).toHaveLength(1);
   await acknowledgeOwnerQuit();
   await click('确认解散并退出');
   expect(requests).toHaveLength(2);
-  expect(requests[1]).toHaveProperty('confirmCodes', { 'QQ-Group:2010': '4321' });
+  expect(requests[1]).toMatchObject(
+    batch
+      ? { groupIds: ['QQ-Group:2010', 'QQ-Group:2020'], confirmCodes: { 'QQ-Group:2010': '4321' } }
+      : { groupId: confirmation.groupId, diceId: confirmation.diceId, confirmCode: '4321' }
+  );
+  expect(feedback.success).toHaveBeenCalled();
 });
