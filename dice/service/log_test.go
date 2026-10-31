@@ -573,8 +573,8 @@ func TestLogMarkDeleteByRawMsgIDDeletesAllDuplicatesAndUpdatesSizes(t *testing.T
 		t.Fatalf("log-b size = %d, want 1", got)
 	}
 
-	if err := service.LogMarkDeleteByRawMsgID(op, groupID, sharedRawID); err != nil {
-		t.Fatalf("LogMarkDeleteByRawMsgID(): %v", err)
+	if delErr := service.LogMarkDeleteByRawMsgID(op, groupID, sharedRawID); delErr != nil {
+		t.Fatalf("LogMarkDeleteByRawMsgID(): %v", delErr)
 	}
 
 	linesA, err := service.LogGetAllLines(op, groupID, "log-a")
@@ -601,8 +601,8 @@ func TestLogMarkDeleteByRawMsgIDDeletesAllDuplicatesAndUpdatesSizes(t *testing.T
 	}
 
 	// 重复撤回应幂等，不再扣减 size
-	if err := service.LogMarkDeleteByRawMsgID(op, groupID, sharedRawID); err != nil {
-		t.Fatalf("second LogMarkDeleteByRawMsgID(): %v", err)
+	if delErr := service.LogMarkDeleteByRawMsgID(op, groupID, sharedRawID); delErr != nil {
+		t.Fatalf("second LogMarkDeleteByRawMsgID(): %v", delErr)
 	}
 	if got := logTestSize(t, db, logIDA); got != 1 {
 		t.Fatalf("log-a size after second delete = %d, want 1", got)
@@ -631,8 +631,8 @@ func TestLogMarkDeleteByRawMsgIDIgnoresMissingAndEmptyRawID(t *testing.T) {
 	}
 
 	for _, rawID := range []interface{}{"raw-none", nil, ""} {
-		if err := service.LogMarkDeleteByRawMsgID(op, groupID, rawID); err != nil {
-			t.Fatalf("LogMarkDeleteByRawMsgID(%v): %v", rawID, err)
+		if delErr := service.LogMarkDeleteByRawMsgID(op, groupID, rawID); delErr != nil {
+			t.Fatalf("LogMarkDeleteByRawMsgID(%v): %v", rawID, delErr)
 		}
 	}
 
@@ -648,8 +648,8 @@ func TestLogMarkDeleteByRawMsgIDIgnoresMissingAndEmptyRawID(t *testing.T) {
 	}
 
 	// 编辑路径同样跳过空 ID，不产生批量误改
-	if err := service.LogEditByRawMsgID(op, groupID, "hacked", nil); err != nil {
-		t.Fatalf("LogEditByRawMsgID(nil): %v", err)
+	if editErr := service.LogEditByRawMsgID(op, groupID, "hacked", nil); editErr != nil {
+		t.Fatalf("LogEditByRawMsgID(nil): %v", editErr)
 	}
 	lines, err = service.LogGetAllLines(op, groupID, "log-a")
 	if err != nil {
