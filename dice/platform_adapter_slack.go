@@ -31,6 +31,11 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	api := slack.New(pa.BotToken, slack.OptionAppLevelToken(pa.AppToken))
 	client := sm.New(api)
 	sh := sm.NewSocketmodeHandler(client)
+	ack := func(client *sm.Client, request sm.Request) {
+		if err := client.Ack(request); err != nil {
+			log.Errorf("Slack 事件确认失败：%v", err)
+		}
+	}
 	// Connect
 	sh.Handle(sm.EventTypeConnecting, func(event *sm.Event, client *sm.Client) {
 		ep.State = 2
@@ -57,7 +62,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 		log.Errorf("Slack 账号 <%s> 连接断开：%v", pa.EndPoint.UserID, event.Data)
 	})
 	sh.HandleEvents(se.AppMention, func(event *sm.Event, client *sm.Client) {
-		go client.Ack(*event.Request)
+		go ack(client, *event.Request)
 		e := event.Data.(se.EventsAPIEvent)
 		m := e.InnerEvent.Data.(*se.AppMentionEvent)
 		u := pa.getUser(m.User)
@@ -93,7 +98,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	// Message
 	sh.HandleEvents(se.Message, func(event *sm.Event, client *sm.Client) {
-		go client.Ack(*event.Request)
+		go ack(client, *event.Request)
 		e := event.Data.(se.EventsAPIEvent)
 		m := e.InnerEvent.Data.(*se.MessageEvent)
 		u := pa.getUser(m.User)
@@ -142,7 +147,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	// Other
 	sh.HandleEvents(se.AppHomeOpened, func(event *sm.Event, client *sm.Client) {
-
+		go ack(client, *event.Request)
 	})
 	// Start
 	pa.Client = client
