@@ -42,7 +42,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/juliangruber/go-intersect v1.1.0
 	github.com/kardianos/service v1.2.4
-	github.com/labstack/echo/v4 v4.15.0
+	github.com/labstack/echo/v4 v4.15.3
 	github.com/lascape/sat v1.0.4
 	github.com/lonelyevil/kook v0.0.31
 	github.com/lonelyevil/kook/log_adapter/plog v0.0.31
@@ -54,14 +54,13 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/monaco-io/request v1.0.16
 	github.com/mozillazg/go-pinyin v0.21.0
-	github.com/ncruces/go-sqlite3 v0.32.0
-	github.com/ncruces/go-sqlite3/gormlite v0.24.0
+	github.com/ncruces/go-sqlite3/gormlite v0.34.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/otiai10/copy v1.14.1
 	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/parquet-go/parquet-go v0.25.1
-	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/phuslu/log v1.0.119
 	github.com/pilagod/gorm-cursor-paginator/v2 v2.7.0
 	github.com/pkg/errors v0.9.1
@@ -73,7 +72,7 @@ require (
 	github.com/sealdice/botgo v0.0.0-20261021133756-7994a476e417
 	github.com/sealdice/dicescript v0.0.0-20260729052003-c4c99fe00cb6
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
-	github.com/slack-go/slack v0.17.3
+	github.com/slack-go/slack v0.29.0
 	github.com/sunshineplan/imgconv v1.1.15
 	github.com/tailscale/hujson v0.0.0-20250605163823-992244df8c5a
 	github.com/tdewolff/minify/v2 v2.24.13
@@ -85,7 +84,7 @@ require (
 	github.com/yuin/goldmark v1.8.4
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/goleak v1.3.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.55.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
 	golang.org/x/oauth2 v0.36.0
@@ -106,7 +105,7 @@ require (
 require (
 	github.com/blevesearch/mmap-go v1.2.0
 	github.com/emmansun/gmsm v0.44.1
-	github.com/klauspost/compress v1.18.0
+	github.com/klauspost/compress v1.18.7
 	github.com/sixafter/aes-ctr-drbg v1.16.0
 	github.com/tus/tusd/v2 v2.10.1
 )
@@ -174,7 +173,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kamstrup/intmap v0.5.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
-	github.com/labstack/gommon v0.4.2 // indirect
+	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/lxzan/gws v1.10.2 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
@@ -183,6 +182,8 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
+	github.com/ncruces/go-sqlite3 v0.35.2 // indirect
+	github.com/ncruces/go-sqlite3-wasm/v3 v3.2.35303 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/otiai10/mint v1.6.3 // indirect
@@ -200,7 +201,6 @@ require (
 	github.com/sunshineplan/pdf v1.0.8 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/tdewolff/parse/v2 v2.8.12 // indirect
-	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/tidwall/btree v1.8.0 // indirect
 	github.com/tidwall/grect v0.1.4 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
