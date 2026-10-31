@@ -262,6 +262,7 @@ func TestBuiltinGameSystemsRelateTheirRuleExtensions(t *testing.T) {
 		want []string
 	}{
 		{file: "coc7.yaml", want: []string{"coc7"}},
+		{file: "coc7r.yaml", want: []string{"coc7r", "coc7"}},
 		{file: "dnd5e.yaml", want: []string{"dnd5e"}},
 	}
 	for _, tt := range tests {
