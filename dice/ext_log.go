@@ -1161,7 +1161,7 @@ func LogDeleteByID(ctx *MsgContext, groupID string, messageID interface{}) bool 
 	return true
 }
 
-// LogEditByID finds the log item under logName with messageID and replace it with content.
+// LogEditByID finds the log items with messageID in the group and replaces their content.
 // If the log item cannot be found or an error happens, it returns false.
 func LogEditByID(ctx *MsgContext, groupID, content string, messageID interface{}) bool {
 	err := service.LogEditByRawMsgID(ctx.Dice.DBOperator, groupID, content, messageID)
