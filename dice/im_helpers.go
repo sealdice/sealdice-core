@@ -381,8 +381,14 @@ func ReplyToSender(ctx *MsgContext, msg *Message, text string) {
 		logger.M().Errorf("ReplyToSender 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
 		return
 	}
+	// 名片求值使用命令的 VM，必须在启动发送协程前完成。
+	nameCardLine := buildOfficialQQNameCardLine(ctx)
 	panicHandler.Once(logger.M(), func() {
-		ReplyToSenderRaw(ctx, msg, text, "")
+		if msg.MessageType == "group" {
+			replyGroupRaw(ctx, msg, text, "", nameCardLine)
+		} else {
+			replyPersonRaw(ctx, msg, text, "", nameCardLine)
+		}
 	})
 }
 
@@ -391,12 +397,17 @@ func ReplyToSenderNoCheck(ctx *MsgContext, msg *Message, text string) {
 		logger.M().Errorf("ReplyToSenderNoCheck 被调用，但没有正确传递参数！请检查您的参数！: ctx=%v, msg=%v", ctx, msg)
 		return
 	}
+	text = withOfficialQQNameCard(ctx, text)
 	panicHandler.Once(logger.M(), func() {
-		replyToSenderRawNoCheck(ctx, msg, withOfficialQQNameCard(ctx, text), "")
+		replyToSenderRawNoCheck(ctx, msg, text, "")
 	})
 }
 
 func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	replyGroupRaw(ctx, msg, text, flag, buildOfficialQQNameCardLine(ctx))
+}
+
+func replyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string, nameCardLine string) {
 	if ctx.AliasPrefixText != "" {
 		text = ctx.AliasPrefixText + text
 		ctx.AliasPrefixText = ""
@@ -406,7 +417,7 @@ func ReplyGroupRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
-	text = withOfficialQQNameCard(ctx, text)
+	text = prependOfficialQQNameCard(nameCardLine, text)
 
 	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
 		if !spamCheckPerson(ctx, msg) {
@@ -473,6 +484,10 @@ func ReplyGroup(ctx *MsgContext, msg *Message, text string) {
 }
 
 func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
+	replyPersonRaw(ctx, msg, text, flag, buildOfficialQQNameCardLine(ctx))
+}
+
+func replyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string, nameCardLine string) {
 	if ctx.AliasPrefixText != "" {
 		text = ctx.AliasPrefixText + text
 		ctx.AliasPrefixText = ""
@@ -482,7 +497,7 @@ func ReplyPersonRaw(ctx *MsgContext, msg *Message, text string, flag string) {
 		ctx.DelegateText = ""
 	}
 
-	text = withOfficialQQNameCard(ctx, text)
+	text = prependOfficialQQNameCard(nameCardLine, text)
 
 	if ctx.Dice.Config.RateLimitEnabled && msg.Platform == "QQ" {
 		spamCheckPerson(ctx, msg)

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -64,10 +65,20 @@ func ensureGroupLogState(ctx *MsgContext, group *GroupInfo) GroupLogState {
 }
 
 // EvalPlayerGroupCardTemplate 只求值 .sn 模板，不调用平台改名接口。
-func EvalPlayerGroupCardTemplate(ctx *MsgContext, tmpl string) (string, error) {
+// 求值 panic 转为 error，避免名片异常中断正文回复。
+func EvalPlayerGroupCardTemplate(ctx *MsgContext, tmpl string) (result string, err error) {
 	if ctx == nil || ctx.Dice == nil {
 		return "", errors.New("无法求值名片模板：上下文为空")
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			result = ""
+			err = fmt.Errorf("名片模板求值异常: %v", r)
+			if ctx.Dice.Logger != nil {
+				ctx.Dice.Logger.Errorf("%v\n%s", err, debug.Stack())
+			}
+		}
+	}()
 	if ctx.SystemTemplate == nil && ctx.Group != nil {
 		ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 	}

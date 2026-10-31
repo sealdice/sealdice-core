@@ -60,7 +60,10 @@ func buildOfficialQQNameCardLine(ctx *MsgContext) string {
 // withOfficialQQNameCard 在官方 QQ 的回复顶部插入当前玩家的 .sn 名片。
 // 官方 QQ 没有修改群名片的接口，原版 QQ 则继续由平台在玩家名字旁显示名片。
 func withOfficialQQNameCard(ctx *MsgContext, text string) string {
-	line := buildOfficialQQNameCardLine(ctx)
+	return prependOfficialQQNameCard(buildOfficialQQNameCardLine(ctx), text)
+}
+
+func prependOfficialQQNameCard(line, text string) string {
 	if line == "" || strings.TrimSpace(text) == "" {
 		return text
 	}

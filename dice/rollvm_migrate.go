@@ -368,11 +368,13 @@ func (ctx *MsgContext) Eval(expr string, flags *ds.RollConfig) *VMResultV2 {
 	ctx.CreateVmIfNotExists()
 	vm := ctx.vm
 	prevConfig := vm.Config
+	defer func() {
+		vm.Config = prevConfig
+	}()
 	if flags != nil {
 		vm.Config = *flags
 	}
 	err := vm.Run(expr)
-	vm.Config = prevConfig
 
 	if err != nil {
 		return &VMResultV2{vm: vm}
