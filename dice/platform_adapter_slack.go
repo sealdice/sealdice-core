@@ -147,7 +147,7 @@ func (pa *PlatformAdapterSlack) Serve() int {
 	})
 	// Other
 	sh.HandleEvents(se.AppHomeOpened, func(event *sm.Event, client *sm.Client) {
-
+		go ack(client, *event.Request)
 	})
 	// Start
 	pa.Client = client
