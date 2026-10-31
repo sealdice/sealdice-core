@@ -9,6 +9,7 @@ import (
 	"time"
 
 	ds "github.com/sealdice/dicescript"
+	"go.uber.org/zap"
 
 	"sealdice-core/model"
 	"sealdice-core/utils/constant"
@@ -23,6 +24,22 @@ type nameCardSpyAdapter struct {
 func (s *nameCardSpyAdapter) SetGroupCardName(_ *MsgContext, name string) {
 	s.setCardCalls++
 	s.lastCard = name
+}
+
+func newNameCardReplyTestContext() (*MsgContext, *nameCardSpyAdapter) {
+	spy := &nameCardSpyAdapter{mockPlatformAdapter: newMockPlatformAdapter()}
+	d := &Dice{Logger: zap.NewNop().Sugar()}
+	d.Config.OfficialQQUseMarkdown = true
+	d.Config.OfficialQQUseNameCard = true
+	return &MsgContext{
+		Dice: d,
+		EndPoint: &EndPointInfo{
+			EndPointInfoBase: EndPointInfoBase{Platform: "QQ", ProtocolType: "official"},
+			Adapter:          spy,
+		},
+		Group:  &GroupInfo{GroupID: "QQ-Group:10001"},
+		Player: &GroupPlayerInfo{UserID: "QQ:20002", ValueMapTemp: &ds.ValueMap{}},
+	}, spy
 }
 
 func newNameCardTestContext(t *testing.T) (*MsgContext, *nameCardSpyAdapter) {
@@ -296,13 +313,16 @@ func TestReplyToSenderEvaluatesNameCardBeforeReturning(t *testing.T) {
 		name        string
 		send        func(*MsgContext, *Message, string)
 		wantMessage string
+		panicOnEval bool
 	}{
-		{"checked", ReplyToSender, "<b>HP10</b>\ndelegate:alias:reply"},
-		{"unchecked", ReplyToSenderNoCheck, "delegate:alias:<b>HP10</b>\nreply"},
+		{"checked", ReplyToSender, "<b>HP10</b>\ndelegate:alias:reply", false},
+		{"unchecked", ReplyToSenderNoCheck, "delegate:alias:<b>HP10</b>\nreply", false},
+		{"checked_panic", ReplyToSender, "delegate:alias:reply", true},
+		{"unchecked_panic", ReplyToSenderNoCheck, "delegate:alias:reply", true},
 	} {
 		for _, messageType := range []string{"group", "private"} {
 			t.Run(tc.name+"/"+messageType, func(t *testing.T) {
-				ctx, spy := newNameCardTestContext(t)
+				ctx, spy := newNameCardReplyTestContext()
 				ctx.MessageType = messageType
 				ctx.Player.AutoSetNameTemplate = "HP{reviewValue}"
 				ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>"
@@ -313,8 +333,14 @@ func TestReplyToSenderEvaluatesNameCardBeforeReturning(t *testing.T) {
 				var evaluations atomic.Int32
 				var hp atomic.Int64
 				hp.Store(10)
-				ctx.vm.GlobalValueLoadOverwriteFunc = func(_ string, _ *ds.VMValue) *ds.VMValue {
+				ctx.vm.GlobalValueLoadOverwriteFunc = func(name string, value *ds.VMValue) *ds.VMValue {
+					if name != "reviewValue" {
+						return value
+					}
 					evaluations.Add(1)
+					if tc.panicOnEval {
+						panic("attribute lookup failed")
+					}
 					return ds.NewIntVal(ds.IntType(hp.Load()))
 				}
 				msg := &Message{
@@ -329,8 +355,11 @@ func TestReplyToSenderEvaluatesNameCardBeforeReturning(t *testing.T) {
 				}
 				// 后续命令处理可以继续使用 VM，已排队的回复应保留发送时的名片。
 				hp.Store(20)
-				if result := ctx.Eval("40+2", nil); result.vm.Error != nil {
+				result := ctx.Eval("answer = 40+2; answer", nil)
+				if result.vm.Error != nil {
 					t.Errorf("subsequent evaluation failed: %v", result.vm.Error)
+				} else if value, ok := result.ReadInt(); !ok || value != 42 {
+					t.Errorf("subsequent assignment = %v, want 42; name-card store hook must be restored", result.ToString())
 				}
 				reply, ok := spy.waitForMsg(2 * time.Second)
 				if !ok {
@@ -344,6 +373,20 @@ func TestReplyToSenderEvaluatesNameCardBeforeReturning(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestEvalPlayerGroupCardTemplateReturnsErrorOnPanic(t *testing.T) {
+	ctx, _ := newNameCardReplyTestContext()
+	ctx.CreateVmIfNotExists()
+	failure := errors.New("attribute lookup failed")
+	ctx.vm.GlobalValueLoadOverwriteFunc = func(_ string, _ *ds.VMValue) *ds.VMValue {
+		panic(failure)
+	}
+
+	text, err := EvalPlayerGroupCardTemplate(ctx, "HP{reviewValue}")
+	if text != "" || err == nil || !strings.Contains(err.Error(), failure.Error()) {
+		t.Fatalf("name-card evaluation = (%q, %v), want empty card and attribute error", text, err)
 	}
 }
 
