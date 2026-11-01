@@ -34,6 +34,7 @@ type onebotTestEmitter struct {
 	groupMemberInfoErr   error
 	groupMemberInfoCalls []groupMemberInfoCall
 	groupReqCh           chan struct{}
+	quitGroupCalls       []int64
 	loginInfo            *emitterTypes.LoginInfo
 	loginInfoErr         error
 	sendPvtCh            chan time.Time
@@ -144,7 +145,10 @@ func (m *onebotTestEmitter) SetGroupSpecialTitle(context.Context, int64, int64, 
 	return nil
 }
 
-func (m *onebotTestEmitter) QuitGroup(context.Context, int64) error { return nil }
+func (m *onebotTestEmitter) QuitGroup(_ context.Context, groupID int64) error {
+	m.quitGroupCalls = append(m.quitGroupCalls, groupID)
+	return nil
+}
 
 func (m *onebotTestEmitter) SetGroupCard(context.Context, int64, int64, string) error { return nil }
 
@@ -436,6 +440,66 @@ func TestPureOnebotGetGroupInfoSyncUsesGroupBanInfo(t *testing.T) {
 
 	if got := pa.GetGroupInfoSync(groupID); got == nil {
 		t.Fatalf("expected group info, got nil")
+	}
+	if len(em.quitGroupCalls) != 1 || em.quitGroupCalls[0] != 66666 {
+		t.Fatalf("expected banned group to be quit, got %v", em.quitGroupCalls)
+	}
+}
+
+func TestPureOnebotGetGroupInfoSyncDoesNotQuitForInviteRestrictions(t *testing.T) {
+	for _, tt := range []struct {
+		name         string
+		rank         BanRankType
+		refuseInvite bool
+		trustOnly    bool
+	}{
+		{name: "trusted group", rank: BanRankTrusted},
+		{name: "trusted group with refused invites", rank: BanRankTrusted, refuseInvite: true},
+		{name: "trusted group with both restrictions", rank: BanRankTrusted, refuseInvite: true, trustOnly: true},
+		{name: "normal group with refused invites", rank: BanRankNormal, refuseInvite: true},
+		{name: "warned group with refused invites", rank: BanRankWarn, refuseInvite: true},
+		{name: "normal group in trust-only mode", rank: BanRankNormal, trustOnly: true},
+		{name: "warned group in trust-only mode", rank: BanRankWarn, trustOnly: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			d, pa, em, cleanup := newPureOnebotTestAdapter(t)
+			defer cleanup()
+
+			d.Config.RefuseGroupInvite = tt.refuseInvite
+			d.Config.TrustOnlyMode = tt.trustOnly
+			const groupID = "QQ-Group:66666"
+			group := &GroupInfo{
+				GroupID:         groupID,
+				GroupName:       "group",
+				InviteUserID:    "QQ:55555",
+				EnteredTime:     123,
+				DiceIDExistsMap: new(SyncMap[string, bool]),
+			}
+			group.DiceIDExistsMap.Store(pa.EndPoint.UserID, true)
+			d.ImSession.ServiceAtNew.Store(groupID, group)
+			em.groupInfo = &emitterTypes.GroupInfo{
+				GroupId:        66666,
+				GroupName:      "group",
+				MemberCount:    10,
+				MaxMemberCount: 100,
+			}
+			d.Config.BanList.Map.Store(groupID, &BanListInfoItem{
+				ID:   groupID,
+				Rank: tt.rank,
+			})
+
+			if got := pa.GetGroupInfoSync(groupID); got == nil {
+				t.Fatal("expected group info, got nil")
+			}
+			if len(em.quitGroupCalls) != 0 {
+				t.Fatalf("invite restrictions must not cause blacklist quits, got %v", em.quitGroupCalls)
+			}
+			select {
+			case <-em.sendGrCh:
+				t.Fatal("expected no blacklist warning for a group that is not banned")
+			default:
+			}
+		})
 	}
 }
 

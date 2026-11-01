@@ -498,7 +498,8 @@ func (p *PlatformAdapterOnebot) GetGroupInfoSync(diceGroupID string) *GroupCache
 	}
 	// 这群有问题
 	groupResult := checkBlackList(diceGroupID, "group", uid, ctx)
-	if !groupResult.Passed {
+	// 邀请限制不代表群被拉黑，不能据此退出已经加入的群。
+	if groupResult.FailureType == "group_banned" {
 		// 如果是被ban之后拉群，判定为强制拉群
 		if groupResult.BanInfo != nil && groupInfo.EnteredTime > 0 && groupInfo.EnteredTime > groupResult.BanInfo.BanTime {
 			text := fmt.Sprintf("该群已被拉黑，即将自动退出，解封请联系骰主。打扰各位还请见谅。感谢使用海豹核心:\n当前情况: %s", groupResult.BanInfo.toText(ctx.Dice))
