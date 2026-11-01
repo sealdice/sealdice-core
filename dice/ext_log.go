@@ -992,6 +992,8 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if flag == "skip" {
 				return
 			}
+			// 官方 QQ 名片是仅用于展示的前缀，跑团日志里保留干净正文。
+			message := stripOfficialQQNameCard(officialQQNameCardLineOf(ctx), msg.Message)
 			privateCommandListenCheck()
 			if msg.MessageType == "private" && ctx.CommandHideFlag != "" {
 				if privateCommandListenHas(ctx.CommandID) {
@@ -1010,7 +1012,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
 						UniformID:   ctx.EndPoint.UserID,
 						Time:        time.Now().Unix(),
-						Message:     msg.Message,
+						Message:     message,
 						IsDice:      true,
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
@@ -1041,7 +1043,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 						IMUserID:    UserIDExtract(ctx.EndPoint.UserID),
 						UniformID:   ctx.EndPoint.UserID,
 						Time:        time.Now().Unix(),
-						Message:     msg.Message,
+						Message:     message,
 						IsDice:      true,
 						CommandID:   ctx.CommandID,
 						CommandInfo: ctx.CommandInfo,
@@ -1062,9 +1064,15 @@ func RegisterBuiltinExtLog(self *Dice) {
 					}
 					groupMsgInfoSet(msg.RawID)
 
+					// 官方 QQ 没有改名接口，平台昵称不会变成 .sn 名片，因此日志记录名片内容。
+					nickname := officialQQLogNickname(ctx, msg.Sender.Nickname)
+					if nickname == "" {
+						nickname = ctx.Player.Name
+					}
+
 					// <2022-02-15 09:54:14.0> [摸鱼king]: 有的 但我不知道
 					a := model.LogOneItem{
-						Nickname:  ctx.Player.Name,
+						Nickname:  nickname,
 						IMUserID:  UserIDExtract(ctx.Player.UserID),
 						UniformID: ctx.Player.UserID,
 						Time:      msg.Time,

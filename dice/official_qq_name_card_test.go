@@ -17,13 +17,27 @@ import (
 
 type nameCardSpyAdapter struct {
 	*mockPlatformAdapter
-	setCardCalls int
-	lastCard     string
+	setCardCalls    int
+	lastCard        string
+	sendCardLines   []string
+	sendMessageText []string
 }
 
 func (s *nameCardSpyAdapter) SetGroupCardName(_ *MsgContext, name string) {
 	s.setCardCalls++
 	s.lastCard = name
+}
+
+func (s *nameCardSpyAdapter) SendToGroup(ctx *MsgContext, groupID, text, flag string) {
+	s.sendCardLines = append(s.sendCardLines, officialQQNameCardLineOf(ctx))
+	s.sendMessageText = append(s.sendMessageText, text)
+	s.mockPlatformAdapter.SendToGroup(ctx, groupID, text, flag)
+}
+
+func (s *nameCardSpyAdapter) SendToPerson(ctx *MsgContext, userID, text, flag string) {
+	s.sendCardLines = append(s.sendCardLines, officialQQNameCardLineOf(ctx))
+	s.sendMessageText = append(s.sendMessageText, text)
+	s.mockPlatformAdapter.SendToPerson(ctx, userID, text, flag)
 }
 
 func newNameCardReplyTestContext() (*MsgContext, *nameCardSpyAdapter) {
