@@ -237,18 +237,17 @@ func TestBotByeWithExtraArgsShowsHelpAndDoesNotQuit(t *testing.T) {
 }
 
 func TestDismissAcceptsFourDigitConfirmationCode(t *testing.T) {
-	d, ep, adapter, cleanup := newExecuteNewTestDice(t)
+	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
-
-	d.Config.BotExitWithoutAt = true
-	ctx, msg := newQuitCommandTestContext(t, d, ep, "QQ:9004", "QQ-Group:2004", "DismissGroup")
+	ctx, msg, harness, closeHarness := newMilkyQuitCommandTestContext(t, d, "QQ:9004", testMilkyOwnerGroupID, "DismissGroup")
+	defer closeHarness()
 
 	first := d.CmdMap["dismiss"].Solve(ctx, msg, &CmdArgs{})
 	if !first.Matched || !first.Solved {
 		t.Fatalf("unexpected initial result: %#v", first)
 	}
-	if len(adapter.quitGroups) != 0 {
-		t.Fatalf("dismiss should not quit before confirmation, got %#v", adapter.quitGroups)
+	if got := harness.quitGroupSnapshot(); len(got) != 0 {
+		t.Fatalf("dismiss should not quit before confirmation, got %#v", got)
 	}
 
 	confirmKey := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, msg.GroupID)
@@ -262,8 +261,8 @@ func TestDismissAcceptsFourDigitConfirmationCode(t *testing.T) {
 		t.Fatalf("unexpected confirmed result: %#v", second)
 	}
 
-	if len(adapter.quitGroups) != 1 || adapter.quitGroups[0] != msg.GroupID {
-		t.Fatalf("expected dismiss confirmation to quit current group, got %#v", adapter.quitGroups)
+	if got := harness.quitGroupSnapshot(); len(got) != 1 || got[0] != testMilkyOwnerGroupQQID {
+		t.Fatalf("expected dismiss confirmation to quit current group, got %#v", got)
 	}
 }
 
@@ -414,7 +413,7 @@ func TestDismissMilkyOwnerRequiresConfirmationBeforeQuit(t *testing.T) {
 	}
 }
 
-func TestDismissMilkyLookupErrorFallsBackToSafetyConfirmation(t *testing.T) {
+func TestDismissMilkyLookupErrorNeverQuits(t *testing.T) {
 	d, _, _, cleanup := newExecuteNewTestDice(t)
 	defer cleanup()
 	d.ExtList = nil
@@ -456,17 +455,16 @@ func TestDismissMilkyLookupErrorFallsBackToSafetyConfirmation(t *testing.T) {
 	}
 
 	confirmKey := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, msg.GroupID)
-	confirmCode, ok := loadDismissConfirmCode(confirmKey)
-	if !ok {
-		t.Fatal("expected dismiss confirmation code to be stored on lookup error")
+	if _, ok := loadDismissConfirmCode(confirmKey); ok {
+		t.Fatal("a failed identity lookup must not issue an owner confirmation code")
 	}
 
-	second := d.CmdMap["dismiss"].Solve(ctx, msg, &CmdArgs{Args: []string{confirmCode}})
+	second := d.CmdMap["dismiss"].Solve(ctx, msg, &CmdArgs{Args: []string{"1234"}})
 	if !second.Matched || !second.Solved {
 		t.Fatalf("unexpected confirmed result: %#v", second)
 	}
-	if got := harness.quitGroupSnapshot(); len(got) != 1 || got[0] != testMilkyFallbackGroupQQID {
-		t.Fatalf("expected exactly one milky quit call for group 2020, got %#v", got)
+	if got := harness.quitGroupSnapshot(); len(got) != 0 {
+		t.Fatalf("a confirmation code must not bypass a failed identity lookup, got %#v", got)
 	}
 }
 
@@ -585,5 +583,27 @@ func TestShouldDismissRequireOwnerConfirmMilkyEmptyRole(t *testing.T) {
 	}
 	if !strings.Contains(detail, errGetGroupMemberInfoEmptyRole) {
 		t.Fatalf("expected empty-role detail, got %q", detail)
+	}
+}
+
+func TestMasterQuitGroupOwnerRequiresConfirmation(t *testing.T) {
+	d, _, _, cleanup := newExecuteNewTestDice(t)
+	defer cleanup()
+	ctx, msg, harness, closeHarness := newMilkyQuitCommandTestContext(t, d, "QQ:9030", testMilkyOwnerGroupID, "MasterQuitGroup")
+	defer closeHarness()
+	args := &CmdArgs{Args: []string{"quitgroup", msg.GroupID}}
+	d.CmdMap["master"].Solve(ctx, msg, args)
+	if got := harness.quitGroupSnapshot(); len(got) != 0 || !ctx.Group.DiceIDExistsMap.Exists(ctx.EndPoint.UserID) {
+		t.Fatalf("master quitgroup must await confirmation without changing membership: %v", got)
+	}
+	key := getDismissConfirmKeyForGroup(ctx, msg.Sender.UserID, msg.GroupID)
+	code, ok := loadDismissConfirmCode(key)
+	if !ok {
+		t.Fatal("master quitgroup must issue an owner confirmation")
+	}
+	args.Kwargs = []*Kwarg{{Name: "confirm", Value: code}}
+	d.CmdMap["master"].Solve(ctx.ShallowCopy(), msg, args)
+	if got := harness.quitGroupSnapshot(); len(got) != 1 || got[0] != testMilkyOwnerGroupQQID {
+		t.Fatalf("expected one explicitly confirmed master quit: %v", got)
 	}
 }

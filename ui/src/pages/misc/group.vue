@@ -189,7 +189,14 @@
       </n-flex>
     </n-modal>
 
-    <n-modal v-model:show="quitDialogVisible" preset="card" title="退群确认" class="group-dialog">
+    <n-modal
+      v-model:show="quitDialogVisible"
+      preset="card"
+      :title="quitConfirmations.length ? '群主退群二次确认' : '退群确认'"
+      :mask-closable="!quitSubmitting"
+      :closable="!quitSubmitting"
+      class="group-dialog"
+    >
       <n-flex vertical>
         <TipBox type="warning">
           <template v-if="quitAction?.mode === 'single'">
@@ -206,6 +213,18 @@
             </n-scrollbar>
           </template>
         </TipBox>
+        <TipBox v-if="quitConfirmations.length" type="error">
+          以下账号是对应群组的群主，继续退出将直接解散群聊：
+          <ul>
+            <li v-for="confirmation in quitConfirmations" :key="confirmation.groupId">
+              {{ formatGroupQuitTarget(confirmation) }}
+            </li>
+          </ul>
+          请确认群号和账号后，再次确认是否解散。
+        </TipBox>
+        <n-checkbox v-if="quitConfirmations.length" v-model:checked="ownerQuitAcknowledged">
+          我已知晓，继续操作将解散上述群聊
+        </n-checkbox>
         <n-checkbox v-model:checked="quitForm.silence">静默退出</n-checkbox>
         <n-checkbox v-model:checked="quitForm.saveAsDefault">保存为默认留言</n-checkbox>
         <n-input
@@ -216,14 +235,14 @@
           placeholder="附加留言；若静默退出则不会发送"
         />
         <n-flex justify="end">
-          <n-button @click="quitDialogVisible = false">取消</n-button>
+          <n-button :disabled="quitSubmitting" @click="quitDialogVisible = false">取消</n-button>
           <n-button
             type="error"
             :loading="quitSubmitting"
-            :disabled="quitSubmitting"
+            :disabled="quitSubmitting || (!!quitConfirmations.length && !ownerQuitAcknowledged)"
             @click="submitQuit"
           >
-            确认退群
+            {{ quitConfirmations.length ? '确认解散并退出' : '确认退群' }}
           </n-button>
         </n-flex>
       </n-flex>
@@ -246,6 +265,7 @@ import {
   postSdApiV2GroupModify,
   postSdApiV2GroupQuit,
   type GroupInfo,
+  type GroupQuitConfirmation,
 } from '@/api';
 import FoldableCard from '@/components/shared/FoldableCard.vue';
 import PageHeader from '@/components/shared/PageHeader.vue';
@@ -316,6 +336,8 @@ const notifySubmitting = ref(false);
 const quitDialogVisible = ref(false);
 const quitAction = ref<QuitAction | null>(null);
 const quitSubmitting = ref(false);
+const quitConfirmations = ref<GroupQuitConfirmation[]>([]);
+const ownerQuitAcknowledged = ref(false);
 const quitForm = reactive({
   silence: false,
   extraText: readGroupQuitDefaultText(),
@@ -523,6 +545,9 @@ async function saveGroup(group: GroupRow) {
 }
 
 function openSingleQuit(group: GroupRow, diceId: string) {
+  if (quitSubmitting.value) return;
+  quitConfirmations.value = [];
+  ownerQuitAcknowledged.value = false;
   quitAction.value = {
     mode: 'single',
     target: {
@@ -535,10 +560,13 @@ function openSingleQuit(group: GroupRow, diceId: string) {
 }
 
 function openBatchQuit() {
+  if (quitSubmitting.value) return;
   if (!selectedGroupIDs.value.length) {
     message.warning('请先选择群组');
     return;
   }
+  quitConfirmations.value = [];
+  ownerQuitAcknowledged.value = false;
   quitAction.value = {
     mode: 'batch',
     targets: selectedGroups.value.map(group => ({
@@ -551,6 +579,7 @@ function openBatchQuit() {
 
 async function submitQuit() {
   if (!quitAction.value || quitSubmitting.value) return;
+  if (quitConfirmations.value.length && !ownerQuitAcknowledged.value) return;
   quitSubmitting.value = true;
 
   try {
@@ -561,10 +590,18 @@ async function submitQuit() {
           diceId: quitAction.value.target.diceId ?? '',
           silence: quitForm.silence,
           extraText: quitForm.extraText,
+          confirmCode: quitConfirmations.value[0]?.confirmCode,
         },
         throwOnError: true,
       });
+      if (data.confirmCode) {
+        quitConfirmations.value = [data];
+        ownerQuitAcknowledged.value = false;
+        return;
+      }
       if (data.message !== 'ok') {
+        quitConfirmations.value = [];
+        ownerQuitAcknowledged.value = false;
         message.error(data.message || '退群失败');
         return;
       }
@@ -576,12 +613,24 @@ async function submitQuit() {
           groupIds: quitAction.value.targets.map(target => target.groupId),
           silence: quitForm.silence,
           extraText: quitForm.extraText,
+          confirmCodes: Object.fromEntries(
+            quitConfirmations.value.map(confirmation => [
+              confirmation.groupId,
+              confirmation.confirmCode ?? '',
+            ])
+          ),
         },
         throwOnError: true,
       });
+      if (data.confirmations?.length) {
+        quitConfirmations.value = data.confirmations;
+        ownerQuitAcknowledged.value = false;
+        return;
+      }
       if (data.item < selectedCount) {
         message.warning(
-          `批量退群完成，成功 ${data.item} 个，${selectedCount - data.item} 个未处理`
+          `批量退群完成，成功 ${data.item} 个，${selectedCount - data.item} 个未处理` +
+            (data.skipped?.length ? '。身份检查未通过的群组已跳过。' : '')
         );
       } else {
         message.success(`批量退群完成，共处理 ${data.item} 个群组`);
