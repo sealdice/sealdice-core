@@ -1,6 +1,6 @@
 import { normalizeBaseSettingSchema, type BaseSettingFieldSchema } from './viewModel';
 
-const officialQQNameCardDefaultTemplate = '<font color="#FF0000" size="1">{card}</font>';
+const officialQQNameCardDefaultTemplate = '<font color="#FF0000" size="1">{card}</font>\n\n';
 
 function field(
   id: string,
@@ -403,13 +403,14 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
               'officialqq-name-card-template',
               'officialQQUseNameCardTemplate',
               '名片渲染模板',
-              'text',
+              'textarea',
               ['官方QQ', '名片', '模板', 'font', 'Markdown'],
               {
                 placeholder: officialQQNameCardDefaultTemplate,
-                hint: '使用 {card} 代表名片内容。留空或缺少 {card} 时使用默认样式；预览显示 <font> 标签的颜色和字号。',
+                hint: '使用 {card} 代表名片内容，支持多行；可用空行或 \\n\\n 控制名片与正文的间隔。留空或缺少 {card} 时使用默认样式，预览包含正文示例。',
                 maxLength: 500,
                 previewSample: '木落 HP10/10',
+                previewBody: 'D100=50 成功',
                 previewFallback: officialQQNameCardDefaultTemplate,
               }
             ),

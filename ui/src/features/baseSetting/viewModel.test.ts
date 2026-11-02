@@ -67,6 +67,9 @@ it('设置字段按类型派生布局与提示', () => {
     getBaseSettingFieldLayout({ kind: 'text' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
   ).toBe('auto');
   expect(
+    getBaseSettingFieldLayout({ kind: 'textarea' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
+  ).toBe('stacked');
+  expect(
     getBaseSettingFieldLayout({ kind: 'string-list' } satisfies Pick<
       BaseSettingFieldSchema,
       'kind'

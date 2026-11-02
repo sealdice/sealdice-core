@@ -29,6 +29,7 @@ export type BaseSettingFieldSchema = {
   };
   disabledHint?: string;
   previewSample?: string;
+  previewBody?: string;
   previewFallback?: string;
 };
 export type BaseSettingGroupSchema = {
@@ -192,9 +193,14 @@ export function getBaseSettingFieldLayout(
   field: Pick<BaseSettingFieldModel, 'kind'>
 ): BaseSettingFieldLayout {
   if (
-    ['ext-default-settings', 'string-list', 'notice-targets', 'upload', 'master-list'].includes(
-      field.kind
-    )
+    [
+      'ext-default-settings',
+      'string-list',
+      'notice-targets',
+      'upload',
+      'master-list',
+      'textarea',
+    ].includes(field.kind)
   )
     return 'stacked';
   if (['boolean', 'action', 'unlock-code'].includes(field.kind)) return 'inline';

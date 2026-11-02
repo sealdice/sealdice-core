@@ -162,7 +162,7 @@ func TestBuildOfficialQQNameCardLine(t *testing.T) {
 	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
 
 	line := buildOfficialQQNameCardLine(ctx)
-	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n"
+	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n\n"
 	if line != want {
 		t.Fatalf("line = %q, want %q", line, want)
 	}
@@ -174,7 +174,19 @@ func TestBuildOfficialQQNameCardLineUsesConfiguredTemplate(t *testing.T) {
 	ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>"
 
 	line := buildOfficialQQNameCardLine(ctx)
-	const want = "<b>茶叶 HP10/10</b>\n"
+	const want = "<b>茶叶 HP10/10</b>"
+	if line != want {
+		t.Fatalf("line = %q, want %q", line, want)
+	}
+}
+
+func TestBuildOfficialQQNameCardLineUpgradesLegacyDefaultTemplate(t *testing.T) {
+	ctx, _ := newNameCardTestContext(t)
+	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
+	ctx.Dice.Config.OfficialQQNameCardTmpl = legacyOfficialQQNameCardTemplate
+
+	line := buildOfficialQQNameCardLine(ctx)
+	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n\n"
 	if line != want {
 		t.Fatalf("line = %q, want %q", line, want)
 	}
@@ -186,7 +198,7 @@ func TestBuildOfficialQQNameCardLineFallsBackWhenTemplateIsEmpty(t *testing.T) {
 	ctx.Dice.Config.OfficialQQNameCardTmpl = ""
 
 	line := buildOfficialQQNameCardLine(ctx)
-	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n"
+	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n\n"
 	if line != want {
 		t.Fatalf("line = %q, want %q", line, want)
 	}
@@ -198,19 +210,31 @@ func TestBuildOfficialQQNameCardLineFallsBackWhenPlaceholderMissing(t *testing.T
 	ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>没有占位符</b>"
 
 	line := buildOfficialQQNameCardLine(ctx)
-	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n"
+	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n\n"
 	if line != want {
 		t.Fatalf("line = %q, want %q", line, want)
 	}
 }
 
-func TestBuildOfficialQQNameCardLineDoesNotDuplicateTrailingNewline(t *testing.T) {
+func TestBuildOfficialQQNameCardLinePreservesConfiguredTrailingNewline(t *testing.T) {
 	ctx, _ := newNameCardTestContext(t)
 	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
 	ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>\n"
 
 	line := buildOfficialQQNameCardLine(ctx)
 	const want = "<b>茶叶 HP10/10</b>\n"
+	if line != want {
+		t.Fatalf("line = %q, want %q", line, want)
+	}
+}
+
+func TestBuildOfficialQQNameCardLineUnescapesConfiguredNewlines(t *testing.T) {
+	ctx, _ := newNameCardTestContext(t)
+	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
+	ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>\\n\\n"
+
+	line := buildOfficialQQNameCardLine(ctx)
+	const want = "<b>茶叶 HP10/10</b>\n\n"
 	if line != want {
 		t.Fatalf("line = %q, want %q", line, want)
 	}
@@ -260,7 +284,7 @@ func TestBuildOfficialQQNameCardLineEscapesMarkup(t *testing.T) {
 	ctx.Player.AutoSetNameTemplate = "A<B>&C"
 
 	line := buildOfficialQQNameCardLine(ctx)
-	const want = "<font color=\"#FF0000\" size=\"1\">A&lt;B&gt;&amp;C</font>\n"
+	const want = "<font color=\"#FF0000\" size=\"1\">A&lt;B&gt;&amp;C</font>\n\n"
 	if line != want {
 		t.Fatalf("line = %q, want %q", line, want)
 	}
@@ -271,7 +295,7 @@ func TestWithOfficialQQNameCardPrependsOnce(t *testing.T) {
 	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
 
 	text := withOfficialQQNameCard(ctx, "D100=50")
-	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\nD100=50"
+	const want = "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n\nD100=50"
 	if text != want {
 		t.Fatalf("text = %q, want %q", text, want)
 	}
@@ -292,11 +316,11 @@ func TestReplyGroupAndPersonIncludeNameCard(t *testing.T) {
 	ReplyGroup(ctx, msg, "D100=50")
 	ReplyPerson(ctx, msg, "D100=60")
 
-	wantGroup := "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\nD100=50"
+	wantGroup := "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n\nD100=50"
 	if len(spy.groupMsgs) != 1 || spy.groupMsgs[0] != wantGroup {
 		t.Fatalf("group messages = %#v, want [%q]", spy.groupMsgs, wantGroup)
 	}
-	wantPerson := "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\nD100=60"
+	wantPerson := "<font color=\"#FF0000\" size=\"1\">茶叶 HP10/10</font>\n\nD100=60"
 	if len(spy.personMsgs) != 1 || spy.personMsgs[0] != wantPerson {
 		t.Fatalf("person messages = %#v, want [%q]", spy.personMsgs, wantPerson)
 	}
@@ -329,8 +353,8 @@ func TestReplyToSenderEvaluatesNameCardBeforeReturning(t *testing.T) {
 		wantMessage string
 		panicOnEval bool
 	}{
-		{"checked", ReplyToSender, "<b>HP10</b>\ndelegate:alias:reply", false},
-		{"unchecked", ReplyToSenderNoCheck, "delegate:alias:<b>HP10</b>\nreply", false},
+		{"checked", ReplyToSender, "<b>HP10</b>\n\ndelegate:alias:reply", false},
+		{"unchecked", ReplyToSenderNoCheck, "delegate:alias:<b>HP10</b>\n\nreply", false},
 		{"checked_panic", ReplyToSender, "delegate:alias:reply", true},
 		{"unchecked_panic", ReplyToSenderNoCheck, "delegate:alias:reply", true},
 	} {
@@ -339,7 +363,7 @@ func TestReplyToSenderEvaluatesNameCardBeforeReturning(t *testing.T) {
 				ctx, spy := newNameCardReplyTestContext()
 				ctx.MessageType = messageType
 				ctx.Player.AutoSetNameTemplate = "HP{reviewValue}"
-				ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>"
+				ctx.Dice.Config.OfficialQQNameCardTmpl = "<b>{card}</b>\n\n"
 				ctx.AliasPrefixText = "alias:"
 				ctx.DelegateText = "delegate:"
 				ctx.CreateVmIfNotExists()

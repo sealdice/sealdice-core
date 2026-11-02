@@ -8,11 +8,30 @@ import (
 
 const (
 	// DefaultOfficialQQNameCardTemplate 是官方 QQ 回复名片的默认渲染模板。
-	DefaultOfficialQQNameCardTemplate = `<font color="#FF0000" size="1">{card}</font>`
+	// 末尾空行用于把名片与正文分开，避免 Markdown 引用等块级语法吞掉正文。
+	DefaultOfficialQQNameCardTemplate = `<font color="#FF0000" size="1">{card}</font>` + "\n\n"
 	// MaxOfficialQQNameCardTemplateRunes 限制用户自定义模板的长度。
 	MaxOfficialQQNameCardTemplateRunes = 500
 	officialQQNameCardMaxRunes         = 120
+	// legacyOfficialQQNameCardTemplate 是 1853 初始版本没有末尾换行的默认模板。
+	legacyOfficialQQNameCardTemplate = `<font color="#FF0000" size="1">{card}</font>`
 )
+
+// NormalizeOfficialQQNameCardTemplate 只清理首尾空格和制表符，保留换行，
+// 以便用户通过模板末尾的换行控制名片与正文的间隔。
+func NormalizeOfficialQQNameCardTemplate(text string) string {
+	text = strings.Trim(text, " \t")
+	if strings.TrimSpace(text) == "" {
+		return ""
+	}
+	return text
+}
+
+func unescapeOfficialQQNameCardTemplate(text string) string {
+	text = strings.ReplaceAll(text, `\r\n`, "\n")
+	text = strings.ReplaceAll(text, `\n`, "\n")
+	return text
+}
 
 func isOfficialQQEndpoint(ep *EndPointInfo) bool {
 	return ep != nil && ep.Platform == "QQ" && ep.ProtocolType == "official"
@@ -104,16 +123,16 @@ func buildOfficialQQNameCardLine(ctx *MsgContext) string {
 		return ""
 	}
 
-	renderTemplate := strings.TrimSpace(ctx.Dice.Config.OfficialQQNameCardTmpl)
+	renderTemplate := NormalizeOfficialQQNameCardTemplate(ctx.Dice.Config.OfficialQQNameCardTmpl)
+	if renderTemplate == legacyOfficialQQNameCardTemplate {
+		renderTemplate = DefaultOfficialQQNameCardTemplate
+	}
 	if renderTemplate == "" || !strings.Contains(renderTemplate, "{card}") ||
 		utf8.RuneCountInString(renderTemplate) > MaxOfficialQQNameCardTemplateRunes {
 		renderTemplate = DefaultOfficialQQNameCardTemplate
 	}
-	line := strings.ReplaceAll(renderTemplate, "{card}", html.EscapeString(truncateRunes(card, officialQQNameCardMaxRunes)))
-	if !strings.HasSuffix(line, "\n") {
-		line += "\n"
-	}
-	return line
+	renderTemplate = unescapeOfficialQQNameCardTemplate(renderTemplate)
+	return strings.ReplaceAll(renderTemplate, "{card}", html.EscapeString(truncateRunes(card, officialQQNameCardMaxRunes)))
 }
 
 // withOfficialQQNameCard 在官方 QQ 的回复顶部插入当前玩家的 .sn 名片。

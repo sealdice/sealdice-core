@@ -31,6 +31,18 @@ func TestOfficialQQLogNicknameOnlyForOfficialQQ(t *testing.T) {
 	}
 }
 
+func TestOfficialQQNameCardQuoteTemplateUsesConfiguredNewlines(t *testing.T) {
+	ctx, _ := newNameCardTestContext(t)
+	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
+	ctx.Dice.Config.OfficialQQNameCardTmpl = "> {card}\\n\\n"
+
+	text := withOfficialQQNameCard(ctx, "D100=50")
+	const want = "> 茶叶 HP10/10\n\nD100=50"
+	if text != want {
+		t.Fatalf("text = %q, want %q", text, want)
+	}
+}
+
 func TestReplyCarriesDisplayOnlyNameCardContext(t *testing.T) {
 	ctx, spy := newNameCardTestContext(t)
 	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
