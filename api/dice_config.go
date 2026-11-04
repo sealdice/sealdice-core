@@ -472,7 +472,7 @@ func DiceConfigSet(c echo.Context) error {
 	}
 	if val, ok := jsonMap["officialQQUseNameCardTemplate"]; ok {
 		if text, ok := val.(string); ok {
-			text = strings.TrimSpace(text)
+			text = dice.NormalizeOfficialQQNameCardTemplate(text)
 			if utf8.RuneCountInString(text) > dice.MaxOfficialQQNameCardTemplateRunes {
 				return c.JSON(http.StatusBadRequest, Response{
 					"result": false,

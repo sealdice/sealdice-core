@@ -172,6 +172,23 @@ func TestSetValueAcceptsOfficialQQAndTrayTooltipPatch(t *testing.T) {
 	}
 }
 
+func TestOfficialQQNameCardTemplatePreservesNewlines(t *testing.T) {
+	svc, d := newTestBaseSettingService(t)
+	const template = "> {card}\n\n"
+
+	if _, err := svc.SetValue(t.Context(), &BaseSettingUpdateReq{
+		Body: BaseSettingPatch{
+			OfficialQQUseMarkdown:  ptr(true),
+			OfficialQQNameCardTmpl: ptr(template),
+		},
+	}); err != nil {
+		t.Fatalf("SetValue returned error: %v", err)
+	}
+	if d.Config.OfficialQQNameCardTmpl != template {
+		t.Fatalf("template = %q, want %q", d.Config.OfficialQQNameCardTmpl, template)
+	}
+}
+
 func TestOfficialQQNameCardRequiresMarkdown(t *testing.T) {
 	t.Run("rejects explicit enable without markdown", func(t *testing.T) {
 		svc, d := newTestBaseSettingService(t)
