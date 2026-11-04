@@ -125,8 +125,8 @@ github.com/evanw/esbuild v0.27.1/go.mod h1:D2vIQZqV/vIf/VRHtViaUtViZmG7o+kKmlBfV
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6 h1:bOi4XAJ2MQ1HWl9Mqc6KMTs/t07t0kMnm9ci3zddryQ=
 github.com/fy0/GoWebsocket v0.0.0-20231128163937-aa5c110b25c6/go.mod h1:h00QywbM5Le22ESUiI8Yz2/9TVGD8eAz/cAk55Kcz/E=
-github.com/fy0/bluge v0.8.0 h1:VAXL5AGfIpgvDlTeyCtB/F/jxvFPE031hf0BWG5weUg=
-github.com/fy0/bluge v0.8.0/go.mod h1:lL/hFKMEzwcyCMwOGFECc7C3DXdA6YBARW/ki+lUrIw=
+github.com/fy0/bluge v0.8.1 h1:QsoaIJG3V5KyAi70hScQzWa1NZMvXw4b9AF2V2OO1/o=
+github.com/fy0/bluge v0.8.1/go.mod h1:lL/hFKMEzwcyCMwOGFECc7C3DXdA6YBARW/ki+lUrIw=
 github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b h1:oYFzJ7T4EtnnFABiwxxfaKaiSpcqnzIKtEO5u9c3hjY=
 github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b/go.mod h1:aj2gFh4bN+TVFjaA7Rawb3FHPL9YWNipWWf2rq1+79o=
 github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd h1:ZVKtGnfRxmpTTG88wgEl1I6MafxwweizlKBj5GB9iDQ=
