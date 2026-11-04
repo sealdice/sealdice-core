@@ -65,9 +65,9 @@ func officialQQLogNickname(ctx *MsgContext, qqNickname string) string {
 	if !isOfficialQQEndpoint(ctx.EndPoint) || strings.TrimSpace(ctx.Player.AutoSetNameTemplate) == "" {
 		return ""
 	}
-	// 日志钩子早于命令执行，使用独立 VM 求值，避免影响后续指令的 VM 状态。
-	logCtx := ctx.ShallowCopy()
-	logCtx.vm = nil
+	// 日志钩子早于命令执行：使用独立 VM 与独立随机源求值，
+	// 避免 .sn 模板中的骰点表达式推进共享随机源、改变后续指令的出目。
+	logCtx := ctx.ShallowCopyWithIsolatedRandomSource()
 	SetTempVars(logCtx, qqNickname)
 	card, err := evalOfficialQQNameCardText(logCtx)
 	if err != nil {

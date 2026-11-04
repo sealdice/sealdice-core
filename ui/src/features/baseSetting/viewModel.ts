@@ -214,6 +214,18 @@ export function getBaseSettingFieldFeedback(field: Pick<BaseSettingFieldModel, '
   return field.hint || '';
 }
 
+// 与后端 dice.NormalizeOfficialQQNameCardTemplate 保持一致：
+// 只清理首尾空格和制表符，保留换行（含末尾空行），纯空白视为未配置。
+export function normalizeNameCardTemplate(text: string): string {
+  const trimmed = text.replace(/^[ \t]+|[ \t]+$/g, '');
+  return trimmed.trim() === '' ? '' : trimmed;
+}
+
+// 与后端一致：模板支持字面量 \r\n / \n 换行写法，渲染时展开为真实换行。
+export function unescapeNameCardTemplate(text: string): string {
+  return text.replace(/\\r\\n|\\n/g, '\n');
+}
+
 export function buildBaseSettingStringListOptions(values: string[]) {
   const seen = new Set<string>();
   return values.reduce<Array<{ label: string; value: string }>>((options, value) => {

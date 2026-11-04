@@ -16,14 +16,36 @@ import {
   normalizeBaseSettingSchema,
   normalizeBaseSettingValue,
   normalizeMasterListValues,
+  normalizeNameCardTemplate,
   normalizeStringListValues,
   searchBaseSettingFields,
   searchExtDefaultSettingsView,
   sortExtDefaultSettingsView,
+  unescapeNameCardTemplate,
 } from './viewModel.js';
 import type { BaseSettingExtDefaultSettingItem, BaseSettingValueResp } from '@/api';
 import type { BaseSettingFieldSchema, BaseSettingSchema } from './viewModel';
 import { expect, it } from 'vitest';
+
+it('名片模板归一化保留末尾换行，仅清理首尾空格与制表符', () => {
+  const legacy = '<font color="#FF0000" size="1">{card}</font>';
+  expect(normalizeNameCardTemplate(legacy)).toBe(legacy);
+  // 旧默认模板 + 换行在运行时不会升级，预览也不应视为旧默认
+  expect(normalizeNameCardTemplate(`${legacy}\n`)).toBe(`${legacy}\n`);
+  expect(normalizeNameCardTemplate(`${legacy}\n\n`)).toBe(`${legacy}\n\n`);
+  expect(normalizeNameCardTemplate(`  ${legacy}  `)).toBe(legacy);
+  expect(normalizeNameCardTemplate('\t{card}\t')).toBe('{card}');
+  expect(normalizeNameCardTemplate('   ')).toBe('');
+  expect(normalizeNameCardTemplate('\n\n')).toBe('');
+  expect(normalizeNameCardTemplate('')).toBe('');
+});
+
+it('名片模板展开字面量换行转义', () => {
+  expect(unescapeNameCardTemplate('{card}\\n\\n')).toBe('{card}\n\n');
+  expect(unescapeNameCardTemplate('{card}\\r\\n')).toBe('{card}\n');
+  // 已经是真实换行的内容不受影响
+  expect(unescapeNameCardTemplate('{card}\n')).toBe('{card}\n');
+});
 
 it('规范化设置描述并按字段与分类搜索', () => {
   const schema = normalizeBaseSettingSchema({

@@ -1,6 +1,9 @@
 import { normalizeBaseSettingSchema, type BaseSettingFieldSchema } from './viewModel';
 
-const officialQQNameCardDefaultTemplate = '<font color="#FF0000" size="1">{card}</font>\n\n';
+// 与后端 dice.DefaultOfficialQQNameCardTemplate / legacyOfficialQQNameCardTemplate 保持一致。
+export const officialQQNameCardDefaultTemplate = '<font color="#FF0000" size="1">{card}</font>\n\n';
+export const officialQQNameCardLegacyDefaultTemplate =
+  '<font color="#FF0000" size="1">{card}</font>';
 
 function field(
   id: string,

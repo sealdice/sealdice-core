@@ -31,6 +31,24 @@ func TestOfficialQQLogNicknameOnlyForOfficialQQ(t *testing.T) {
 	}
 }
 
+func TestOfficialQQLogNicknameDoesNotAdvanceSharedRandomSource(t *testing.T) {
+	ctx, _ := newNameCardTestContext(t)
+	ctx.Player.AutoSetNameTemplate = "{$t玩家_RAW} 检定{1d100}"
+
+	control := newPCGDiceSource(42)
+	ctx.diceRandSrc = newPCGDiceSource(42)
+	ctx._v1Rand = ctx.diceRandSrc
+
+	nickname := officialQQLogNickname(ctx, "原始昵称")
+	if !strings.Contains(nickname, "检定") {
+		t.Fatalf("officialQQLogNickname = %q, want template result containing 检定", nickname)
+	}
+
+	if got, want := ctx.diceRandSrc.Uint64(), control.Uint64(); got != want {
+		t.Fatalf("shared random source advanced by log nickname evaluation: got %d, want %d", got, want)
+	}
+}
+
 func TestOfficialQQNameCardQuoteTemplateUsesConfiguredNewlines(t *testing.T) {
 	ctx, _ := newNameCardTestContext(t)
 	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"

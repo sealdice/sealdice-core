@@ -159,9 +159,12 @@ import type {
   BaseSettingValueModel,
 } from '@/features/baseSetting/viewModel';
 import SettingRow from '@/components/settings-panel/SettingRow.vue';
+import { officialQQNameCardLegacyDefaultTemplate } from '@/features/baseSetting/schema';
 import {
   getBaseSettingFieldFeedback,
   getBaseSettingFieldLayout,
+  normalizeNameCardTemplate,
+  unescapeNameCardTemplate,
 } from '@/features/baseSetting/viewModel';
 import BaseSettingExtDefaultsField from './BaseSettingExtDefaultsField.vue';
 import BaseSettingMasterListField from './BaseSettingMasterListField.vue';
@@ -203,19 +206,19 @@ const fieldFeedback = computed(() =>
 );
 const previewMarkdown = new MarkdownIt({ html: true, breaks: false, linkify: false });
 
-function unescapeTemplateNewlines(text: string) {
-  return text.replace(/\\r\\n|\\n/g, '\n');
-}
-
 const previewHtml = computed(() => {
   if (!props.field.previewSample) return '';
-  const raw = String(fieldValue.value ?? '');
-  const fallback = props.field.previewFallback ?? '';
-  const legacyDefault = '<font color="#FF0000" size="1">{card}</font>';
-  let template = unescapeTemplateNewlines(raw);
-  if (!template.trim() || !template.includes('{card}') || template.trim() === legacyDefault) {
-    template = unescapeTemplateNewlines(fallback);
+  // 与运行时相同的顺序：先按后端规则归一化，再判断升级/回退，最后才展开 \n 转义。
+  const fallback = normalizeNameCardTemplate(props.field.previewFallback ?? '');
+  let template = normalizeNameCardTemplate(String(fieldValue.value ?? ''));
+  if (
+    template === officialQQNameCardLegacyDefaultTemplate ||
+    template === '' ||
+    !template.includes('{card}')
+  ) {
+    template = fallback;
   }
+  template = unescapeNameCardTemplate(template);
   const content =
     template.split('{card}').join(props.field.previewSample) + (props.field.previewBody ?? '');
   // 包一层 div 再净化：DOMPurify 在部分 DOM 实现下会丢弃根元素。

@@ -100,6 +100,31 @@ it('名片渲染模板使用多行输入并渲染 Markdown 预览', () => {
   expect(value.html()).toContain('<font color="#FF0000" size="1">木落 HP10/10</font>');
 });
 
+it('旧默认模板仅精确匹配时升级，带换行按原样预览', () => {
+  const render = (value: string) =>
+    renderField(
+      {
+        kind: 'textarea',
+        key: 'officialQQUseNameCardTemplate',
+        previewSample: '木落 HP10/10',
+        previewBody: 'D100=50 成功',
+        previewFallback: '<font color="#FF0000" size="1">{card}</font>\n\n',
+      },
+      { officialQQUseNameCardTemplate: value }
+    ).find('.name-card-template-preview-value');
+
+  // 精确等于旧默认模板：升级为带空行的新默认，名片与正文分成两段
+  const upgraded = render('<font color="#FF0000" size="1">{card}</font>');
+  expect(upgraded.findAll('p').length).toBe(2);
+
+  // 旧默认模板 + 换行：运行时不升级，预览同样按单个换行渲染（同一段落内软换行）
+  const asIs = render('<font color="#FF0000" size="1">{card}</font>\n');
+  const paragraphs = asIs.findAll('p');
+  expect(paragraphs.length).toBe(1);
+  expect(paragraphs[0]!.text()).toContain('木落 HP10/10');
+  expect(paragraphs[0]!.text()).toContain('D100=50 成功');
+});
+
 it('名片模板里的引用只包裹名片，不吞掉正文', () => {
   const field = renderField(
     {
