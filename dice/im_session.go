@@ -292,18 +292,17 @@ type groupInfoJSON struct {
 	ActivatedExtList []*ExtInfo `json:"activatedExtList"`
 }
 
-// groupInfoDecodeJSON 仅用于反序列化：activatedExtList 为私有字段，解码时自动跳过该键，
-// 由 GroupInfo.UnmarshalJSON 单独轻量解析，避免为每个群分配完整 ExtInfo 占位对象。
+// groupInfoDecodeJSON 在同一次解码中读取群信息和扩展名，避免构造完整 ExtInfo 占位对象。
 type groupInfoDecodeJSON struct {
 	*groupInfoAlias
-}
-
-// extNameRefsJSON activatedExtList 的轻量解码结构，仅取出扩展名
-type extNameRefsJSON struct {
 	ActivatedExtList []struct {
 		Name string `json:"name"`
 	} `json:"activatedExtList"`
 }
+
+// The default Sonic decoder aliases strings into the entire input. Copy only
+// the fields we keep so group names do not retain serialized extension metadata.
+var groupInfoJSONDecoder = sonic.Config{CopyString: true}.Froze()
 
 // MarshalJSON 自定义序列化，处理私有字段 activatedExtList
 // 已删除 wrapper（IsDeleted=true）的名字同样保留：群开启状态不因插件删除而丢失
@@ -327,16 +326,13 @@ func (g *GroupInfo) MarshalJSON() ([]byte, error) {
 // 扩展名通过 extJSONResolver 直接解析为全局共享的 *ExtInfo 指针（见 loadGroups），
 // 未注册的扩展保留名字占位，由 GetActivatedExtList 决定去留
 func (g *GroupInfo) UnmarshalJSON(data []byte) error {
-	if err := sonic.Unmarshal(data, &groupInfoDecodeJSON{groupInfoAlias: (*groupInfoAlias)(g)}); err != nil {
-		return err
-	}
-	var refs extNameRefsJSON
-	if err := sonic.Unmarshal(data, &refs); err != nil {
+	decoded := groupInfoDecodeJSON{groupInfoAlias: (*groupInfoAlias)(g)}
+	if err := groupInfoJSONDecoder.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
 
 	var list []*ExtInfo
-	for _, ref := range refs.ActivatedExtList {
+	for _, ref := range decoded.ActivatedExtList {
 		if ref.Name == "" {
 			continue
 		}
