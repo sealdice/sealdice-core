@@ -92,7 +92,7 @@
     "eslint": "^9.31.0",
     "eslint-plugin-oxlint": "~1.8.0",
     "eslint-plugin-vue": "~10.3.0",
-    "happy-dom": "21.0.1",
+    "happy-dom": "21.0.4",
     "jiti": "^2.4.2",
     "oxlint": "~1.8.0",
     "postcss": "^8.5.6",
