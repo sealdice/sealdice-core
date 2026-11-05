@@ -115,6 +115,7 @@ func collectChainedNames(logger *zap.SugaredLogger, graph *SyncMap[string, []str
 // RegisterBuiltinExt 注册所有内置扩展。
 func (d *Dice) RegisterBuiltinExt() {
 	RegisterBuiltinExtCoc7(d)
+	RegisterBuiltinExtCoc7R(d)
 	RegisterBuiltinExtLog(d)
 	RegisterBuiltinExtFun(d)
 	RegisterBuiltinExtDeck(d)
@@ -128,7 +129,7 @@ func (d *Dice) RegisterBuiltinExt() {
 }
 
 func (d *Dice) RegisterBuiltinSystemTemplate() {
-	for _, asset := range []string{"coc7.yaml", "dnd5e.yaml"} {
+	for _, asset := range []string{"coc7.yaml", "coc7r.yaml", "dnd5e.yaml"} {
 		tmpl, err := loadBuiltinTemplate(asset)
 		if err != nil {
 			if d.Logger != nil {
