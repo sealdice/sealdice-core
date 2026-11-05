@@ -271,38 +271,12 @@ func getLogInfoByID(db *gorm.DB, logID uint64) (*model.LogInfo, error) {
 	return &logInfo, nil
 }
 
-func getLogInfoByRawMsgID(db *gorm.DB, groupID string, rawID interface{}) (*model.LogInfo, error) {
-	rid := fmt.Sprintf("%v", rawID)
-	if rid == "" {
-		return nil, ErrLogNotFound
+// rawMsgIDToString 将平台消息 ID 归一化为字符串；nil 或空值返回 ""，调用方应跳过本次操作。
+func rawMsgIDToString(rawID interface{}) string {
+	if rawID == nil {
+		return ""
 	}
-
-	// NOTE:
-	// - 这里依赖 log_items 上的复合索引 (group_id, raw_msg_id, id)，以支撑 WHERE + ORDER BY 的查询模式。
-	// - 正常情况下，同一群内不应存在多条相同 raw_msg_id 的日志项；若出现，默认以最新一条为准。
-	var candidates []struct {
-		ID    uint64 `gorm:"column:id"`
-		LogID uint64 `gorm:"column:log_id"`
-	}
-	err := db.Model(&model.LogOneItem{}).
-		Select("id, log_id").
-		Where("group_id = ? AND raw_msg_id = ?", groupID, rid).
-		Order("id DESC").
-		Limit(2).
-		Find(&candidates).Error
-	if err != nil {
-		return nil, err
-	}
-
-	if len(candidates) == 0 || candidates[0].LogID == 0 {
-		return nil, ErrLogNotFound
-	}
-
-	if len(candidates) > 1 {
-		zap.S().Named(logger.LogKeyDatabase).Warnf("日志RawMsgID出现重复，按最新记录处理: group=%s raw_msg_id=%s latest_item_id=%d", groupID, rid, candidates[0].ID)
-	}
-
-	return getLogInfoByID(db, candidates[0].LogID)
+	return fmt.Sprintf("%v", rawID)
 }
 
 func createLog(tx *gorm.DB, groupID string, logName string, nowTimestamp int64) (uint64, error) {
@@ -887,87 +861,70 @@ func LogAppendByID(operator engine2.DatabaseOperator, logID uint64, groupID stri
 	return err == nil
 }
 
-// LogMarkDeleteByMsgID 撤回删除
-func LogMarkDeleteByMsgID(operator engine2.DatabaseOperator, groupID string, logName string, rawID interface{}) error {
+// LogMarkDeleteByRawMsgID 撤回删除：以 (group_id, raw_msg_id) 定位，删除同群内所有匹配的日志项。
+// raw_msg_id 理论上同群唯一（OneBot 并不保证），若出现多条则视为同一消息的重复记录，全部删除；
+// 所属日志的 size/updated_at 在同一事务内按各自实际删除条数更新，不依赖当前日志名。
+func LogMarkDeleteByRawMsgID(operator engine2.DatabaseOperator, groupID string, rawID interface{}) error {
+	rid := rawMsgIDToString(rawID)
+	if rid == "" {
+		return nil
+	}
 	db := operator.GetLogDB(constant.WRITE)
-	// 获取 log id
-	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil {
-		if errors.Is(err, ErrLogNotFound) {
+	return db.Transaction(func(tx *gorm.DB) error {
+		// 依赖 log_items 上的复合索引 (group_id, raw_msg_id, id)。
+		// log_id 仅用于按日志记账（size/updated_at），不参与删除条件的定位。
+		var items []struct {
+			ID    uint64 `gorm:"column:id"`
+			LogID uint64 `gorm:"column:log_id"`
+		}
+		if err := tx.Model(&model.LogOneItem{}).
+			Select("id, log_id").
+			Where("group_id = ? AND raw_msg_id = ?", groupID, rid).
+			Find(&items).Error; err != nil {
+			return err
+		}
+		if len(items) == 0 {
 			return nil
 		}
-		return err
-	}
-	rid := fmt.Sprintf("%v", rawID)
-	err = db.Transaction(func(tx *gorm.DB) error {
-		if err = tx.Where("log_id = ? AND raw_msg_id = ?", logID, rid).Delete(&model.LogOneItem{}).Error; err != nil {
-			zap.S().Named(logger.LogKeyDatabase).Errorf("log delete error %s", err.Error())
-			return err
+
+		idsByLog := make(map[uint64][]uint64)
+		for _, item := range items {
+			idsByLog[item.LogID] = append(idsByLog[item.LogID], item.ID)
 		}
-		// 更新 logs 表中的 updated_at 字段 和 size 字段
-		// 真的有默认为NULL还能触发删除的情况吗？！
-		if err = tx.Model(&model.LogInfo{}).Where("id = ?", logID).Updates(map[string]interface{}{
-			"updated_at": time.Now().Unix(),
-			"size":       gorm.Expr("COALESCE(size, 0) - ?", 1),
-		}).Error; err != nil {
-			return err
+
+		now := time.Now().Unix()
+		for logID, ids := range idsByLog {
+			res := tx.Where("id IN ?", ids).Delete(&model.LogOneItem{})
+			if res.Error != nil {
+				zap.S().Named(logger.LogKeyDatabase).Errorf("log delete error %s", res.Error.Error())
+				return res.Error
+			}
+			if res.RowsAffected == 0 {
+				continue
+			}
+			// 按实际删除条数扣减 size（下限 0），并发下已被删除的不重复扣减
+			if err := tx.Model(&model.LogInfo{}).Where("id = ?", logID).Updates(map[string]interface{}{
+				"updated_at": now,
+				"size":       gorm.Expr("CASE WHEN COALESCE(size, 0) >= ? THEN COALESCE(size, 0) - ? ELSE 0 END", res.RowsAffected, res.RowsAffected),
+			}).Error; err != nil {
+				return err
+			}
 		}
 		return nil
 	})
-	return err
 }
 
-// LogMarkDeleteByRawMsgID 根据消息 ID 反查所属日志并删除，避免依赖当前日志名。
-func LogMarkDeleteByRawMsgID(operator engine2.DatabaseOperator, groupID string, rawID interface{}) error {
+// LogEditByRawMsgID 编辑日志：以 (group_id, raw_msg_id) 定位，更新同群内所有匹配条目的内容。
+func LogEditByRawMsgID(operator engine2.DatabaseOperator, groupID, newContent string, rawID interface{}) error {
+	rid := rawMsgIDToString(rawID)
+	if rid == "" {
+		return nil
+	}
 	db := operator.GetLogDB(constant.WRITE)
-	logInfo, err := getLogInfoByRawMsgID(db, groupID, rawID)
-	if err != nil {
-		if errors.Is(err, ErrLogNotFound) {
-			return nil
-		}
-		return err
-	}
-	return LogMarkDeleteByMsgID(operator, logInfo.GroupID, logInfo.Name, rawID)
-}
-
-// LogEditByMsgID 编辑日志
-func LogEditByMsgID(operator engine2.DatabaseOperator, groupID, logName, newContent string, rawID interface{}) error {
-	db := operator.GetLogDB(constant.WRITE)
-	logID, err := getIDByGroupIDAndName(db, groupID, logName)
-	if err != nil {
-		if errors.Is(err, ErrLogNotFound) {
-			return nil
-		}
-		return err
-	}
-
-	rid := ""
-	if rawID != nil {
-		rid = fmt.Sprintf("%v", rawID)
-	}
-
-	// 更新 log_items 表中的内容
 	if err := db.Model(&model.LogOneItem{}).
-		Where("log_id = ? AND raw_msg_id = ?", logID, rid).
+		Where("group_id = ? AND raw_msg_id = ?", groupID, rid).
 		Update("message", newContent).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		}
 		return fmt.Errorf("log edit: %w", err)
 	}
-
 	return nil
-}
-
-// LogEditByRawMsgID 根据消息 ID 反查所属日志并编辑，避免依赖当前日志名。
-func LogEditByRawMsgID(operator engine2.DatabaseOperator, groupID, newContent string, rawID interface{}) error {
-	db := operator.GetLogDB(constant.WRITE)
-	logInfo, err := getLogInfoByRawMsgID(db, groupID, rawID)
-	if err != nil {
-		if errors.Is(err, ErrLogNotFound) {
-			return nil
-		}
-		return err
-	}
-	return LogEditByMsgID(operator, logInfo.GroupID, logInfo.Name, newContent, rawID)
 }

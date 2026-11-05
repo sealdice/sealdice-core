@@ -458,7 +458,7 @@ func TestLogEditByRawMsgIDUpdatesOriginalMessage(t *testing.T) {
 	}
 }
 
-func TestLogEditByRawMsgIDUsesLatestDuplicateInGroup(t *testing.T) {
+func TestLogEditByRawMsgIDUpdatesAllDuplicatesInGroup(t *testing.T) {
 	db := newLogInfoTestDB(t)
 	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
 	groupID := "QQ-Group:1004"
@@ -490,31 +490,173 @@ func TestLogEditByRawMsgIDUsesLatestDuplicateInGroup(t *testing.T) {
 		t.Fatal("LogAppendByID(log-b) failed")
 	}
 
-	err = service.LogEditByRawMsgID(op, groupID, "after-latest", sharedRawID)
+	err = service.LogEditByRawMsgID(op, groupID, "after-both", sharedRawID)
 	if err != nil {
 		t.Fatalf("LogEditByRawMsgID(): %v", err)
 	}
 
+	// 同群内同一 raw_msg_id 视为同一消息的重复记录，两处都应被更新
 	linesA, err := service.LogGetAllLines(op, groupID, "log-a")
 	if err != nil {
 		t.Fatalf("LogGetAllLines(log-a): %v", err)
 	}
-	if len(linesA) != 1 {
-		t.Fatalf("len(log-a lines) = %d, want 1", len(linesA))
-	}
-	if linesA[0].Message != "before-a" {
-		t.Fatalf("log-a message = %q, want %q", linesA[0].Message, "before-a")
+	if len(linesA) != 1 || linesA[0].Message != "after-both" {
+		t.Fatalf("log-a lines = %v, want single line %q", linesA, "after-both")
 	}
 
 	linesB, err := service.LogGetAllLines(op, groupID, "log-b")
 	if err != nil {
 		t.Fatalf("LogGetAllLines(log-b): %v", err)
 	}
-	if len(linesB) != 1 {
-		t.Fatalf("len(log-b lines) = %d, want 1", len(linesB))
+	if len(linesB) != 1 || linesB[0].Message != "after-both" {
+		t.Fatalf("log-b lines = %v, want single line %q", linesB, "after-both")
 	}
-	if linesB[0].Message != "after-latest" {
-		t.Fatalf("log-b message = %q, want %q", linesB[0].Message, "after-latest")
+}
+
+func logTestSize(t *testing.T, db *gorm.DB, logID uint64) int {
+	t.Helper()
+
+	var size int
+	if err := db.Model(&model.LogInfo{}).
+		Select("COALESCE(size, 0)").
+		Where("id = ?", logID).
+		Scan(&size).Error; err != nil {
+		t.Fatalf("scan logs.size(log %d): %v", logID, err)
+	}
+	return size
+}
+
+func TestLogMarkDeleteByRawMsgIDDeletesAllDuplicatesAndUpdatesSizes(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+	groupID := "QQ-Group:1005"
+
+	logIDA, err := service.LogGetOrCreate(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-a): %v", err)
+	}
+	logIDB, err := service.LogGetOrCreate(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-b): %v", err)
+	}
+
+	const sharedRawID = "raw-shared"
+	if !service.LogAppendByID(op, logIDA, groupID, &model.LogOneItem{
+		Nickname: "tester-a",
+		IMUserID: "user-a",
+		Message:  "shared-in-a",
+		RawMsgID: sharedRawID,
+	}) {
+		t.Fatal("LogAppendByID(log-a shared) failed")
+	}
+	if !service.LogAppendByID(op, logIDA, groupID, &model.LogOneItem{
+		Nickname: "tester-a",
+		IMUserID: "user-a",
+		Message:  "keep-in-a",
+		RawMsgID: "raw-keep",
+	}) {
+		t.Fatal("LogAppendByID(log-a keep) failed")
+	}
+	if !service.LogAppendByID(op, logIDB, groupID, &model.LogOneItem{
+		Nickname: "tester-b",
+		IMUserID: "user-b",
+		Message:  "shared-in-b",
+		RawMsgID: sharedRawID,
+	}) {
+		t.Fatal("LogAppendByID(log-b shared) failed")
+	}
+
+	if got := logTestSize(t, db, logIDA); got != 2 {
+		t.Fatalf("log-a size = %d, want 2", got)
+	}
+	if got := logTestSize(t, db, logIDB); got != 1 {
+		t.Fatalf("log-b size = %d, want 1", got)
+	}
+
+	if delErr := service.LogMarkDeleteByRawMsgID(op, groupID, sharedRawID); delErr != nil {
+		t.Fatalf("LogMarkDeleteByRawMsgID(): %v", delErr)
+	}
+
+	linesA, err := service.LogGetAllLines(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-a): %v", err)
+	}
+	if len(linesA) != 1 || linesA[0].Message != "keep-in-a" {
+		t.Fatalf("log-a lines = %v, want only %q", linesA, "keep-in-a")
+	}
+
+	linesB, err := service.LogGetAllLines(op, groupID, "log-b")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-b): %v", err)
+	}
+	if len(linesB) != 0 {
+		t.Fatalf("len(log-b lines) = %d, want 0", len(linesB))
+	}
+
+	if got := logTestSize(t, db, logIDA); got != 1 {
+		t.Fatalf("log-a size = %d, want 1", got)
+	}
+	if got := logTestSize(t, db, logIDB); got != 0 {
+		t.Fatalf("log-b size = %d, want 0", got)
+	}
+
+	// 重复撤回应幂等，不再扣减 size
+	if delErr := service.LogMarkDeleteByRawMsgID(op, groupID, sharedRawID); delErr != nil {
+		t.Fatalf("second LogMarkDeleteByRawMsgID(): %v", delErr)
+	}
+	if got := logTestSize(t, db, logIDA); got != 1 {
+		t.Fatalf("log-a size after second delete = %d, want 1", got)
+	}
+	if got := logTestSize(t, db, logIDB); got != 0 {
+		t.Fatalf("log-b size after second delete = %d, want 0", got)
+	}
+}
+
+func TestLogMarkDeleteByRawMsgIDIgnoresMissingAndEmptyRawID(t *testing.T) {
+	db := newLogInfoTestDB(t)
+	op := &logInfoTestOperator{db: db, dbType: constant.SQLITE}
+	groupID := "QQ-Group:1006"
+
+	logID, err := service.LogGetOrCreate(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetOrCreate(log-a): %v", err)
+	}
+	if !service.LogAppendByID(op, logID, groupID, &model.LogOneItem{
+		Nickname: "tester-a",
+		IMUserID: "user-a",
+		Message:  "message-a",
+		RawMsgID: "raw-a",
+	}) {
+		t.Fatal("LogAppendByID(log-a) failed")
+	}
+
+	for _, rawID := range []interface{}{"raw-none", nil, ""} {
+		if delErr := service.LogMarkDeleteByRawMsgID(op, groupID, rawID); delErr != nil {
+			t.Fatalf("LogMarkDeleteByRawMsgID(%v): %v", rawID, delErr)
+		}
+	}
+
+	lines, err := service.LogGetAllLines(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-a): %v", err)
+	}
+	if len(lines) != 1 {
+		t.Fatalf("len(log-a lines) = %d, want 1", len(lines))
+	}
+	if got := logTestSize(t, db, logID); got != 1 {
+		t.Fatalf("log-a size = %d, want 1", got)
+	}
+
+	// 编辑路径同样跳过空 ID，不产生批量误改
+	if editErr := service.LogEditByRawMsgID(op, groupID, "hacked", nil); editErr != nil {
+		t.Fatalf("LogEditByRawMsgID(nil): %v", editErr)
+	}
+	lines, err = service.LogGetAllLines(op, groupID, "log-a")
+	if err != nil {
+		t.Fatalf("LogGetAllLines(log-a): %v", err)
+	}
+	if len(lines) != 1 || lines[0].Message != "message-a" {
+		t.Fatalf("log-a lines = %v, want unchanged %q", lines, "message-a")
 	}
 }
 
