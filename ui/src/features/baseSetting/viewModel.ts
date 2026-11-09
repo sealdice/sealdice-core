@@ -29,6 +29,7 @@ export type BaseSettingFieldSchema = {
   };
   disabledHint?: string;
   previewSample?: string;
+  previewBody?: string;
   previewFallback?: string;
 };
 export type BaseSettingGroupSchema = {
@@ -192,9 +193,14 @@ export function getBaseSettingFieldLayout(
   field: Pick<BaseSettingFieldModel, 'kind'>
 ): BaseSettingFieldLayout {
   if (
-    ['ext-default-settings', 'string-list', 'notice-targets', 'upload', 'master-list'].includes(
-      field.kind
-    )
+    [
+      'ext-default-settings',
+      'string-list',
+      'notice-targets',
+      'upload',
+      'master-list',
+      'textarea',
+    ].includes(field.kind)
   )
     return 'stacked';
   if (['boolean', 'action', 'unlock-code'].includes(field.kind)) return 'inline';
@@ -206,6 +212,18 @@ export function getBaseSettingFieldFeedback(field: Pick<BaseSettingFieldModel, '
     return '启用前请确认你使用的 QQ 连接方式支持该功能，若不支持请关闭该功能来避免日志中出现相关报错。';
   }
   return field.hint || '';
+}
+
+// 与后端 dice.NormalizeOfficialQQNameCardTemplate 保持一致：
+// 只清理首尾空格和制表符，保留换行（含末尾空行），纯空白视为未配置。
+export function normalizeNameCardTemplate(text: string): string {
+  const trimmed = text.replace(/^[ \t]+|[ \t]+$/g, '');
+  return trimmed.trim() === '' ? '' : trimmed;
+}
+
+// 与后端一致：模板支持字面量 \r\n / \n 换行写法，渲染时展开为真实换行。
+export function unescapeNameCardTemplate(text: string): string {
+  return text.replace(/\\r\\n|\\n/g, '\n');
 }
 
 export function buildBaseSettingStringListOptions(values: string[]) {

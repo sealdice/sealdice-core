@@ -38,19 +38,22 @@
       />
 
       <n-input
-        v-else-if="field.kind === 'text' && fieldKey"
+        v-else-if="(field.kind === 'text' || field.kind === 'textarea') && fieldKey"
+        :type="field.kind === 'textarea' ? 'textarea' : 'text'"
         :value="String(fieldValue ?? '')"
         :placeholder="field.placeholder"
         :maxlength="field.maxLength || undefined"
         :show-count="Boolean(field.maxLength)"
+        :autosize="field.kind === 'textarea' ? { minRows: 3, maxRows: 8 } : undefined"
         @update:value="updateFieldValue(fieldKey, $event)"
       />
 
-      <div v-if="field.kind === 'text' && field.previewSample" class="name-card-template-preview">
+      <div
+        v-if="(field.kind === 'text' || field.kind === 'textarea') && field.previewSample"
+        class="name-card-template-preview"
+      >
         <span class="name-card-template-preview-label">预览：</span>
-        <span class="name-card-template-preview-value" :style="previewStyle">
-          {{ field.previewSample }}
-        </span>
+        <div class="name-card-template-preview-value" v-html="previewHtml" />
       </div>
 
       <n-input
@@ -148,15 +151,20 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import DOMPurify from 'dompurify';
+import MarkdownIt from 'markdown-it';
 import type { UploadCustomRequestOptions } from 'naive-ui';
 import type {
   BaseSettingFieldModel,
   BaseSettingValueModel,
 } from '@/features/baseSetting/viewModel';
 import SettingRow from '@/components/settings-panel/SettingRow.vue';
+import { officialQQNameCardLegacyDefaultTemplate } from '@/features/baseSetting/schema';
 import {
   getBaseSettingFieldFeedback,
   getBaseSettingFieldLayout,
+  normalizeNameCardTemplate,
+  unescapeNameCardTemplate,
 } from '@/features/baseSetting/viewModel';
 import BaseSettingExtDefaultsField from './BaseSettingExtDefaultsField.vue';
 import BaseSettingMasterListField from './BaseSettingMasterListField.vue';
@@ -196,32 +204,29 @@ const fieldFeedback = computed(() =>
     ? props.field.disabledHint
     : getBaseSettingFieldFeedback(props.field)
 );
-const previewStyle = computed(() => {
-  const raw = String(fieldValue.value ?? '').trim();
-  const template = raw || props.field.previewFallback || '';
-  const fontTag = template.match(/<font\b([^>]*)>/i);
-  const attrs = fontTag?.[1] ?? '';
-  const color = previewAttr(attrs, 'color');
-  const size = previewAttr(attrs, 'size');
-  const style: Record<string, string> = {};
-  if (/^(#[0-9a-f]{3,8}|[a-z]+)$/i.test(color)) style.color = color;
-  if (/^\d+$/.test(size)) style.fontSize = previewFontSize(size);
-  return style;
+const previewMarkdown = new MarkdownIt({ html: true, breaks: false, linkify: false });
+
+const previewHtml = computed(() => {
+  if (!props.field.previewSample) return '';
+  // 与运行时相同的顺序：先按后端规则归一化，再判断升级/回退，最后才展开 \n 转义。
+  const fallback = normalizeNameCardTemplate(props.field.previewFallback ?? '');
+  let template = normalizeNameCardTemplate(String(fieldValue.value ?? ''));
+  if (
+    template === officialQQNameCardLegacyDefaultTemplate ||
+    template === '' ||
+    !template.includes('{card}')
+  ) {
+    template = fallback;
+  }
+  template = unescapeNameCardTemplate(template);
+  const content =
+    template.split('{card}').join(props.field.previewSample) + (props.field.previewBody ?? '');
+  // 包一层 div 再净化：DOMPurify 在部分 DOM 实现下会丢弃根元素。
+  return DOMPurify.sanitize(`<div>${previewMarkdown.render(content)}</div>`, {
+    ADD_TAGS: ['font'],
+    ADD_ATTR: ['color', 'size'],
+  });
 });
-
-function previewAttr(attrs: string, name: string): string {
-  const match = attrs.match(new RegExp(`${name}\\s*=\\s*["']?([^"'\\s>]+)`, 'i'));
-  return match?.[1] ?? '';
-}
-
-function previewFontSize(size: string): string {
-  const value = Number.parseInt(size, 10);
-  if (value <= 1) return 'x-small';
-  if (value === 2) return 'small';
-  if (value === 4) return 'large';
-  if (value >= 5) return 'x-large';
-  return 'medium';
-}
 
 const pairValues = computed(() =>
   props.field.keys.map(key => props.model[key as keyof BaseSettingValueModel])
@@ -330,6 +335,34 @@ async function handleUpload(options: UploadCustomRequestOptions) {
 .name-card-template-preview-label {
   margin-right: 0.5rem;
   opacity: 0.65;
+}
+
+.name-card-template-preview-value {
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.name-card-template-preview-value :deep(p) {
+  margin: 0.25rem 0;
+}
+
+.name-card-template-preview-value :deep(blockquote) {
+  margin: 0.25rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--n-border-color, rgba(127, 127, 127, 0.35));
+  opacity: 0.8;
+}
+
+.name-card-template-preview-value :deep(ul),
+.name-card-template-preview-value :deep(ol) {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.name-card-template-preview-value :deep(code) {
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.25rem;
+  background: rgba(127, 127, 127, 0.15);
 }
 
 .number-pair {

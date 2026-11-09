@@ -8,14 +8,98 @@ import (
 
 const (
 	// DefaultOfficialQQNameCardTemplate 是官方 QQ 回复名片的默认渲染模板。
-	DefaultOfficialQQNameCardTemplate = `<font color="#FF0000" size="1">{card}</font>`
+	// 末尾空行用于把名片与正文分开，避免 Markdown 引用等块级语法吞掉正文。
+	DefaultOfficialQQNameCardTemplate = `<font color="#FF0000" size="1">{card}</font>` + "\n\n"
 	// MaxOfficialQQNameCardTemplateRunes 限制用户自定义模板的长度。
 	MaxOfficialQQNameCardTemplateRunes = 500
 	officialQQNameCardMaxRunes         = 120
+	// legacyOfficialQQNameCardTemplate 是 1853 初始版本没有末尾换行的默认模板。
+	legacyOfficialQQNameCardTemplate = `<font color="#FF0000" size="1">{card}</font>`
 )
+
+// NormalizeOfficialQQNameCardTemplate 只清理首尾空格和制表符，保留换行，
+// 以便用户通过模板末尾的换行控制名片与正文的间隔。
+func NormalizeOfficialQQNameCardTemplate(text string) string {
+	text = strings.Trim(text, " \t")
+	if strings.TrimSpace(text) == "" {
+		return ""
+	}
+	return text
+}
+
+func unescapeOfficialQQNameCardTemplate(text string) string {
+	text = strings.ReplaceAll(text, `\r\n`, "\n")
+	text = strings.ReplaceAll(text, `\n`, "\n")
+	return text
+}
 
 func isOfficialQQEndpoint(ep *EndPointInfo) bool {
 	return ep != nil && ep.Platform == "QQ" && ep.ProtocolType == "official"
+}
+
+// evalOfficialQQNameCardText 求值当前玩家的 .sn 模板，返回单行名片内容。
+// 与 buildOfficialQQNameCardLine 不同，它不检查展示开关，供日志等非展示场景复用。
+func evalOfficialQQNameCardText(ctx *MsgContext) (string, error) {
+	if ctx == nil || ctx.Player == nil {
+		return "", nil
+	}
+	cardTemplate := strings.TrimSpace(ctx.Player.AutoSetNameTemplate)
+	if cardTemplate == "" {
+		return "", nil
+	}
+	card, err := EvalPlayerGroupCardTemplate(ctx, cardTemplate)
+	if err != nil {
+		return "", err
+	}
+	return strings.Join(strings.Fields(card), " "), nil
+}
+
+// officialQQLogNickname 返回官方 QQ 跑团日志中应记录的玩家名。
+// 官方 QQ 没有改名接口，平台昵称不会变成 .sn 名片，因此日志改用名片内容作为用户名。
+// 不满足条件时返回空字符串，调用方回退到 ctx.Player.Name。
+// qqNickname 用于补全 $t玩家_RAW 等临时变量：日志钩子早于常规 SetTempVars 执行。
+func officialQQLogNickname(ctx *MsgContext, qqNickname string) string {
+	if ctx == nil || ctx.Player == nil {
+		return ""
+	}
+	if !isOfficialQQEndpoint(ctx.EndPoint) || strings.TrimSpace(ctx.Player.AutoSetNameTemplate) == "" {
+		return ""
+	}
+	// 日志钩子早于命令执行：使用独立 VM 与独立随机源求值，
+	// 避免 .sn 模板中的骰点表达式推进共享随机源、改变后续指令的出目。
+	logCtx := ctx.ShallowCopyWithIsolatedRandomSource()
+	SetTempVars(logCtx, qqNickname)
+	card, err := evalOfficialQQNameCardText(logCtx)
+	if err != nil {
+		return ""
+	}
+	return truncateRunes(card, officialQQNameCardMaxRunes)
+}
+
+func officialQQNameCardLineOf(ctx *MsgContext) string {
+	if ctx == nil {
+		return ""
+	}
+	return ctx.officialQQNameCardLine
+}
+
+// stripOfficialQQNameCard 去掉仅用于展示的名片前缀，避免其进入日志等文本记录。
+// 名片可能被拼在别名/代骰前缀之后，因此按首次出现位置移除。
+func stripOfficialQQNameCard(line, text string) string {
+	if line == "" {
+		return text
+	}
+	return strings.Replace(text, line, "", 1)
+}
+
+// stripOfficialQQNameCardFromPages 返回去掉首页名片前缀的分页副本，用于翻页缓存。
+func stripOfficialQQNameCardFromPages(line string, pages []string) []string {
+	if line == "" || len(pages) == 0 {
+		return pages
+	}
+	stripped := append([]string(nil), pages...)
+	stripped[0] = stripOfficialQQNameCard(line, stripped[0])
+	return stripped
 }
 
 // buildOfficialQQNameCardLine 求值当前玩家的 .sn 模板，生成官方 QQ 回复顶部的红字状态栏。
@@ -31,30 +115,24 @@ func buildOfficialQQNameCardLine(ctx *MsgContext) string {
 		return ""
 	}
 
-	cardTemplate := strings.TrimSpace(ctx.Player.AutoSetNameTemplate)
-	if cardTemplate == "" {
-		return ""
-	}
-
-	card, err := EvalPlayerGroupCardTemplate(ctx, cardTemplate)
+	card, err := evalOfficialQQNameCardText(ctx)
 	if err != nil {
 		return ""
 	}
-	card = strings.Join(strings.Fields(card), " ")
 	if card == "" {
 		return ""
 	}
 
-	renderTemplate := strings.TrimSpace(ctx.Dice.Config.OfficialQQNameCardTmpl)
+	renderTemplate := NormalizeOfficialQQNameCardTemplate(ctx.Dice.Config.OfficialQQNameCardTmpl)
+	if renderTemplate == legacyOfficialQQNameCardTemplate {
+		renderTemplate = DefaultOfficialQQNameCardTemplate
+	}
 	if renderTemplate == "" || !strings.Contains(renderTemplate, "{card}") ||
 		utf8.RuneCountInString(renderTemplate) > MaxOfficialQQNameCardTemplateRunes {
 		renderTemplate = DefaultOfficialQQNameCardTemplate
 	}
-	line := strings.ReplaceAll(renderTemplate, "{card}", html.EscapeString(truncateRunes(card, officialQQNameCardMaxRunes)))
-	if !strings.HasSuffix(line, "\n") {
-		line += "\n"
-	}
-	return line
+	renderTemplate = unescapeOfficialQQNameCardTemplate(renderTemplate)
+	return strings.ReplaceAll(renderTemplate, "{card}", html.EscapeString(truncateRunes(card, officialQQNameCardMaxRunes)))
 }
 
 // withOfficialQQNameCard 在官方 QQ 的回复顶部插入当前玩家的 .sn 名片。

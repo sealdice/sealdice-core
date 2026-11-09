@@ -892,6 +892,9 @@ type MsgContext struct {
 	DelegateText    string      `jsbind:"delegateText"`  // 代骰附加文本
 	AliasPrefixText string      `json:"aliasPrefixText"` // 快捷指令回复前缀文本
 
+	// officialQQNameCardLine 是本条发送中仅用于展示的名片前缀，日志等记录场景需要将其去掉。
+	officialQQNameCardLine string
+
 	deckDepth           int                                         // 抽牌递归深度
 	DeckPools           map[*DeckInfo]map[string]*ShuffleRandomPool // 不放回抽取的缓存
 	deckSnapshot        *deckDrawScope
