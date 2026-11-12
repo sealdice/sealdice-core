@@ -124,8 +124,10 @@ type PlatformAdapterOfficialQQ struct {
 	// Webhook服务
 	webhookServer *http.Server `json:"-" yaml:"-"`
 
-	paginationCache map[string]*PaginationItem `json:"-" yaml:"-"`
-	paginationMu    sync.Mutex                 `json:"-" yaml:"-"`
+	paginationCache map[string]*PaginationItem          `json:"-" yaml:"-"`
+	paginationMu    sync.Mutex                          `json:"-" yaml:"-"`
+	imageMaterialMu sync.Mutex                          `json:"-" yaml:"-"`
+	imageMaterials  map[string]officialQQImageReference `json:"-" yaml:"-"`
 
 	// 扫码登录状态（参考 milky 的 BuiltInLoginState / QrCodeData 设计）
 	// 当 AppID 为空时，Serve() 会进入扫码登录分支
@@ -1429,16 +1431,18 @@ func generateCacheID() string {
 	return string(b)
 }
 
-// officialQQSplitUnits 将一段文本拆分为消息单元。
+// officialQQSplitUnits 保留图文为同一条 Markdown，语音/文件则独立发送。
 func officialQQSplitUnits(chunk string) []officialQQMsgUnit {
 	normalized := message.ImageRewrite(chunk, message.SealCodeToCqCode)
 	var units []officialQQMsgUnit
 	cur := officialQQMsgUnit{}
+	var replyCode string
 	flush := func() {
-		if cur.text != "" {
+		if strings.TrimSpace(cur.text) != "" {
+			cur.text = replyCode + cur.text
 			units = append(units, cur)
-			cur = officialQQMsgUnit{}
 		}
+		cur = officialQQMsgUnit{}
 	}
 
 	pos := 0
@@ -1459,13 +1463,19 @@ func officialQQSplitUnits(chunk string) []officialQQMsgUnit {
 		end += idx + 1
 
 		code := normalized[idx:end]
-		if officialQQMediaCodeRe.MatchString(code) {
-			if cur.media {
-				flush()
-			}
+		switch {
+		case strings.HasPrefix(code, "[CQ:reply,"):
+			replyCode = code
+		case strings.HasPrefix(code, "[CQ:image,"):
+			cur.text += code
 			cur.media = true
+		case officialQQMediaCodeRe.MatchString(code):
+			flush()
+			cur = officialQQMsgUnit{text: code, media: true}
+			flush()
+		default:
+			cur.text += code
 		}
-		cur.text += code
 		pos = end
 	}
 	flush()
@@ -1702,7 +1712,11 @@ func (pa *PlatformAdapterOfficialQQ) SendToPerson(ctx *MsgContext, uid string, t
 	}
 
 	if !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown {
-		for _, t := range textList {
+		if len(units) > officialQQPassiveMsgLimit {
+			units = units[:officialQQPassiveMsgLimit]
+		}
+		for _, unit := range units {
+			t := unit.text
 			if idType == OpenQQUserOpenid {
 				msg, err := pa.sendC2CMsgRaw(activeCtx, activeRowID, userID, t, nil)
 				if err == nil && msg != nil {
@@ -1861,17 +1875,22 @@ func (pa *PlatformAdapterOfficialQQ) finalizeMessageToCreate(toCreate *dto.Messa
 		return
 	}
 
-	useMarkdown := pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown
+	useMarkdown := pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown || toCreate.Markdown != nil
 	if useMarkdown && toCreate.MsgType != 7 {
 		toCreate.MsgType = 2
-		toCreate.Markdown = &dto.Markdown{
-			Content: content,
+		if toCreate.Markdown == nil {
+			toCreate.Markdown = &dto.Markdown{}
 		}
+		toCreate.Markdown.Content = content
 		if isFinal && keyboardObj != nil {
 			toCreate.Keyboard = keyboardObj
 		}
 	} else {
 		toCreate.Content = content
+		if toCreate.MsgType == 7 && content == "" {
+			// QQ 富媒体接口要求 content 非空。
+			toCreate.Content = " "
+		}
 		if toCreate.MsgType != 7 {
 			toCreate.MsgType = 0
 		}
@@ -1985,6 +2004,7 @@ func (pa *PlatformAdapterOfficialQQ) uploadGroupMedia(qctx context.Context, grou
 func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, userOpenID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
+	escapeText := !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && officialQQHasImage(elems)
 	var (
 		content string
 		msgRef  *dto.MessageReference
@@ -1996,10 +2016,10 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 	var lastErr error
 
 	sendCurrent := func(isFinal bool) {
-		pa.finalizeMessageToCreate(toCreate, content, keyboardObj, isFinal)
-		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
+		if toCreate.Media == nil && strings.TrimSpace(content) == "" {
 			return
 		}
+		pa.finalizeMessageToCreate(toCreate, content, keyboardObj, isFinal)
 		// 主动消息（无 msg_id/event_id）需要排队限流
 		if toCreate.MsgID == "" && toCreate.EventID == "" {
 			if err := pa.waitC2CActiveQuota(qctx, userOpenID); err != nil {
@@ -2016,11 +2036,27 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			lastRes = res
 		}
 	}
+	flushCurrent := func() {
+		sendCurrent(false)
+		content = ""
+		toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+		toCreate.MessageReference = msgRef
+	}
 
 	for _, elem := range elems {
 		switch e := elem.(type) {
 		case *message.TextElement:
-			content += textLinkStrip(e.Content)
+			if toCreate.Media != nil {
+				if strings.TrimSpace(e.Content) == "" {
+					continue
+				}
+				flushCurrent()
+			}
+			part := textLinkStrip(e.Content)
+			if escapeText {
+				part = officialQQEscapeMarkdownText(part)
+			}
+			content += part
 		case *message.ReplyElement:
 			msgRef = &dto.MessageReference{
 				MessageID:             e.ReplySeq,
@@ -2028,21 +2064,16 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 			}
 			toCreate.MessageReference = msgRef
 		case *message.ImageElement:
-			media, err := pa.uploadC2CMedia(qctx, userOpenID, e.File, 1)
+			inlineImage, err := pa.markdownImage(qctx, e.File)
 			if err != nil {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送单聊消息时，准备图片信息失败：" + err.Error())
-				continue
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 准备单聊 Markdown 图片失败：" + err.Error())
+				return lastRes, err
 			}
-
 			if toCreate.Media != nil {
-				sendCurrent(false)
-				content = ""
-				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
-				toCreate.MessageReference = msgRef
+				flushCurrent()
 			}
-
-			toCreate.MsgType = 7
-			toCreate.Media = media
+			content += inlineImage
+			toCreate.Markdown = &dto.Markdown{ForceVerifyImageResource: true}
 		case *message.RecordElement:
 			media, err := pa.uploadC2CMedia(qctx, userOpenID, e.File, 3)
 			if err != nil {
@@ -2050,13 +2081,7 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 				continue
 			}
 
-			if toCreate.Media != nil {
-				sendCurrent(false)
-				content = ""
-				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
-				toCreate.MessageReference = msgRef
-			}
-
+			flushCurrent()
 			toCreate.MsgType = 7
 			toCreate.Media = media
 		case *message.FileElement:
@@ -2066,13 +2091,7 @@ func (pa *PlatformAdapterOfficialQQ) sendC2CMsgRaw(ctx *MsgContext, rowMsgID, us
 				continue
 			}
 
-			if toCreate.Media != nil {
-				sendCurrent(false)
-				content = ""
-				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
-				toCreate.MessageReference = msgRef
-			}
-
+			flushCurrent()
 			toCreate.MsgType = 7
 			toCreate.Media = media
 		}
@@ -2304,7 +2323,11 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 	}
 
 	if !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown {
-		for _, t := range textList {
+		if len(units) > officialQQPassiveMsgLimit {
+			units = units[:officialQQPassiveMsgLimit]
+		}
+		for _, unit := range units {
+			t := unit.text
 			switch idType {
 			case OpenQQGroupOpenid:
 				msg, err := pa.sendQQGroupMsgRaw(activeCtx, activeRowID, groupId, t, nil)
@@ -2386,6 +2409,7 @@ func (pa *PlatformAdapterOfficialQQ) SendToGroup(ctx *MsgContext, uid string, te
 func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID, groupID string, text string, keyboardObj *keyboard.MessageKeyboard) (*dto.Message, error) {
 	qctx := context.Background()
 	elems := message.ConvertStringMessage(text)
+	escapeText := !pa.EndPoint.Session.Parent.Config.OfficialQQUseMarkdown && officialQQHasImage(elems)
 	var (
 		content string
 		msgRef  *dto.MessageReference
@@ -2397,10 +2421,10 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 	var lastErr error
 
 	sendCurrent := func(isFinal bool) {
-		pa.finalizeMessageToCreate(toCreate, content, keyboardObj, isFinal)
-		if toCreate.Media == nil && toCreate.Content == "" && toCreate.Markdown == nil && toCreate.MessageReference == nil {
+		if toCreate.Media == nil && strings.TrimSpace(content) == "" {
 			return
 		}
+		pa.finalizeMessageToCreate(toCreate, content, keyboardObj, isFinal)
 		// 主动消息排队限流
 		if toCreate.MsgID == "" && toCreate.EventID == "" {
 			if err := pa.waitGroupActiveQuota(qctx, groupID); err != nil {
@@ -2417,11 +2441,27 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			lastRes = res
 		}
 	}
+	flushCurrent := func() {
+		sendCurrent(false)
+		content = ""
+		toCreate = pa.initMessageToCreate(ctx, rowMsgID)
+		toCreate.MessageReference = msgRef
+	}
 
 	for _, element := range elems {
 		switch elem := element.(type) {
 		case *message.TextElement:
-			content += rewriteOfficialQQGroupAtTags(textLinkStrip(elem.Content), func(target string) string {
+			if toCreate.Media != nil {
+				if strings.TrimSpace(elem.Content) == "" {
+					continue
+				}
+				flushCurrent()
+			}
+			part := textLinkStrip(elem.Content)
+			if escapeText {
+				part = officialQQEscapeMarkdownText(part)
+			}
+			content += rewriteOfficialQQGroupAtTags(part, func(target string) string {
 				return normalizeOfficialQQGroupAtTarget(pa.UIN, target)
 			})
 		case *message.ReplyElement:
@@ -2431,24 +2471,22 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 			}
 			toCreate.MessageReference = msgRef
 		case *message.AtElement:
+			if toCreate.Media != nil {
+				flushCurrent()
+			}
 			target := normalizeOfficialQQGroupAtTarget(pa.UIN, elem.Target)
 			content += renderOfficialQQGroupAtTarget(target)
 		case *message.ImageElement:
-			media, err := pa.uploadGroupMedia(qctx, groupID, elem.File, 1)
+			inlineImage, err := pa.markdownImage(qctx, elem.File)
 			if err != nil {
-				pa.EndPoint.Session.Parent.Logger.Error("official qq 发送群聊消息时，准备图片信息失败：" + err.Error())
-				continue
+				pa.EndPoint.Session.Parent.Logger.Error("official qq 准备群聊 Markdown 图片失败：" + err.Error())
+				return lastRes, err
 			}
-
 			if toCreate.Media != nil {
-				sendCurrent(false)
-				content = ""
-				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
-				toCreate.MessageReference = msgRef
+				flushCurrent()
 			}
-
-			toCreate.MsgType = 7
-			toCreate.Media = media
+			content += inlineImage
+			toCreate.Markdown = &dto.Markdown{ForceVerifyImageResource: true}
 		case *message.RecordElement:
 			media, err := pa.uploadGroupMedia(qctx, groupID, elem.File, 3)
 			if err != nil {
@@ -2456,13 +2494,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 				continue
 			}
 
-			if toCreate.Media != nil {
-				sendCurrent(false)
-				content = ""
-				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
-				toCreate.MessageReference = msgRef
-			}
-
+			flushCurrent()
 			toCreate.MsgType = 7
 			toCreate.Media = media
 		case *message.FileElement:
@@ -2472,13 +2504,7 @@ func (pa *PlatformAdapterOfficialQQ) sendQQGroupMsgRaw(ctx *MsgContext, rowMsgID
 				continue
 			}
 
-			if toCreate.Media != nil {
-				sendCurrent(false)
-				content = ""
-				toCreate = pa.initMessageToCreate(ctx, rowMsgID)
-				toCreate.MessageReference = msgRef
-			}
-
+			flushCurrent()
 			toCreate.MsgType = 7
 			toCreate.Media = media
 		}
