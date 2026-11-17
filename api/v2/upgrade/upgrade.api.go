@@ -105,6 +105,7 @@ func (s *Service) Exec(ctx context.Context, _ *request.Empty) (*response.ItemRes
 }
 
 // backup 保存配置并做一次全量备份，再复制一份到系统临时目录，避免升级覆盖程序目录后丢失。
+// 备份含账号配置和会话令牌：副本放在仅当前用户可访问的私有目录（0700），文件权限 0600。
 // 备份失败只记录日志，不阻止升级。
 func (s *Service) backup(d *dice.Dice) {
 	d.Save(true)
@@ -113,8 +114,8 @@ func (s *Service) backup(d *dice.Dice) {
 		d.Logger.Errorf("升级前备份失败: %v", err)
 		return
 	}
-	tmpDir := filepath.Join(os.TempDir(), "backups")
-	if err = os.MkdirAll(tmpDir, 0o755); err != nil {
+	tmpDir, err := os.MkdirTemp("", "sealdice-upgrade-backup-")
+	if err != nil {
 		d.Logger.Errorf("创建备份临时目录失败: %v", err)
 		return
 	}
@@ -122,6 +123,10 @@ func (s *Service) backup(d *dice.Dice) {
 	d.Logger.Infof("将备份文件复制到此路径: %s", dst)
 	if err = cp.Copy(bakFn, dst); err != nil {
 		d.Logger.Errorf("复制备份文件失败: %v", err)
+		return
+	}
+	if err = os.Chmod(dst, 0o600); err != nil {
+		d.Logger.Errorf("修改备份副本权限失败: %v", err)
 	}
 }
 

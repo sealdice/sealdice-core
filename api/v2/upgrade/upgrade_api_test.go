@@ -80,7 +80,7 @@ func backupFiles(t *testing.T) []string {
 
 func tempBackupCopies(t *testing.T) []string {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(os.Getenv("TMPDIR"), "backups", "bak_*.zip"))
+	files, err := filepath.Glob(filepath.Join(os.Getenv("TMPDIR"), "sealdice-upgrade-backup-*", "bak_*.zip"))
 	if err != nil {
 		t.Fatalf("glob temp backups: %v", err)
 	}
@@ -162,15 +162,33 @@ func TestExecBacksUpBeforeTriggeringDownload(t *testing.T) {
 	if got := <-backupsAtTrigger; got != 1 {
 		t.Fatalf("backups present when download was triggered = %d, want 1", got)
 	}
-	if got := tempBackupCopies(t); len(got) != 1 {
+	got := tempBackupCopies(t)
+	if len(got) != 1 {
 		t.Fatalf("temp backup copies = %v, want exactly one", got)
+	}
+	// 备份含账号配置和会话令牌，副本只能被当前用户读取。
+	fileInfo, err := os.Stat(got[0])
+	if err != nil {
+		t.Fatalf("stat temp backup: %v", err)
+	}
+	dirInfo, err := os.Stat(filepath.Dir(got[0]))
+	if err != nil {
+		t.Fatalf("stat temp backup dir: %v", err)
+	}
+	if perm := fileInfo.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("temp backup file mode = %o, want 600", perm)
+	}
+	if perm := dirInfo.Mode().Perm(); perm != 0o700 {
+		t.Fatalf("temp backup dir mode = %o, want 700", perm)
 	}
 }
 
 // 备份失败只记录日志：不能因为备份出错就让升级无法进行。
 func TestExecContinuesWhenBackupFails(t *testing.T) {
 	svc, dm := newTestService(t)
+	backupCalls := 0
 	svc.backupFn = func(dice.BackupSelection, bool) (string, error) {
+		backupCalls++
 		return "", errors.New("disk full")
 	}
 
@@ -185,6 +203,9 @@ func TestExecContinuesWhenBackupFails(t *testing.T) {
 	}
 	if !resp.Body.Item.Success {
 		t.Fatalf("item = %+v, want success despite backup failure", resp.Body.Item)
+	}
+	if backupCalls != 1 {
+		t.Fatalf("backupFn calls = %d, want 1: the backup must be attempted before the failure is tolerated", backupCalls)
 	}
 	if got := tempBackupCopies(t); len(got) != 0 {
 		t.Fatalf("no backup was made, temp copies = %v", got)
