@@ -4,26 +4,11 @@ import type { EndPointInfo } from '@/api';
 import { useAuthStore } from '@/features/auth/store';
 import { appPinia } from '@/pinia';
 import { useRealtimeConnectionsStore } from './realtimeStore';
+import { SSERequest } from '@/features/realtime/sseTestUtils';
+import { useRealtimeClientStore } from '@/features/realtime/store';
 
 const { clearAccessToken, setAccessToken, finishInitialization } = useAuthStore(appPinia);
-const sources: FakeEventSource[] = [];
-
-class FakeEventSource {
-  onopen: ((this: EventSource, ev: Event) => unknown) | null = null;
-  onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
-  listeners = new Map<string, (event: MessageEvent) => void>();
-  constructor(_url: string | URL) {
-    void _url;
-    sources.push(this);
-  }
-  addEventListener(name: string, handler: (event: MessageEvent) => void) {
-    this.listeners.set(name, handler);
-  }
-  emit(name: string, payload: unknown) {
-    this.listeners.get(name)?.(new MessageEvent(name, { data: JSON.stringify(payload) }));
-  }
-  close() {}
-}
+const sources: SSERequest[] = [];
 
 const connection: EndPointInfo = {
   adapter: {},
@@ -46,7 +31,17 @@ const connection: EndPointInfo = {
 
 beforeEach(() => {
   sources.length = 0;
-  vi.stubGlobal('EventSource', FakeEventSource);
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, options: RequestInit) => {
+      if (new URL(url).pathname.endsWith('/realtime/sse')) {
+        const source = new SSERequest(url, options);
+        sources.push(source);
+        return source.response;
+      }
+      return Promise.resolve(Response.json({ item: { connections: { items: [] } } }));
+    })
+  );
   finishInitialization();
 });
 
@@ -82,11 +77,14 @@ it('一条 SSE 更新同时更新连接和登录状态，列表删除同时清�
   realtime.ensureInitialized();
   await nextTick();
   const source = sources.at(-1)!;
+  source.open();
+  await vi.waitFor(() => expect(useRealtimeClientStore(appPinia).activeTransport).toBe('sse'));
 
-  source.emit('imconnection/list', { items: [connection] });
+  source.send('imconnection/list', { items: [connection] });
+  await vi.waitFor(() => expect(realtime.connections).toHaveLength(1));
   expect(realtime.connections[0]?.qrcode).toBe(connection.qrcode);
 
-  source.emit('imconnection/updated', {
+  source.send('imconnection/updated', {
     item: {
       ...connection,
       state: 1,
@@ -94,10 +92,10 @@ it('一条 SSE 更新同时更新连接和登录状态，列表删除同时清�
       workflow: { state: 'success', hasQRCode: false, loginState: 3 },
     },
   });
-  expect(realtime.connections[0]?.state).toBe(1);
+  await vi.waitFor(() => expect(realtime.connections[0]?.state).toBe(1));
   expect(realtime.connections[0]?.workflow?.state).toBe('success');
   expect(realtime.connections[0]?.qrcode).toBe('');
 
-  source.emit('imconnection/list', { items: [] });
-  expect(realtime.connections).toEqual([]);
+  source.send('imconnection/list', { items: [] });
+  await vi.waitFor(() => expect(realtime.connections).toEqual([]));
 });

@@ -14,6 +14,7 @@ import {
 import { appPinia } from '@/pinia';
 import { useAuthStore } from '@/features/auth/store';
 import { useRealtimeConnectionsStore } from '@/features/connect/realtimeStore';
+import { SSERequest } from '@/features/realtime/sseTestUtils';
 import ConnectPage from './connect.vue';
 import ConnectCreateWizard from '@/components/connect/ConnectCreateWizard.vue';
 import ConnectEditDialog from '@/components/connect/ConnectEditDialog.vue';
@@ -49,11 +50,13 @@ const endpoint: EndPointInfo = {
 };
 beforeEach(() => {
   vi.stubGlobal(
-    'EventSource',
-    class {
-      addEventListener() {}
-      close() {}
-    }
+    'fetch',
+    vi.fn((url: string, options: RequestInit) => {
+      if (new URL(url).pathname.endsWith('/realtime/sse')) {
+        return new SSERequest(url, options).response;
+      }
+      return Promise.reject(new Error('Realtime unavailable'));
+    })
   );
   useAuthStore(appPinia).setAccessToken('connect-test');
   useAuthStore(appPinia).finishInitialization();
