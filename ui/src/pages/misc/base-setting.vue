@@ -67,7 +67,6 @@
                   :field="field"
                   :model="currentValue"
                   :initial-model="initialValue"
-                  :is-container-mode="isContainerMode"
                   :busy-action-id="busyActionId"
                   :highlighted="highlightedFieldId === field.id"
                   :run-action="runAction"
@@ -94,7 +93,6 @@ import SettingCategoryBox from '@/components/settings-panel/SettingCategoryBox.v
 import PageHeader from '@/components/shared/PageHeader.vue';
 import ResponsiveTabs from '@/components/shared/ResponsiveTabs.vue';
 import TipBox from '@/components/shared/TipBox.vue';
-import { useBaseOverview } from '@/features/base/useBaseOverview';
 import { useBaseSettingDraft } from '@/features/baseSetting/draft';
 import { useBaseSettingMutations } from '@/features/baseSetting/mutations';
 import {
@@ -111,7 +109,6 @@ import { useUnsavedChanges } from '@/features/unsavedChanges';
 
 const message = useMessage();
 const { hasAccessToken } = storeToRefs(useAuthStore());
-const { overview } = useBaseOverview();
 
 const activeTab = ref('master-notice');
 const searchKeyword = ref('');
@@ -156,9 +153,8 @@ const searchResults = computed(() =>
 const currentValue = computed(() => draft.currentValue.value);
 const initialValue = computed(() => draft.initialValue.value);
 const pageBusy = computed(() => valueQuery.isFetching.value);
-const isContainerMode = computed(() => overview.value?.runtime.containerMode === true);
 
-const { saveMutation, mailTestMutation, upgradeMutation } = useBaseSettingMutations(message);
+const { saveMutation, mailTestMutation } = useBaseSettingMutations(message);
 
 useUnsavedChanges('base-setting', {
   label: '基本设置',
@@ -214,15 +210,11 @@ function updateField(key: string, value: unknown) {
   draft.currentValue.value = next;
 }
 
-async function runAction(fieldId: string, payload?: unknown) {
+async function runAction(fieldId: string) {
   busyActionId.value = fieldId;
   try {
     if (fieldId === 'mail-test') {
       await mailTestMutation.mutateAsync();
-      return;
-    }
-    if (fieldId === 'upgrade-package') {
-      await upgradeMutation.mutateAsync(payload as File);
     }
   } finally {
     busyActionId.value = null;

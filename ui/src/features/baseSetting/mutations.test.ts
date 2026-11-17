@@ -6,7 +6,6 @@ vi.mock('@/api', () => ({
   putSdApiV2BaseSettingValue,
   getSdApiV2BaseLoginSalt: vi.fn(),
   postSdApiV2BaseSettingMailTest: vi.fn(),
-  postSdApiV2BaseSettingUpgrade: vi.fn(),
 }));
 
 // Huma 将请求体直接绑定到补丁 DTO；SDK 的 body 参数只包装一次。

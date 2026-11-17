@@ -1,9 +1,5 @@
 package basesetting
 
-import (
-	"github.com/danielgtaylor/huma/v2"
-)
-
 type BaseSettingExtDefaultSettingItem struct {
 	Name            string          `json:"name"`
 	AutoActive      bool            `json:"autoActive"`
@@ -120,12 +116,4 @@ type BaseSettingUpdateReq struct {
 type BaseSettingActionResp struct {
 	Success bool   `json:"success"`
 	Err     string `json:"err,omitempty"`
-}
-
-type BaseSettingUpgradeForm struct {
-	File huma.FormFile `form:"file" required:"true"`
-}
-
-type BaseSettingUpgradeReq struct {
-	RawBody huma.MultipartFormFiles[BaseSettingUpgradeForm]
 }
