@@ -11,8 +11,8 @@
     </template>
 
     <div class="header-overflow" aria-label="更多操作">
-      <AppInstallButton />
-      <n-divider class="header-overflow__divider" />
+      <AppInstallButton v-if="showInstall" />
+      <n-divider v-if="showInstall" class="header-overflow__divider" />
       <div class="header-overflow__version">
         <n-tag :bordered="false" :type="isStable ? 'success' : 'default'" size="small">
           {{ channelText }}
@@ -31,6 +31,8 @@
 <script setup lang="ts">
 import { useBaseOverview } from '@/features/base/useBaseOverview';
 import AppInstallButton from './AppInstallButton.vue';
+
+defineProps<{ showInstall: boolean }>();
 
 const { overview, isStable, channelText, hasNewVersion } = useBaseOverview();
 </script>

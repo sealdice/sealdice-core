@@ -1,13 +1,9 @@
 <template>
-  <div class="sd-sidebar-content">
-    <AppSidebarBrand
-      :collapsed="props.collapsed"
-      @enable-advanced-config="emit('enableAdvancedConfig')"
-    />
+  <nav class="sd-sidebar-content" aria-label="功能导航">
     <n-menu
       class="sd-sidebar-menu"
       :collapsed="props.collapsed"
-      :collapsed-width="64"
+      :collapsed-width="APP_SHELL_RAIL_WIDTH"
       :icon-size="20"
       :collapsed-icon-size="20"
       :options="options"
@@ -37,7 +33,7 @@
         旧版 UI
       </n-tooltip>
     </footer>
-  </div>
+  </nav>
 </template>
 
 <script setup lang="tsx">
@@ -46,7 +42,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import type { MenuOption } from 'naive-ui';
 import { resolveSwitchToOldUIUrl } from '@/api/config';
 import AppNavigationIcon from './AppNavigationIcon.vue';
-import AppSidebarBrand from './AppSidebarBrand.vue';
+import { APP_SHELL_RAIL_WIDTH } from './appShellLayout';
 import { getNavigationExpandedKeys, resolveMenuNavigationTarget } from '@/router/navigationModel';
 import type { NavigationItem } from '@/router/types';
 import { useAppNavigation } from '@/router/useAppNavigation';
@@ -61,10 +57,6 @@ const props = withDefaults(
     advancedConfigCounter: 0,
   }
 );
-
-const emit = defineEmits<{
-  enableAdvancedConfig: [];
-}>();
 
 const route = useRoute();
 const router = useRouter();
@@ -145,7 +137,7 @@ watch(
   min-height: 0;
   overflow-y: auto;
   background: transparent;
-  padding: 0 0.6rem 1rem;
+  padding: var(--sd-space-xs) 0.4rem var(--sd-space-md);
   scrollbar-width: none;
   transition: padding-inline var(--sd-transition-base);
 }
@@ -223,7 +215,7 @@ watch(
 
 :deep(.sd-sidebar-menu > .n-menu-item > .n-menu-item-content--selected::before),
 :deep(.sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before) {
-  box-shadow: inset 3px 0 var(--sd-primary);
+  box-shadow: inset 2px 0 var(--sd-sidebar-active-text);
 }
 
 :deep(.sd-sidebar-menu > .n-submenu > .n-menu-item > .n-menu-item-content--child-active::before) {

@@ -13,7 +13,7 @@ describe('app shell layout', () => {
     expect(getAppShellContentClass('wide')).toBe('sd-main-container sd-main-container--wide');
     expect(getAppShellContainerClass('default')).toBe('sd-page-shell');
     expect(getAppShellContainerClass('workspace')).toBe('sd-page-shell sd-page-shell--workspace');
-    expect(getAppShellDrawerWidth()).toBe('min(200px, 76vw)');
+    expect(getAppShellDrawerWidth()).toBe('min(280px, 88vw)');
   });
 
   it('uses mobile, tablet and desktop modes at the exact boundaries', () => {

@@ -11,13 +11,24 @@ export const THEME_COLOR_KEYS: ThemeColorKey[] = ['primary', 'success', 'warning
 
 // 应用仅维护四种有彩语义。info 是组件库兼容名称，始终映射到 primary。
 export const DEFAULT_THEME_PALETTE: ThemePalette = {
-  primary: '#2563eb',
-  success: '#15803d',
-  warning: '#b45309',
-  error: '#dc2626',
+  primary: '#1a73d5',
+  success: '#1b8440',
+  warning: '#ab6110',
+  error: '#d33b36',
+};
+const darkThemePalette: ThemePalette = {
+  primary: '#4c8edf',
+  success: '#3b9f58',
+  warning: '#bf7e21',
+  error: '#dd6761',
 };
 const componentColorKeys: ComponentColorKey[] = ['primary', 'info', 'success', 'warning', 'error'];
-const darkBackground = '#0f172a';
+const darkBackground = '#0c121a';
+// Naive UI composites these colors in JavaScript, so they need literal values.
+const themeSurfaces = {
+  light: { page: '#f2f6fc', elevated: '#fcfdff', border: '#dfe4ec' },
+  dark: { page: darkBackground, elevated: '#161c25', border: '#2a313a' },
+};
 
 const colorTokenNames: Record<
   ComponentColorKey,
@@ -60,8 +71,9 @@ const colorTokenNames: Record<
   },
 };
 
-function getPaletteColor(key: ComponentColorKey): string {
-  return key === 'info' ? DEFAULT_THEME_PALETTE.primary : DEFAULT_THEME_PALETTE[key];
+function getPaletteColor(key: ComponentColorKey, theme: ResolvedTheme): string {
+  const palette = theme === 'dark' ? darkThemePalette : DEFAULT_THEME_PALETTE;
+  return palette[key === 'info' ? 'primary' : key];
 }
 
 function getGeneratedColor(color: string, index: number, theme: ResolvedTheme): string {
@@ -112,7 +124,7 @@ function contrastRatio(foreground: string, background: string): number {
 }
 
 function getAccessibleSemanticColor(color: string, theme: ResolvedTheme): string {
-  const background = theme === 'dark' ? '#182133' : '#ffffff';
+  const background = theme === 'dark' ? '#242b34' : themeSurfaces.light.page;
   const target = theme === 'dark' ? '#ffffff' : '#111827';
   if (contrastRatio(color, background) >= 4.5) return color;
 
@@ -133,7 +145,7 @@ function createStatusColorOverrides(
   key: ComponentColorKey,
   theme: ResolvedTheme
 ): NonNullable<GlobalThemeOverrides['common']> {
-  const color = getPaletteColor(key);
+  const color = getPaletteColor(key, theme);
   const tokenNames = colorTokenNames[key];
   const accessibleColor = getAccessibleSemanticColor(color, theme);
   const accessibleHoverColor = getAccessibleSemanticColor(
@@ -157,7 +169,7 @@ function createButtonColorOverrides(
   key: ComponentColorKey,
   theme: ResolvedTheme
 ): Record<string, string> {
-  const color = getPaletteColor(key);
+  const color = getPaletteColor(key, theme);
   const typeName = `${key[0].toUpperCase()}${key.slice(1)}`;
   const accessibleColor = getAccessibleSemanticColor(color, theme);
   const accessibleHoverColor = getAccessibleSemanticColor(
@@ -197,6 +209,7 @@ function createButtonColorOverrides(
 }
 
 function createCommonOverrides(theme: ResolvedTheme): NonNullable<GlobalThemeOverrides['common']> {
+  const { page, elevated, border } = themeSurfaces[theme];
   const common = componentColorKeys.reduce<Record<string, string>>(
     (result, key) => {
       return {
@@ -207,19 +220,13 @@ function createCommonOverrides(theme: ResolvedTheme): NonNullable<GlobalThemeOve
     {
       borderRadius: 'var(--sd-radius-sm)',
       borderRadiusSmall: 'var(--sd-radius-xs)',
+      borderColor: border,
+      bodyColor: page,
+      cardColor: elevated,
+      modalColor: elevated,
+      popoverColor: elevated,
     }
   );
-
-  if (theme === 'dark') {
-    return {
-      ...common,
-      borderColor: '#334155',
-      bodyColor: '#0f172a',
-      cardColor: '#182133',
-      modalColor: '#182133',
-      popoverColor: '#182133',
-    };
-  }
 
   return common;
 }
@@ -227,14 +234,14 @@ function createCommonOverrides(theme: ResolvedTheme): NonNullable<GlobalThemeOve
 const sharedMenuOverrides: NonNullable<GlobalThemeOverrides['Menu']> = {
   itemTextColor: 'var(--sd-text-inverse-soft)',
   itemTextColorHover: 'var(--sd-text-inverse)',
-  itemTextColorActive: 'var(--sd-text-inverse)',
-  itemTextColorActiveHover: 'var(--sd-text-inverse)',
+  itemTextColorActive: 'var(--sd-sidebar-active-text)',
+  itemTextColorActiveHover: 'var(--sd-sidebar-active-text)',
   itemTextColorChildActive: 'var(--sd-text-inverse)',
   itemTextColorChildActiveHover: 'var(--sd-text-inverse)',
   itemIconColor: 'var(--sd-text-inverse-muted)',
   itemIconColorHover: 'var(--sd-text-inverse)',
-  itemIconColorActive: 'var(--sd-text-inverse)',
-  itemIconColorActiveHover: 'var(--sd-text-inverse)',
+  itemIconColorActive: 'var(--sd-sidebar-active-text)',
+  itemIconColorActiveHover: 'var(--sd-sidebar-active-text)',
   itemIconColorChildActive: 'var(--sd-text-inverse)',
   itemIconColorChildActiveHover: 'var(--sd-text-inverse)',
   itemIconColorCollapsed: 'var(--sd-text-inverse)',
@@ -327,7 +334,7 @@ export function syncDocumentThemePalette(root: HTMLElement | undefined): void {
   const resolvedColors = Object.fromEntries(
     THEME_COLOR_KEYS.map(key => [
       key,
-      getAccessibleSemanticColor(DEFAULT_THEME_PALETTE[key], theme),
+      getAccessibleSemanticColor(getPaletteColor(key, theme), theme),
     ])
   ) as ThemePalette;
 
@@ -340,6 +347,9 @@ export function syncDocumentThemePalette(root: HTMLElement | undefined): void {
   root.style.setProperty('--sd-accent', resolvedColors.primary);
   root.style.setProperty(
     '--sd-accent-strong',
-    getAccessibleSemanticColor(getGeneratedColor(DEFAULT_THEME_PALETTE.primary, 6, theme), theme)
+    getAccessibleSemanticColor(
+      getGeneratedColor(getPaletteColor('primary', theme), 6, theme),
+      theme
+    )
   );
 }

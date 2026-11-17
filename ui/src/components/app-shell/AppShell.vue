@@ -1,22 +1,28 @@
 <template>
   <n-layout id="root" class="sd-shell">
+    <a class="workspace-skip-link" href="#workspace-main" @click.prevent="workspaceMain?.focus()">
+      跳到工作区
+    </a>
+    <AppWorkspaceHeader
+      :navigation-expanded="viewportMode === 'mobile' ? drawerMenu : !collapsedMenu"
+      :viewport-mode="viewportMode"
+      @toggle-sidebar="toggleSidebar"
+      @open-search="openSearch"
+      @enable-advanced-config="enableAdvancedConfig"
+    />
     <n-layout class="sd-body" has-sider>
       <n-layout-sider
         class="sd-sidebar no-scrollbar"
         collapse-mode="width"
-        :collapsed-width="64"
-        :width="224"
+        :collapsed-width="APP_SHELL_RAIL_WIDTH"
+        :width="APP_SHELL_SIDEBAR_WIDTH"
         :collapsed="collapsedMenu"
         bordered
         :native-scrollbar="false"
         @collapse="collapsedMenu = true"
         @expand="collapsedMenu = false"
       >
-        <AppSidebar
-          :collapsed="collapsedMenu"
-          :advanced-config-counter="advancedConfigCounter"
-          @enable-advanced-config="enableAdvancedConfig"
-        />
+        <AppSidebar :collapsed="collapsedMenu" :advanced-config-counter="advancedConfigCounter" />
       </n-layout-sider>
 
       <n-layout-content
@@ -25,12 +31,6 @@
         content-class="sd-content-inner"
         embedded
       >
-        <AppBreadcrumb
-          :collapsed="collapsedMenu"
-          :viewport-mode="viewportMode"
-          @toggle-sidebar="toggleSidebar"
-          @open-search="openSearch"
-        />
         <AppUiBetaNotice />
         <div
           class="sd-floating-panel-layer"
@@ -39,7 +39,13 @@
         >
           <AppUnsavedChangesPanel />
         </div>
-        <main :class="getAppShellContentClass(props.contentMode)">
+        <div
+          id="workspace-main"
+          ref="workspaceMain"
+          :class="getAppShellContentClass(props.contentMode)"
+          tabindex="-1"
+        >
+          <AppBreadcrumb />
           <div
             :class="[
               getAppShellContainerClass(props.containerMode),
@@ -48,7 +54,7 @@
           >
             <slot />
           </div>
-        </main>
+        </div>
       </n-layout-content>
     </n-layout>
 
@@ -58,11 +64,13 @@
       :default-width="getAppShellDrawerWidth()"
       placement="left"
     >
-      <n-drawer-content body-content-style="padding: 0;" :native-scrollbar="false">
-        <AppSidebar
-          :advanced-config-counter="advancedConfigCounter"
-          @enable-advanced-config="enableAdvancedConfig"
-        />
+      <n-drawer-content
+        title="全部功能"
+        closable
+        body-content-style="padding: 0;"
+        :native-scrollbar="false"
+      >
+        <AppSidebar :advanced-config-counter="advancedConfigCounter" />
       </n-drawer-content>
     </n-drawer>
 
@@ -75,7 +83,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  useTemplateRef,
+  watch,
+} from 'vue';
 import { useEventListener, useWindowSize } from '@vueuse/core';
 import { useDialog, useMessage } from 'naive-ui';
 import { useRoute } from 'vue-router';
@@ -85,6 +101,8 @@ import {
   getAppShellDrawerWidth,
   getAppShellViewportMode,
   shouldCollapseAppShellSidebar,
+  APP_SHELL_RAIL_WIDTH,
+  APP_SHELL_SIDEBAR_WIDTH,
   type AppShellContainerMode,
   type AppShellContentMode,
 } from './appShellLayout';
@@ -92,6 +110,7 @@ import AppBreadcrumb from './AppBreadcrumb.vue';
 import AppSidebar from './AppSidebar.vue';
 import AppUiBetaNotice from './AppUiBetaNotice.vue';
 import AppUnsavedChangesPanel from './AppUnsavedChangesPanel.vue';
+import AppWorkspaceHeader from './AppWorkspaceHeader.vue';
 import { useUnsavedChangesStore } from '@/features/unsavedChanges/store';
 import { isControlledReloadArmed } from '@/features/pwa/swUpdate';
 import { storeToRefs } from 'pinia';
@@ -126,9 +145,10 @@ const viewportMode = computed(() => getAppShellViewportMode(viewportWidth.value)
 
 const drawerMenu = ref(false);
 const collapsedMenu = ref(shouldCollapseAppShellSidebar(viewportMode.value));
+const workspaceMain = useTemplateRef<HTMLElement>('workspaceMain');
 const floatingPanelStyle = computed(() => {
   if (viewportMode.value === 'mobile') return undefined;
-  const sidebarWidth = collapsedMenu.value ? 64 : 224;
+  const sidebarWidth = collapsedMenu.value ? APP_SHELL_RAIL_WIDTH : APP_SHELL_SIDEBAR_WIDTH;
   return {
     left: `calc(${sidebarWidth}px + (100vw - ${sidebarWidth}px) / 2)`,
     width: `min(100%, calc(100vw - ${sidebarWidth}px - 2rem))`,
@@ -153,7 +173,7 @@ function enableAdvancedConfig() {
 
 function toggleSidebar() {
   if (viewportMode.value === 'mobile') {
-    drawerMenu.value = true;
+    drawerMenu.value = !drawerMenu.value;
     return;
   }
   collapsedMenu.value = !collapsedMenu.value;
@@ -218,11 +238,10 @@ onBeforeUnmount(releaseConfirmHandler);
 
 <style scoped>
 .sd-shell {
-  display: flex;
   width: 100%;
   min-width: 0;
   height: 100vh;
-  min-height: 100vh;
+  height: 100dvh;
   background: var(--sd-bg-shell);
 }
 
@@ -231,6 +250,23 @@ onBeforeUnmount(releaseConfirmHandler);
   width: 100%;
   height: 100%;
   min-height: 0;
+  flex-direction: column;
+}
+
+.workspace-skip-link {
+  position: absolute;
+  z-index: 50;
+  inset: var(--sd-space-xs) auto auto var(--sd-space-xs);
+  padding: var(--sd-space-xs) var(--sd-space-sm);
+  border: 1px solid var(--sd-primary);
+  border-radius: var(--sd-radius-sm);
+  background: var(--sd-bg-elevated);
+  color: var(--sd-primary);
+  transform: translateY(calc(-100% - var(--sd-space-sm)));
+}
+
+.workspace-skip-link:focus {
+  transform: none;
 }
 
 .sd-body {
@@ -275,11 +311,9 @@ onBeforeUnmount(releaseConfirmHandler);
   box-sizing: border-box;
   width: 100%;
   max-width: var(--sd-content-max-width);
-  min-height: 100%;
   min-width: 0;
   margin-inline: auto;
-  padding: var(--sd-space-xl) clamp(var(--sd-space-md), 2vw, var(--sd-space-2xl))
-    var(--sd-space-2xl);
+  padding: var(--sd-space-lg);
 }
 
 .sd-main-container--wide {
@@ -308,7 +342,7 @@ onBeforeUnmount(releaseConfirmHandler);
 
 .sd-floating-panel-layer {
   position: fixed;
-  top: 4.4rem;
+  top: calc(var(--sd-workspace-header-height) + var(--sd-space-sm));
   left: 50%;
   z-index: 40;
   display: flex;
@@ -337,6 +371,15 @@ onBeforeUnmount(releaseConfirmHandler);
   background: var(--sd-bg-sidebar);
 }
 
+:global(.sd-drawer .n-drawer-header) {
+  --n-header-border-bottom: 1px solid var(--sd-border-sidebar);
+}
+
+:global(.sd-drawer .n-drawer-header__main),
+:global(.sd-drawer .n-drawer-close) {
+  color: var(--sd-text-inverse);
+}
+
 /* 抽屉里的滚动容器高度由内容决定，侧边栏的 height: 100% 会退化成 auto，
    footer 因此停在内容末尾而不是底部。给这一段确定高度，让侧边栏拿到与桌面
    sider 相同的约束：footer 始终黏底，超长时由菜单自身滚动而非整个抽屉。 */
@@ -358,7 +401,7 @@ onBeforeUnmount(releaseConfirmHandler);
   }
 
   .sd-main-container {
-    padding: var(--sd-space-md);
+    padding: var(--sd-space-sm);
   }
 }
 </style>

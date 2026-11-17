@@ -14,6 +14,8 @@ it('uses four fixed semantic colors and maps info to primary', async () => {
   expect(lightOverrides.common?.primaryColor).toBe(lightOverrides.common?.infoColor);
   expect(lightOverrides.common?.borderRadius).toBe('var(--sd-radius-sm)');
   expect(lightOverrides.common?.borderRadiusSmall).toBe('var(--sd-radius-xs)');
+  // The layout composites this color before the browser resolves custom properties.
+  expect(lightOverrides.common?.bodyColor).toMatch(/^#[0-9a-f]{6}$/i);
   expect(lightOverrides.Menu?.itemTextColor).toBe('var(--sd-text-inverse-soft)');
   expect(lightOverrides.Menu?.itemIconColorCollapsed).toBe('var(--sd-text-inverse)');
   expect(lightOverrides.Menu?.itemColorActive).toBe('var(--sd-bg-sidebar-selected)');
@@ -23,7 +25,7 @@ it('uses four fixed semantic colors and maps info to primary', async () => {
   expect(lightOverrides.Switch?.railHeightMedium).toBe('20px');
 
   const darkOverrides = createThemeOverrides('dark');
-  expect(darkOverrides.common?.bodyColor).toBe('#0f172a');
+  expect(darkOverrides.common?.bodyColor).toMatch(/^#[0-9a-f]{6}$/i);
   expect(darkOverrides.Drawer?.color).toBe('var(--sd-bg-elevated)');
 
   const styleValues = new Map<string, string>();
@@ -37,7 +39,7 @@ it('uses four fixed semantic colors and maps info to primary', async () => {
   } as unknown as HTMLElement;
 
   syncDocumentThemePalette(fakeRoot);
-  expect(styleValues.get('--sd-primary')).toBe('#2563eb');
+  expect(styleValues.get('--sd-primary')).toBe(lightOverrides.common?.primaryColor);
   expect(styleValues.get('--sd-info')).toBe(styleValues.get('--sd-primary'));
   expect(styleValues.get('--sd-accent')).toBe(styleValues.get('--sd-primary'));
   expect(styleValues.has('--sd-success')).toBe(true);

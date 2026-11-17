@@ -15,16 +15,16 @@ defineProps<{ title: string }>();
 
 <style scoped>
 .sd-page-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: var(--sd-space-md);
-  padding-bottom: var(--sd-space-md);
-  border-bottom: 1px solid var(--sd-border-soft);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sd-space-sm);
 }
 
 .sd-page-header__copy {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .sd-page-header h1 {
@@ -46,8 +46,7 @@ defineProps<{ title: string }>();
 
 @media (max-width: 640px) {
   .sd-page-header {
-    grid-template-columns: 1fr;
-    align-items: start;
+    align-items: flex-start;
   }
 
   .sd-page-header__actions {
