@@ -584,6 +584,10 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait
 
 // GetGroupMemberInfo 获取群成员信息
 func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID string, userID string) *OnebotUserInfo {
+	return pa.getGroupMemberInfo(groupID, userID, false)
+}
+
+func (pa *PlatformAdapterGocq) getGroupMemberInfo(groupID string, userID string, noCache bool) *OnebotUserInfo {
 	type DetailParams struct {
 		GroupID string `json:"group_id"`
 		UserID  string `json:"user_id"`
@@ -597,7 +601,7 @@ func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID string, userID string)
 		Params: DetailParams{
 			GroupID: groupID,
 			UserID:  userID,
-			NoCache: false,
+			NoCache: noCache,
 		},
 		Echo: echo,
 	})

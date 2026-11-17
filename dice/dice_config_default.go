@@ -14,7 +14,7 @@ var DefaultConfig = Config{
 	BaseConfig{
 		CommandCompatibleMode:    true, // 一直为true即可
 		LastSavedTime:            nil,
-		NoticeIDs:                []string{},
+		NoticeIDs:                []string{"UI:1001"},
 		OnlyLogCommandInGroup:    false,
 		OnlyLogCommandInPrivate:  false,
 		VersionCode:              ConfigVersionCode,
@@ -26,6 +26,7 @@ var DefaultConfig = Config{
 		QQEnablePoke:             true,
 		OfficialQQFileSendBase64: false,
 		OfficialQQUseMarkdown:    false,
+		OfficialQQNameCardTmpl:   DefaultOfficialQQNameCardTemplate,
 		TextCmdTrustOnly:         true,
 		IgnoreUnaddressedBotCmd:  false,
 		UILogLimit:               0,
@@ -42,12 +43,15 @@ var DefaultConfig = Config{
 		AliveNoticeValue:         "@every 3h",
 		ReplyDebugMode:           false,
 		PlayerNameWrapEnable:     true,
+		DiceRandomMode:           string(DiceRandomModePCG),
 		VMVersionForReply:        "v1",
 		VMVersionForDeck:         "v2",
 		VMVersionForCustomText:   "v2",
 		VMVersionForMsg:          "v2",
 		Name:                     "default",
 		DataDir:                  "data/default",
+
+		OfficialQQMigrationEnable: false,
 	},
 	RateLimitConfig{
 		RateLimitEnabled:         false,

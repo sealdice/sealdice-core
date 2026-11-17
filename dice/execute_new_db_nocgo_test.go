@@ -12,10 +12,9 @@ package dice
 // execute_new_db_cgo_test.go.
 
 import (
+	sqlite "github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
-
-	sqlite "github.com/ncruces/go-sqlite3/gormlite"
 )
 
 func openTestGormDB(path string) (*gorm.DB, error) {

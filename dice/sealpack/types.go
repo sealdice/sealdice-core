@@ -160,8 +160,9 @@ type InstancePersist struct {
 
 // ArchiveInfo describes a validated .sealpack archive.
 type ArchiveInfo struct {
-	Manifest *Manifest `json:"manifest"`
-	Files    []string  `json:"files"`
+	Manifest         *Manifest `json:"manifest"`
+	Files            []string  `json:"files"`
+	UncompressedSize uint64    `json:"-"`
 }
 
 // OperationResult 包操作结果

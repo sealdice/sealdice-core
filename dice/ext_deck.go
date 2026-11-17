@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"math/rand"
 	"net/http"
 	"os"
 	"path"
@@ -20,11 +19,13 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
-	wr "github.com/mroth/weightedrand"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/sahilm/fuzzy"
+	ds "github.com/sealdice/dicescript"
 	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
+
+	"sealdice-core/utils/weighted"
 )
 
 type DeckDiceEFormat struct {
@@ -104,6 +105,13 @@ type CloudDeckItemInfo struct {
 }
 
 type DeckInfo struct {
+	storage            *deckBlockStore
+	contentVersion     uint64
+	cacheSourceSHA     string
+	cacheSourceBytes   int64
+	cacheHit           bool
+	sourceStoreID      string
+	sourceEtag         string
 	Enable             bool                          `json:"enable"        yaml:"enable"`
 	ErrText            string                        `json:"errText"       yaml:"errText"`
 	Filename           string                        `json:"filename"      yaml:"filename"`
@@ -230,10 +238,12 @@ func tryParseDiceE(content []byte, deckInfo *DeckInfo, jsoncDirectly bool) error
 	deckInfo.Enable = true
 	if len(jsonData2.StoreID) > 0 {
 		deckInfo.StoreID = jsonData2.StoreID[0]
+		deckInfo.sourceStoreID = jsonData2.StoreID[0]
 	}
 	deckInfo.UpdateUrls = jsonData2.UpdateUrls
 	if len(jsonData2.Etag) > 0 {
 		deckInfo.Etag = jsonData2.Etag[0]
+		deckInfo.sourceEtag = jsonData2.Etag[0]
 	}
 	deckInfo.RawData = &jsonData
 	return nil
@@ -416,33 +426,7 @@ func isPrefixWithUtf8Bom(buf []byte) bool {
 }
 
 func DeckTryParse(d *Dice, fn string) {
-	content, err := os.ReadFile(fn)
-	if err != nil {
-		d.Logger.Infof("牌堆文件“%s”加载失败", fn)
-		return
-	}
-	deckInfo := new(DeckInfo)
-	if deckInfo.DeckItems == nil {
-		deckInfo.DeckItems = map[string][]string{}
-	}
-	if deckInfo.Command == nil {
-		deckInfo.Command = map[string]bool{}
-	}
-	if deckInfo.CloudDeckItemInfos == nil {
-		deckInfo.CloudDeckItemInfos = map[string]*CloudDeckItemInfo{}
-	}
-	_ = parseDeck(d, fn, content, deckInfo)
-	deckInfo.Filename = fn
-
-	if deckInfo.Name == "" {
-		deckInfo.Name = filepath.Base(fn)
-	}
-
-	d.DeckList = append(d.DeckList, deckInfo)
-	if len(deckInfo.StoreID) > 0 {
-		d.StoreManager.InstalledDecks[deckInfo.StoreID] = true
-	}
-	d.MarkModified()
+	DeckTryParseWithPackage(d, fn, "")
 }
 
 func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
@@ -479,8 +463,16 @@ func parseDeck(d *Dice, fn string, content []byte, deckInfo *DeckInfo) bool {
 
 // DecksDetect 检查牌堆
 func DecksDetect(d *Dice) {
+	DeckReload(d)
+}
+
+func detectDecks(d *Dice) []*DeckInfo {
+	var decks []*DeckInfo
 	// 先进行zip解压
 	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return nil //nolint:nilerr // Unreadable paths must not prevent loading other decks.
+		}
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -506,6 +498,9 @@ func DecksDetect(d *Dice) {
 	})
 
 	_ = filepath.Walk("data/decks", func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return nil //nolint:nilerr // Unreadable paths must not prevent loading other decks.
+		}
 		if info.IsDir() && strings.EqualFold(info.Name(), "assets") {
 			return fs.SkipDir
 		}
@@ -522,7 +517,9 @@ func DecksDetect(d *Dice) {
 		if !info.IsDir() {
 			ext := filepath.Ext(path)
 			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" || ext == "" {
-				DeckTryParse(d, path)
+				if deck := d.readDeck(path, ""); deck != nil {
+					decks = append(decks, deck)
+				}
 			}
 		}
 		return nil
@@ -534,42 +531,29 @@ func DecksDetect(d *Dice) {
 			ext := filepath.Ext(deckFile.Path)
 			if ext == ".json" || ext == ".jsonc" || ext == ".yml" || ext == ".yaml" || ext == ".toml" {
 				d.Logger.Infof("正在加载扩展包 %s 的牌堆: %s", deckFile.PackageID, deckFile.Path)
-				DeckTryParseWithPackage(d, deckFile.Path, deckFile.PackageID)
+				if deck := d.readDeck(deckFile.Path, deckFile.PackageID); deck != nil {
+					decks = append(decks, deck)
+				}
 			}
 		}
 	}
+	return decks
 }
 
 // DeckTryParseWithPackage 解析牌堆并设置所属扩展包ID
 func DeckTryParseWithPackage(d *Dice, fn string, packageID string) {
-	content, err := os.ReadFile(fn)
-	if err != nil {
-		d.Logger.Infof("牌堆文件 %s 加载失败", fn)
+	d.deckLoadMu.Lock()
+	defer d.deckLoadMu.Unlock()
+	deck := d.readDeck(fn, packageID)
+	if deck == nil {
 		return
 	}
-	deckInfo := new(DeckInfo)
-	if deckInfo.DeckItems == nil {
-		deckInfo.DeckItems = map[string][]string{}
-	}
-	if deckInfo.Command == nil {
-		deckInfo.Command = map[string]bool{}
-	}
-	if deckInfo.CloudDeckItemInfos == nil {
-		deckInfo.CloudDeckItemInfos = map[string]*CloudDeckItemInfo{}
-	}
-	_ = parseDeck(d, fn, content, deckInfo)
-	deckInfo.Filename = fn
-	deckInfo.PackageID = packageID
-
-	if deckInfo.Name == "" {
-		deckInfo.Name = filepath.Base(fn)
-	}
-
-	d.DeckList = append(d.DeckList, deckInfo)
-	d.MarkModified()
+	decks := d.activeDecksSnapshot()
+	retainDecks(decks)
+	d.publishDecks(append(decks, deck))
 }
 
-func DeckDelete(_ *Dice, deck *DeckInfo) {
+func DeckDelete(d *Dice, deck *DeckInfo) {
 	dirPath := filepath.Dir(deck.Filename)
 	dirName := filepath.Base(dirPath)
 
@@ -589,6 +573,7 @@ func DeckDelete(_ *Dice, deck *DeckInfo) {
 	} else {
 		_ = os.Remove(deck.Filename)
 	}
+	DeckReload(d)
 }
 
 type DeckCommandListItem struct {
@@ -612,35 +597,42 @@ func (e DeckCommandListItems) Len() int {
 }
 
 func DeckReload(d *Dice) {
-	if d.IsDeckLoading {
-		return
-	}
-	d.IsDeckLoading = true
-	d.DeckList = d.DeckList[:0]
-	if d.StoreManager != nil {
-		d.StoreManager.InstalledDecks = map[string]bool{}
-	}
+	d.deckLoadMu.Lock()
+	defer d.deckLoadMu.Unlock()
 	d.Logger.Infof("从此目录加载牌堆: %s", "data/decks")
-	DecksDetect(d)
-	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(d.DeckList))
-	d.IsDeckLoading = false
-	d.MarkModified()
-
-	lst := DeckCommandListItems{}
-	for _, i := range d.DeckList {
-		for k, v := range i.Command {
-			lst = append(lst, &DeckCommandListItem{
-				command: k,
-				deck:    i,
-				visible: v,
-			})
+	decks := detectDecks(d)
+	previous := map[string]*DeckInfo{}
+	for _, deck := range d.activeDecksSnapshot() {
+		previous[deck.Filename] = deck
+	}
+	for i, deck := range decks {
+		if old := previous[deck.Filename]; deck.ErrText != "" && old != nil && old.Enable {
+			if old.storage != nil {
+				old.storage.retain()
+			}
+			decks[i] = old
+			d.Logger.Warnf("牌堆 %s 重载失败，保留上一有效版本: %s", deck.Filename, deck.ErrText)
 		}
 	}
-	d.deckCommandItemsList = lst
+	d.publishDecks(decks)
+	d.pruneDeckDiskCache(decks)
+	d.Logger.Infof("加载完成，现有牌堆 %d 个", len(decks))
 }
 
 func deckDraw(ctx *MsgContext, deckName string, shufflePool bool) (bool, string, error) {
-	for _, i := range ctx.Dice.DeckList {
+	parent := ctx.deckSnapshot
+	scope := ctx.Dice.acquireDeckScope(parent)
+	ctx.deckSnapshot = scope
+	defer func() {
+		ctx.deckSnapshot = parent
+		ctx.Dice.releaseDeckScope(scope)
+	}()
+	if ctx.deckPoolCatalog != scope.catalog.version {
+		ctx.DeckPools = nil
+		ctx.deckIndexPools = nil
+		ctx.deckPoolCatalog = scope.catalog.version
+	}
+	for _, i := range scope.catalog.decks {
 		if i.Enable {
 			_, deckExists := i.Command[deckName]
 			if deckExists {
@@ -668,10 +660,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 		ShortHelp:               helpDraw,
 		Help:                    "抽牌命令: \n" + helpDraw,
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
-			if d.IsDeckLoading {
-				ReplyToSender(ctx, msg, "牌堆尚未就绪，可能正在重新装载")
-				return CmdExecuteResult{Matched: true, Solved: true}
-			}
+			commands := d.deckCommandsSnapshot()
 
 			cmdArgs.ChopPrefixToArgsWith("list", "help", "reload", "search", "keys", "desc")
 			deckName := cmdArgs.GetArgN(1)
@@ -682,7 +671,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 
 			if strings.EqualFold(deckName, "list") { //nolint:nestif
 				var textBuilder strings.Builder
-				for _, i := range ctx.Dice.DeckList {
+				for _, i := range ctx.Dice.DeckListSnapshot() {
 					if i.Enable {
 						author := fmt.Sprintf(" 作者:%s", i.Author)
 						version := fmt.Sprintf(" 版本:%s", i.Version)
@@ -701,10 +690,10 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			} else if strings.EqualFold(deckName, "desc") {
 				// 查看详情
 				text := cmdArgs.GetArgN(2)
-				matches := fuzzy.FindFrom(text, d.deckCommandItemsList)
+				matches := fuzzy.FindFrom(text, commands)
 				if len(matches) > 0 {
 					text := "牌堆信息:\n"
-					i := ctx.Dice.deckCommandItemsList[matches[0].Index].deck
+					i := commands[matches[0].Index].deck
 					author := fmt.Sprintf("作者: %s", i.Author)
 					version := fmt.Sprintf("版本: %s", i.Version)
 					var cmds []string
@@ -734,7 +723,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 				specified := cmdArgs.GetArgN(2)
 				text := "牌组关键字列表:\n"
 				var keys []string
-				for _, i := range ctx.Dice.DeckList {
+				for _, i := range ctx.Dice.DeckListSnapshot() {
 					if i.Enable {
 						if strings.Contains(i.Name, specified) {
 							for j, isShow := range i.Command {
@@ -769,7 +758,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 			} else if strings.EqualFold(deckName, "search") {
 				text := cmdArgs.GetArgN(2)
 				if text != "" {
-					matches := fuzzy.FindFrom(text, d.deckCommandItemsList)
+					matches := fuzzy.FindFrom(text, commands)
 
 					right := len(matches)
 					if right == 0 {
@@ -832,7 +821,7 @@ func RegisterBuiltinExtDeck(d *Dice) {
 					prefix := DiceFormatTmpl(ctx, "其它:抽牌_结果前缀")
 					ReplyToSender(ctx, msg, prefix+result)
 				} else {
-					matches := fuzzy.FindFrom(deckName, d.deckCommandItemsList)
+					matches := fuzzy.FindFrom(deckName, commands)
 					right := len(matches)
 					if right > 10 {
 						right = 4
@@ -919,9 +908,12 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 
 		deckName = deckName[1+signLength : len(deckName)-1]
 
-		deck := deckInfo.DeckItems[deckName]
-
-		if deck == nil {
+		exists := deckInfo.DeckItems[deckName] != nil
+		if deckInfo.storage != nil {
+			group, found := deckInfo.storage.group(deckName)
+			exists = found && !group.nilItems
+		}
+		if !exists {
 			text = "<%未知牌组-" + deckName + "%>"
 		} else {
 			useShufflePool := sign != '%'
@@ -950,37 +942,6 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 	re = regexp.MustCompile(`\[.+?]`)
 	m = re.FindAllStringIndex(s, -1)
 
-	cqSolve := func(cq *CQCommand) {
-		fn, exists := cq.Args["file"]
-		if exists {
-			if strings.HasPrefix(fn, "./") {
-				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
-				if err == nil {
-					fn = filepath.Join(pathPrefix, fn[2:])
-					fn = strings.ReplaceAll(fn, `\`, "/")
-					cq.Args["file"] = fn
-				}
-			}
-		}
-	}
-
-	imgSolve := func(text string) string {
-		reImg := regexp.MustCompile(`\[(img|图|文本|text|语音|voice|视频|video):(.+?)]`) // [img:] 或 [图:]
-		m := reImg.FindStringSubmatch(text)
-		if m != nil {
-			fn := m[2]
-			if strings.HasPrefix(fn, "./") {
-				pathPrefix, err := filepath.Rel(".", filepath.Dir(deckInfo.Filename))
-				if err == nil {
-					fn = filepath.Join(pathPrefix, fn[2:])
-					fn = strings.ReplaceAll(fn, `\`, "/")
-					return "[" + m[1] + ":" + fn + "]"
-				}
-			}
-		}
-		return text
-	}
-
 	for _i := len(m) - 1; _i >= 0; _i-- {
 		i := m[_i]
 
@@ -989,10 +950,7 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 			continue
 		}
 
-		if strings.HasPrefix(text, "[图:") ||
-			strings.HasPrefix(text, "[img:") ||
-			strings.HasPrefix(text, "[文本:") ||
-			strings.HasPrefix(text, "[语音:") {
+		if isResourceCode(text) {
 			continue
 		}
 
@@ -1007,8 +965,8 @@ func deckStringFormat(ctx *MsgContext, deckInfo *DeckInfo, s string) (string, er
 		// s = s[:i[0]] + text + s[i[1]:]
 	}
 
-	s = CQRewrite(s, cqSolve)
-	s = ImageRewrite(s, imgSolve)
+	// 在进入消息解析前，按牌堆文件位置固定 ./ 资源路径。
+	s = rewriteRelativeResourcePaths(deckInfo.Filename, s)
 
 	s = strings.ReplaceAll(s, "\n", `\n`)
 	if ctx.Dice.getTargetVmEngineVersion(VMVersionDeck) == "v1" {
@@ -1024,6 +982,13 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 	if ctx.deckDepth > 20000 {
 		return "", errors.New("超出遍历次数")
 	}
+	if deckInfo.storage != nil && deckInfo.CloudDeckItemInfos[deckName] == nil {
+		text, err := drawStoredDeck(ctx, deckInfo, deckName, shufflePool)
+		if err != nil {
+			return "", err
+		}
+		return deckStringFormat(ctx, deckInfo, text)
+	}
 
 	if shufflePool {
 		var pool *ShuffleRandomPool
@@ -1035,25 +1000,44 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 			ctx.DeckPools[deckInfo] = map[string]*ShuffleRandomPool{}
 		}
 
-		deckGroup := getDeckGroup(deckInfo, deckName)
+		deckGroup, err := getDeckGroup(deckInfo, deckName)
+		if err != nil {
+			return "", err
+		}
 		if len(deckGroup) == 0 {
 			return "", errors.New("牌组为空，请检查格式是否正确")
 		}
 		if ctx.DeckPools[deckInfo][deckName] == nil {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
-		if len(ctx.DeckPools[deckInfo][deckName].data) == 0 {
-			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPool(deckGroup)
+		pool = ctx.DeckPools[deckInfo][deckName]
+		if pool == nil || len(pool.data) == 0 || pool.max < 1 {
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
 		}
 
 		pool = ctx.DeckPools[deckInfo][deckName]
 		if pool == nil {
-			return "", errors.New("牌组为空，可能尚未加载完成")
+			return "", errors.New("牌组无有效条目，请检查权重配置")
 		}
-		key = pool.Pick().(string)
+		var pickErr error
+		key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+		if errors.Is(pickErr, errShuffleRandomPoolExhausted) {
+			ctx.DeckPools[deckInfo][deckName] = DeckToShuffleRandomPoolWithSource(ctx.getDiceSource(), deckGroup)
+			pool = ctx.DeckPools[deckInfo][deckName]
+			if pool == nil {
+				return "", errors.New("牌组无有效条目，请检查权重配置")
+			}
+			key, pickErr = pool.TryPickWithSource(ctx.getDiceSource())
+		}
+		if pickErr != nil {
+			return "", fmt.Errorf("牌组抽取失败: %w", pickErr)
+		}
 	} else {
-		deckGroup := getDeckGroup(deckInfo, deckName)
+		deckGroup, err := getDeckGroup(deckInfo, deckName)
+		if err != nil {
+			return "", err
+		}
 		if len(deckGroup) == 0 {
 			return "", errors.New("牌组为空，请检查格式是否正确")
 		}
@@ -1061,32 +1045,38 @@ func executeDeck(ctx *MsgContext, deckInfo *DeckInfo, deckName string, shufflePo
 		if pool == nil {
 			return "", errors.New("牌组为空，可能尚未加载完成")
 		}
-		key = pool.PickSource(randSourceDrawAndTmplSelect).(string)
+		key = pickChooserWithRand(pool, ctx.getChooserRand())
 	}
 	cmd, err := deckStringFormat(ctx, deckInfo, key)
 	return cmd, err
 }
 
-func getDeckGroup(deckInfo *DeckInfo, deckName string) (deckGroup []string) {
+func getDeckGroup(deckInfo *DeckInfo, deckName string) (deckGroup []string, err error) {
 	deckGroup = deckInfo.DeckItems[deckName]
+	if deckInfo.storage != nil {
+		deckGroup, err = deckInfo.storage.materialize(deckName)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if !deckInfo.Cloud {
-		return deckGroup
+		return deckGroup, nil
 	}
 
 	// 含有云端内容时，查看是否需要补充
 	cloudInfo, ok := deckInfo.CloudDeckItemInfos[deckName]
 	if !ok {
-		return deckGroup
+		return deckGroup, nil
 	}
 
 	statusCode, newData, err := GetCloudContent(cloudInfo.OptionsUrls, "")
 	if err != nil || statusCode != http.StatusOK {
-		return deckGroup
+		return deckGroup, nil //nolint:nilerr // Preserve cloud failure fallback to the local base.
 	}
 	cloudItems := make([]string, 0)
 	err = json.Unmarshal(newData, &cloudItems)
 	if err != nil {
-		return deckGroup
+		return deckGroup, nil //nolint:nilerr // Preserve cloud failure fallback to the local base.
 	}
 	deckGroup = append(deckGroup, cloudItems...)
 	if cloudInfo.Distinct {
@@ -1101,7 +1091,7 @@ func getDeckGroup(deckInfo *DeckInfo, deckName string) (deckGroup []string) {
 		}
 		deckGroup = temp
 	}
-	return deckGroup
+	return deckGroup, nil
 }
 
 func extractWeight(s string) (uint, string) {
@@ -1115,35 +1105,39 @@ func extractWeight(s string) (uint, string) {
 	return uint(weight), s
 }
 
-func DeckToRandomPool(deck []string) *wr.Chooser {
-	choices := []wr.Choice{}
+func DeckToRandomPool(deck []string) *weighted.Chooser[string] {
+	choices := []weighted.Choice[string]{}
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.Choice{Item: text, Weight: weight})
+		choices = append(choices, weighted.Choice[string]{Item: text, Weight: weight})
 	}
-	randomPool, _ := wr.NewChooser(choices...)
+	randomPool, _ := weighted.NewChooser(choices...)
 	return randomPool
 }
 
-// 临时乱写的
 type ShuffleRandomPool struct {
-	data   []wr.Choice
+	data   []weighted.Choice[string]
 	totals []int
 	max    int
 }
 
-func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
-	rand.Shuffle(len(choices), func(i, j int) {
-		choices[i], choices[j] = choices[j], choices[i]
+var errShuffleRandomPoolExhausted = errors.New("shuffle random pool exhausted")
+
+func NewChooser(choices ...weighted.Choice[string]) (*ShuffleRandomPool, error) {
+	return NewChooserWithSource(globalRandSource, choices...)
+}
+
+func NewChooserWithSource(src ds.DiceSource, choices ...weighted.Choice[string]) (*ShuffleRandomPool, error) {
+	shuffled := append([]weighted.Choice[string](nil), choices...)
+
+	shuffleWithSource(src, len(shuffled), func(i, j int) {
+		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
 	})
 
-	totals := make([]int, len(choices))
+	totals := make([]int, len(shuffled))
 	runningTotal := 0
-	for i, c := range choices {
+	for i, c := range shuffled {
 		weight := int(c.Weight)
-		// if (maxInt - runningTotal) <= weight {
-		// 	return nil, errWeightOverflow
-		// }
 		runningTotal += weight
 		totals[i] = runningTotal
 	}
@@ -1152,23 +1146,44 @@ func NewChooser(choices ...wr.Choice) (*ShuffleRandomPool, error) {
 		return nil, errors.New("zero Choices with Weight >= 1")
 	}
 
-	return &ShuffleRandomPool{data: choices, totals: totals, max: runningTotal}, nil
+	return &ShuffleRandomPool{data: shuffled, totals: totals, max: runningTotal}, nil
 }
-
-var randSourceDrawAndTmplSelect = rand.New(rand.NewSource(time.Now().UnixMilli()))
 
 // Pick returns a single weighted random Choice.Item from the Chooser.
 //
-// Utilizes global rand as the source of randomness.
+// Utilizes the provided dice source.
 func (c *ShuffleRandomPool) Pick() interface{} {
-	r := randSourceDrawAndTmplSelect.Intn(c.max) + 1
+	return c.PickWithSource(globalRandSource)
+}
+
+func (c *ShuffleRandomPool) TryPickWithSource(src ds.DiceSource) (string, error) {
+	if c == nil {
+		return "", errors.New("shuffle random pool unavailable")
+	}
+	if len(c.data) == 0 || c.max < 1 {
+		return "", errShuffleRandomPoolExhausted
+	}
+
+	r := randIntnFromSource(src, c.max) + 1
 	i := searchInts(c.totals, r)
 
 	theOne := c.data[i]
-	c.max -= int(theOne.Weight)
+	weight := int(theOne.Weight)
+	for j := i + 1; j < len(c.totals); j++ {
+		c.totals[j] -= weight
+	}
+	c.max -= weight
 	c.totals = append(c.totals[:i], c.totals[i+1:]...)
 	c.data = append(c.data[:i], c.data[i+1:]...)
-	return theOne.Item
+	return theOne.Item, nil
+}
+
+func (c *ShuffleRandomPool) PickWithSource(src ds.DiceSource) interface{} {
+	item, err := c.TryPickWithSource(src)
+	if err != nil {
+		panic(err.Error())
+	}
+	return item
 }
 
 func searchInts(a []int, x int) int {
@@ -1187,12 +1202,16 @@ func searchInts(a []int, x int) int {
 }
 
 func DeckToShuffleRandomPool(deck []string) *ShuffleRandomPool {
-	var choices []wr.Choice
+	return DeckToShuffleRandomPoolWithSource(globalRandSource, deck)
+}
+
+func DeckToShuffleRandomPoolWithSource(src ds.DiceSource, deck []string) *ShuffleRandomPool {
+	var choices []weighted.Choice[string]
 	for _, i := range deck {
 		weight, text := extractWeight(i)
-		choices = append(choices, wr.Choice{Item: text, Weight: weight})
+		choices = append(choices, weighted.Choice[string]{Item: text, Weight: weight})
 	}
-	randomPool, _ := NewChooser(choices...)
+	randomPool, _ := NewChooserWithSource(src, choices...)
 	return randomPool
 }
 
@@ -1269,6 +1288,8 @@ func (d *Dice) DeckCheckUpdate(deckInfo *DeckInfo) (string, string, string, erro
 }
 
 func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
+	d.deckLoadMu.Lock()
+	defer d.deckLoadMu.Unlock()
 	newData, err := os.ReadFile(tempFileName)
 	_ = os.Remove(tempFileName)
 	if err != nil {
@@ -1278,7 +1299,11 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 		return errors.New("new data is empty")
 	}
 	// 更新牌堆
-	ok := parseDeck(d, tempFileName, newData, deckInfo)
+	next := newDeckInfo()
+	next.Filename, next.PackageID = deckInfo.Filename, deckInfo.PackageID
+	// The existing parsers decide whether omitted update metadata is retained.
+	next.StoreID, next.Etag = deckInfo.StoreID, deckInfo.Etag
+	ok := parseDeck(d, deckInfo.Filename, newData, next)
 	if !ok {
 		d.Logger.Errorf("牌堆“%s”更新失败，无法解析获取到的牌堆数据", deckInfo.Name)
 		return errors.New("无法解析获取到的牌堆数据")
@@ -1296,11 +1321,32 @@ func (d *Dice) DeckUpdate(deckInfo *DeckInfo, tempFileName string) error {
 	if !strings.HasPrefix(filenameAbs, decksDirAbs+string(filepath.Separator)) {
 		return fmt.Errorf("deck filename %q is outside decks directory", deckInfo.Filename)
 	}
-	err = os.WriteFile(filenameAbs, newData, 0755) //nolint:gosec
+	if next.Name == "" {
+		next.Name = filepath.Base(next.Filename)
+	}
+	next.setSourceFingerprint(newData)
+	d.compactDeck(next)
+	err = replaceDeckSource(filenameAbs, newData)
 	if err != nil {
+		closeDecks(d, []*DeckInfo{next})
 		d.Logger.Errorf("牌堆“%s”更新时保存文件出错，%s", deckInfo.Name, err.Error())
 		return err
 	}
+	d.saveDeckDiskCache(next)
+	decks := d.activeDecksSnapshot()
+	found := false
+	for i, old := range decks {
+		if old.Filename == deckInfo.Filename {
+			decks[i] = next
+			found = true
+		} else if old.storage != nil {
+			old.storage.retain()
+		}
+	}
+	if !found {
+		decks = append(decks, next)
+	}
+	d.publishDecks(decks)
 	d.Logger.Infof("牌堆“%s”更新成功", deckInfo.Name)
 	return nil
 }

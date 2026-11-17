@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/logger"
-	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
 )
 
@@ -214,10 +213,6 @@ func (s *SQLiteEngine) dataDBInit() error {
 	if err != nil {
 		return err
 	}
-	// 添加并设置context
-	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
-	readDB = readDB.WithContext(dataContext)
-	writeDB = writeDB.WithContext(dataContext)
 	s.readList[DataDBKey] = readDB
 	s.writeList[DataDBKey] = writeDB
 	return nil
@@ -229,10 +224,6 @@ func (s *SQLiteEngine) LogDBInit() error {
 	if err != nil {
 		return err
 	}
-	// 添加并设置context
-	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
-	readDB = readDB.WithContext(logsContext)
-	writeDB = writeDB.WithContext(logsContext)
 	s.readList[LogsDBKey] = readDB
 	s.writeList[LogsDBKey] = writeDB
 	return nil
@@ -247,10 +238,6 @@ func (s *SQLiteEngine) CensorDBInit() error {
 	if err != nil {
 		return err
 	}
-	// 添加并设置context
-	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
-	readDB = readDB.WithContext(censorContext)
-	writeDB = writeDB.WithContext(censorContext)
 	s.readList[CensorsDBKey] = readDB
 	s.writeList[CensorsDBKey] = writeDB
 	return nil

@@ -3,7 +3,6 @@ package dice
 import (
 	"fmt"
 	"html"
-	"math/rand"
 	"strconv"
 	"strings"
 
@@ -80,7 +79,7 @@ func cmdRandomName(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs, cmdsList [][
 
 	// 开始抽取
 	for range num {
-		rule := rules[rand.Int()%len(rules)]
+		rule := rules[ctx.RandIntn(len(rules))]
 		names = append(names, ctx.Dice.Parent.NamesGenerator.NameGenerate(rule))
 	}
 
@@ -237,7 +236,7 @@ func RegisterBuiltinStory(self *Dice) {
 
 			items := make([]string, len(cmdArgs.Args))
 			copy(items, cmdArgs.Args)
-			rand.Shuffle(len(items), func(i, j int) {
+			ctx.Shuffle(len(items), func(i, j int) {
 				items[i], items[j] = items[j], items[i]
 			})
 
@@ -359,7 +358,7 @@ func RegisterBuiltinStory(self *Dice) {
 					logAndReply(err)
 					break
 				}
-				id := rand.Int()%ret.Data.TotalElements + 1
+				id := ctx.RandIntn(ret.Data.TotalElements) + 1
 				text := getDetail(strconv.Itoa(id))
 				if text != "" {
 					ReplyToSender(ctx, msg, text)

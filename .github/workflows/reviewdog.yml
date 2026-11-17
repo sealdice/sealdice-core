@@ -6,7 +6,9 @@ on:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
+      - '.golangci.toml'
       - '.github/workflows/reviewdog.yml'
+      - '.github/scripts/lint.sh'
 
 permissions:
   contents: read
@@ -14,20 +16,22 @@ permissions:
 jobs:
   review-dog:
     name: Review Dog
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.25'
       - run: go mod download
       - run: go generate ./...
-      - name: GolangCI-Lint
-        uses: golangci/golangci-lint-action@v8
+      - name: Install GolangCI-Lint
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.4.0
-          args: '--timeout 10m'
+          version: v2.15.0
+          install-only: true
+      - name: Verify configuration and lint
+        run: bash .github/scripts/lint.sh

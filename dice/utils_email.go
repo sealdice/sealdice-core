@@ -30,9 +30,14 @@ func (d *Dice) CanSendMail() bool {
 	return true
 }
 
-func (d *Dice) SendMail(body string, m MailCode) error {
+// SendMail 向允许接收该分类的通知目标发送邮件。
+func (d *Dice) SendMail(body string, m MailCode, noticeTypes ...NoticeType) error {
 	if !d.CanSendMail() {
 		return errors.New("邮件配置不完整")
+	}
+	noticeType := NoticeTypeSystem
+	if len(noticeTypes) > 0 {
+		noticeType = noticeTypes[0]
 	}
 	sub := "Seal News: "
 	switch m {
@@ -48,25 +53,33 @@ func (d *Dice) SendMail(body string, m MailCode) error {
 		sub += "Test 测试邮件"
 	}
 	var to []string
-	for _, id := range d.Config.NoticeIDs {
-		if strings.HasPrefix(id, "QQ:") {
-			to = append(to, id[3:]+"@qq.com")
+	for _, target := range filterNoticeTargets(d.Config.NoticeIDs, noticeType) {
+		if strings.HasPrefix(target.ID, "QQ:") {
+			to = append(to, target.ID[3:]+"@qq.com")
 		}
-		if strings.HasPrefix(id, "Mail:") {
-			to = append(to, id[5:])
+		if strings.HasPrefix(target.ID, "Mail:") {
+			to = append(to, target.ID[5:])
 		}
 	}
+	if len(to) == 0 {
+		return errors.New("没有启用且允许接收此类通知的邮件目标")
+	}
 
-	d.SendMailRow(sub, to, body, nil)
-	return nil
+	return d.SendMailRow(sub, to, body, nil)
 }
 
-func (d *Dice) SendMailRow(subject string, to []string, content string, attachments []string) {
+func (d *Dice) SendMailRow(subject string, to []string, content string, attachments []string) error {
+	dialer, err := newMailDialer(d.Config.MailSMTP, d.Config.MailFrom, d.Config.MailPassword)
+	if err != nil {
+		d.Logger.Error(err)
+		return err
+	}
+
 	m := gomail.NewMessage()
 	// NOTE(Xiangze Li): 按理说应当统一用DiceFotmatTmpl, 但是那样还得有一个MsgContext, 好复杂
 	diceName := "海豹核心"
 	if v := d.TextMap["核心:骰子名字"]; v != nil {
-		if s, ok := v.Pick().(string); ok {
+		if s := pickChooserWithSource(v, globalRandSource); s != "" {
 			diceName = s
 		}
 	}
@@ -84,10 +97,11 @@ func (d *Dice) SendMailRow(subject string, to []string, content string, attachme
 		}
 	}
 
-	dialer := gomail.NewDialer(d.Config.MailSMTP, 25, d.Config.MailFrom, d.Config.MailPassword)
 	if err := dialer.DialAndSend(m); err != nil {
+		err = fmt.Errorf("邮件发送失败: %w", err)
 		d.Logger.Error(err)
-	} else {
-		d.Logger.Infof("Mail:[%s]%s -> %s", subject, content, strings.Join(to, ";"))
+		return err
 	}
+	d.Logger.Infof("Mail:[%s]%s -> %s", subject, content, strings.Join(to, ";"))
+	return nil
 }

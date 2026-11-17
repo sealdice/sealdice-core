@@ -72,3 +72,12 @@ func (m *SyncMap[K, V]) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+func (m *SyncMap[K, V]) ToList() []V {
+	result := make([]V, 0)
+	m.Range(func(_ K, value V) bool {
+		result = append(result, value)
+		return true
+	})
+	return result
+}

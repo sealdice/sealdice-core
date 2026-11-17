@@ -3,6 +3,7 @@ package dice
 import (
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,9 +12,13 @@ import (
 	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
+	"sealdice-core/dice/service"
 	"sealdice-core/logger"
 	"sealdice-core/utils/dboperator/engine"
 )
+
+// MaxTrayTooltipPrefixLength 自定义托盘提示前缀的最大字符数。
+const MaxTrayTooltipPrefixLength = 10
 
 type VersionInfo struct {
 	VersionLatest           string `json:"versionLatest"           yaml:"versionLatest"`
@@ -31,9 +36,11 @@ type GroupNameCacheItem struct {
 }
 
 type DiceManager struct { //nolint:revive
-	Dice                 []*Dice
+	Dice                 *Dice
 	Operator             engine.DatabaseOperator
 	ServeAddress         string
+	trayTooltip          string
+	trayTooltipLock      sync.RWMutex
 	Help                 *HelpManager
 	IsHelpReloading      bool
 	helpReloadLock       sync.Mutex
@@ -63,11 +70,14 @@ type DiceManager struct { //nolint:revive
 	BackupCleanCron      string              // 如果使用cron触发, 表达式
 	backupCleanCronID    cron.EntryID
 
+	// 数据库维护（增量页回收）定时任务
+	dbMaintenanceEntryID cron.EntryID
+
 	AppBootTime      int64
 	AppVersionCode   int64
 	AppVersionOnline *VersionInfo
 
-	UpdateRequestChan      chan *Dice
+	UpdateRequestChan      chan struct{}
 	UpdateDownloadedChan   chan string
 	RebootRequestChan      chan int
 	UpdateCheckRequestChan chan int
@@ -89,6 +99,7 @@ type DiceManager struct { //nolint:revive
 type Configs struct { //nolint:revive
 	DiceConfigs       []BaseConfig `yaml:"diceConfigs"`
 	ServeAddress      string       `yaml:"serveAddress"`
+	TrayTooltip       string       `yaml:"trayTooltip"`
 	WebUIAddress      string       `yaml:"webUIAddress"`
 	HelpDocEngineType int          `yaml:"helpDocEngineType"`
 
@@ -113,6 +124,10 @@ type Configs struct { //nolint:revive
 	ConfigVersion int `yaml:"configVersion"`
 }
 
+func (dm *DiceManager) GetDice() *Dice {
+	return dm.Dice
+}
+
 func (dm *DiceManager) InitHelp() {
 	_ = dm.reloadHelp(false)
 }
@@ -134,7 +149,8 @@ func (dm *DiceManager) reloadHelp(closeCurrent bool) error {
 	if closeCurrent && dm.Help != nil {
 		dm.Help.Close()
 	}
-	if len(dm.Dice) == 0 {
+	currentDice := dm.GetDice()
+	if currentDice == nil {
 		err := errors.New("Dice实例不存在")
 		log.Error(err)
 		return err
@@ -144,7 +160,7 @@ func (dm *DiceManager) reloadHelp(closeCurrent bool) error {
 	if nextHelp == nil || closeCurrent {
 		nextHelp = &HelpManager{EngineType: EngineType(dm.HelpDocEngineType)}
 	}
-	nextHelp.Load(dm.Dice[0], dm.Dice[0].CmdMap, dm.Dice[0].ExtList)
+	nextHelp.Load(currentDice, currentDice.CmdMap, currentDice.ExtList)
 	if !nextHelp.IsAvailable() {
 		err := errors.New("帮助文档搜索引擎不可用")
 		log.Error(err)
@@ -199,6 +215,7 @@ func (dm *DiceManager) LoadDice() {
 	}
 
 	dm.ServeAddress = dc.ServeAddress
+	dm.SetTrayTooltip(dc.TrayTooltip)
 	dm.HelpDocEngineType = dc.HelpDocEngineType
 	dm.UIPasswordHash = dc.UIPasswordHash
 	dm.UIPasswordSalt = dc.UIPasswordSalt
@@ -223,17 +240,21 @@ func (dm *DiceManager) LoadDice() {
 		dm.AccessTokens.Store(i, true)
 	}
 
-	for _, i := range dc.DiceConfigs {
+	if len(dc.DiceConfigs) > 0 {
+		if len(dc.DiceConfigs) > 1 {
+			log.Warnf("检测到 %d 个 diceConfigs 条目，运行时仅支持单实例，将只加载第一项 %q", len(dc.DiceConfigs), dc.DiceConfigs[0].Name)
+		}
 		newDice := new(Dice)
-		newDice.BaseConfig = i
+		newDice.BaseConfig = dc.DiceConfigs[0]
 		newDice.ContainerMode = dm.ContainerMode
-		dm.Dice = append(dm.Dice, newDice)
+		dm.Dice = newDice
 	}
 }
 
 func (dm *DiceManager) Save() {
 	var dc Configs
 	dc.ServeAddress = dm.ServeAddress
+	dc.TrayTooltip = dm.GetTrayTooltip()
 	dc.HelpDocEngineType = dm.HelpDocEngineType
 	dc.UIPasswordSalt = dm.UIPasswordSalt
 	dc.UIPasswordHash = dm.UIPasswordHash
@@ -254,8 +275,8 @@ func (dm *DiceManager) Save() {
 		return true
 	})
 
-	for _, i := range dm.Dice {
-		dc.DiceConfigs = append(dc.DiceConfigs, i.BaseConfig)
+	if currentDice := dm.GetDice(); currentDice != nil {
+		dc.DiceConfigs = append(dc.DiceConfigs, currentDice.BaseConfig)
 	}
 
 	data, err := yaml.Marshal(dc) //nolint:gosec
@@ -264,9 +285,31 @@ func (dm *DiceManager) Save() {
 	}
 }
 
+func (dm *DiceManager) GetTrayTooltip() string {
+	dm.trayTooltipLock.RLock()
+	defer dm.trayTooltipLock.RUnlock()
+	return dm.trayTooltip
+}
+
+// NormalizeTrayTooltipPrefix 规范化托盘提示前缀，并按 Unicode 字符数限制长度。
+func NormalizeTrayTooltipPrefix(tooltip string) string {
+	tooltip = strings.TrimSpace(tooltip)
+	runes := []rune(tooltip)
+	if len(runes) > MaxTrayTooltipPrefixLength {
+		return string(runes[:MaxTrayTooltipPrefixLength])
+	}
+	return tooltip
+}
+
+func (dm *DiceManager) SetTrayTooltip(tooltip string) {
+	dm.trayTooltipLock.Lock()
+	defer dm.trayTooltipLock.Unlock()
+	dm.trayTooltip = NormalizeTrayTooltipPrefix(tooltip)
+}
+
 func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 	log := logger.M()
-	dm.UpdateRequestChan = make(chan *Dice, 1)
+	dm.UpdateRequestChan = make(chan struct{}, 1)
 	dm.RebootRequestChan = make(chan int, 1)
 	dm.UpdateCheckRequestChan = make(chan int, 1)
 	dm.UpdateDownloadedChan = make(chan string, 1)
@@ -280,9 +323,9 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 		dm.progressExitGroupWin = g
 	}
 
-	for _, i := range dm.Dice {
-		i.Parent = dm
-		i.Init(dm.Operator, writer)
+	if currentDice := dm.GetDice(); currentDice != nil {
+		currentDice.Parent = dm
+		currentDice.Init(dm.Operator, writer)
 	}
 
 	go func() {
@@ -300,6 +343,7 @@ func (dm *DiceManager) InitDice(writer *logger.UIWriter) {
 
 	dm.ResetAutoBackup()
 	dm.ResetBackupClean()
+	dm.ResetDBMaintenance()
 }
 
 func (dm *DiceManager) ResetAutoBackup() {
@@ -349,19 +393,39 @@ func (dm *DiceManager) ResetBackupClean() {
 	}
 }
 
+// ResetDBMaintenance 注册每天凌晨 3 点的数据库维护任务：
+// 仅对 auto_vacuum=INCREMENTAL 的 SQLite 库执行增量页回收。
+func (dm *DiceManager) ResetDBMaintenance() {
+	log := logger.M()
+	if dm.dbMaintenanceEntryID != 0 {
+		dm.Cron.Remove(dm.dbMaintenanceEntryID)
+		dm.dbMaintenanceEntryID = 0
+	}
+	if dm.Operator == nil {
+		return
+	}
+	var err error
+	dm.dbMaintenanceEntryID, err = dm.Cron.AddFunc("0 3 * * *", func() {
+		service.DBIncrementalVacuum(dm.Operator)
+	})
+	if err != nil {
+		log.Errorf("注册数据库维护定时任务失败: %v", err)
+	}
+}
+
 func (dm *DiceManager) TryCreateDefault() {
 	if dm.ServeAddress == "" {
 		dm.ServeAddress = "0.0.0.0:3211"
 	}
 
-	if len(dm.Dice) == 0 {
+	if dm.GetDice() == nil {
 		defaultDice := new(Dice)
 		defaultDice.BaseConfig.Name = "default"
 		defaultDice.Config.MessageDelayRangeStart = DefaultConfig.MessageDelayRangeStart
 		defaultDice.Config.MessageDelayRangeEnd = DefaultConfig.MessageDelayRangeEnd
 		defaultDice.MarkModified()
 		defaultDice.ContainerMode = dm.ContainerMode
-		dm.Dice = append(dm.Dice, defaultDice)
+		dm.Dice = defaultDice
 	}
 }
 

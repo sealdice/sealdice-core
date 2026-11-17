@@ -13,12 +13,14 @@ import (
 	"sync"
 	"time"
 
-	wr "github.com/mroth/weightedrand"
+	"github.com/bytedance/sonic"
+	"github.com/robfig/cron/v3"
 	"gopkg.in/yaml.v3"
 
 	"sealdice-core/dice/service"
 	"sealdice-core/logger"
 	"sealdice-core/model"
+	"sealdice-core/utils/weighted"
 )
 
 // type TextTemplateWithWeight = map[string]map[string]uint
@@ -311,6 +313,44 @@ func (cm *ConfigManager) UnregisterConfig(pluginName string, keys ...string) {
 	_ = cm.save()
 }
 
+// RemovePluginConfig 删除整个插件的配置，用于清理死配置（插件已不存在但配置仍在）。
+// 注意与 UnregisterConfig 的区别：UnregisterConfig 只按 keys 删除单个配置项，
+// 不传 keys 时不会删除任何内容；这里按插件名整体移除并停止其定时任务。
+func (cm *ConfigManager) RemovePluginConfig(pluginName string) error {
+	return cm.RemovePluginConfigs([]string{pluginName})
+}
+
+// RemovePluginConfigs 原子删除多个插件配置，写盘失败时恢复内存状态。
+func (cm *ConfigManager) RemovePluginConfigs(pluginNames []string) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+
+	removed := make(map[string]*PluginConfig, len(pluginNames))
+	for _, pluginName := range pluginNames {
+		if plugin, ok := cm.Plugins[pluginName]; ok {
+			removed[pluginName] = plugin
+			delete(cm.Plugins, pluginName)
+		}
+	}
+	if len(removed) == 0 {
+		return nil
+	}
+	if err := cm.save(); err != nil {
+		for pluginName, plugin := range removed {
+			cm.Plugins[pluginName] = plugin
+		}
+		return err
+	}
+	for _, plugin := range removed {
+		for _, config := range plugin.Configs {
+			if strings.HasPrefix(config.Type, "task:") && config.task != nil {
+				config.task.Off()
+			}
+		}
+	}
+	return nil
+}
+
 func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) error {
 	cm.lock.Lock()
 	defer cm.lock.Unlock()
@@ -340,6 +380,87 @@ func (cm *ConfigManager) SetConfig(pluginName, key string, value interface{}) er
 		cm.Plugins[pluginName] = plugin
 	}
 	return cm.save()
+}
+
+var ErrInvalidPluginConfig = errors.New("插件配置无效")
+
+// SetConfigs validates a plugin patch before applying it and persists it once.
+func (cm *ConfigManager) SetConfigs(pluginName string, values map[string]interface{}) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	return cm.setConfigsLocked(pluginName, values)
+}
+
+// ResetConfigs uses the same validation and persistence boundary as a save.
+func (cm *ConfigManager) ResetConfigs(pluginName string, keys []string) error {
+	cm.lock.Lock()
+	defer cm.lock.Unlock()
+	plugin := cm.Plugins[pluginName]
+	if plugin == nil {
+		return fmt.Errorf("%w: 插件 %q 不存在", ErrInvalidPluginConfig, pluginName)
+	}
+	values := make(map[string]interface{}, len(keys))
+	for _, key := range keys {
+		item := plugin.Configs[key]
+		if item == nil {
+			return fmt.Errorf("%w: 配置项 %q 不存在", ErrInvalidPluginConfig, key)
+		}
+		values[key] = item.DefaultValue
+	}
+	return cm.setConfigsLocked(pluginName, values)
+}
+
+func (cm *ConfigManager) setConfigsLocked(pluginName string, values map[string]interface{}) error {
+	plugin := cm.Plugins[pluginName]
+	if plugin == nil {
+		return fmt.Errorf("%w: 插件 %q 不存在", ErrInvalidPluginConfig, pluginName)
+	}
+	previous := make(map[string]interface{}, len(values))
+	for key, value := range values {
+		item := plugin.Configs[key]
+		if item == nil {
+			return fmt.Errorf("%w: 配置项 %q 不存在", ErrInvalidPluginConfig, key)
+		}
+		if item.Type == "task:cron" || item.Type == "task:daily" {
+			expr, ok := value.(string)
+			if !ok {
+				return fmt.Errorf("%w: %q 必须是字符串", ErrInvalidPluginConfig, key)
+			}
+			var err error
+			if item.Type == "task:daily" {
+				_, err = parseTaskTime(expr)
+			} else {
+				_, err = cron.ParseStandard(expr)
+			}
+			if err != nil {
+				return fmt.Errorf("%w: %q: %w", ErrInvalidPluginConfig, key, err)
+			}
+			if item.task != nil && item.task.taskType != strings.TrimPrefix(item.Type, "task:") {
+				return fmt.Errorf("%w: %q 定时任务类型不一致", ErrInvalidPluginConfig, key)
+			}
+		}
+		previous[key] = item.Value
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	for key, value := range values {
+		plugin.Configs[key].Value = value
+	}
+	if err := cm.save(); err != nil {
+		for key, value := range previous {
+			plugin.Configs[key].Value = value
+		}
+		return err
+	}
+	for key, value := range values {
+		item := plugin.Configs[key]
+		if (item.Type == "task:cron" || item.Type == "task:daily") && item.task != nil {
+			// Type and expression were validated before persistence; reset cannot fail now.
+			_ = item.task.reset(value.(string))
+		}
+	}
+	return nil
 }
 
 func (cm *ConfigManager) getConfig(pluginName, key string) *ConfigItem {
@@ -386,22 +507,15 @@ func (cm *ConfigManager) ResetConfigToDefault(pluginName, key string) {
 }
 
 func (cm *ConfigManager) save() error {
-	file, err := os.OpenFile(cm.filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
+	data, err := json.MarshalIndent(cm.Plugins, "", "\t")
 	if err != nil {
 		return err
 	}
-	defer func(file *os.File) {
-		_ = file.Close()
-	}(file)
-
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "\t")
-	err = encoder.Encode(cm.Plugins)
-	if err != nil {
-		return err
+	perm := os.FileMode(0o644)
+	if info, statErr := os.Stat(cm.filename); statErr == nil {
+		perm = info.Mode().Perm()
 	}
-
-	return nil
+	return writeFileAtomically(cm.filename, append(data, '\n'), perm)
 }
 
 func (cm *ConfigManager) Load() error {
@@ -431,8 +545,8 @@ func (cm *ConfigManager) Load() error {
 	return nil
 }
 
-func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
-	var choices []wr.Choice
+func (i *TextTemplateItemList) toRandomPool() *weighted.Chooser[string] {
+	var choices []weighted.Choice[string]
 	for _, i := range *i {
 		// weight, text := extractWeight(i)
 		if len(i) == 1 {
@@ -441,14 +555,14 @@ func (i *TextTemplateItemList) toRandomPool() *wr.Chooser {
 		}
 
 		if w, ok := i[1].(int); ok {
-			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+			choices = append(choices, weighted.Choice[string]{Item: i[0].(string), Weight: uint(w)})
 		}
 
 		if w, ok := i[1].(float64); ok {
-			choices = append(choices, wr.Choice{Item: i[0].(string), Weight: uint(w)})
+			choices = append(choices, weighted.Choice[string]{Item: i[0].(string), Weight: uint(w)})
 		}
 	}
-	randomPool, _ := wr.NewChooser(choices...)
+	randomPool, _ := weighted.NewChooser(choices...)
 	return randomPool
 }
 
@@ -2056,30 +2170,30 @@ func setupTextTemplate(d *Dice) {
 	// 加载硬盘设置
 	loadTextTemplate(d, "configs/text-template.yaml")
 
-	d.SaveText()
+	_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 	d.GenerateTextMap()
 }
 
 func (d *Dice) GenerateTextMap() {
 	// 生成TextMap
-	newTextMap := map[string]*wr.Chooser{}
+	newTextMap := map[string]*weighted.Chooser[string]{}
 
 	for category, item := range d.TextMapRaw {
 		for k, v := range item {
-			var choices []wr.Choice
+			var choices []weighted.Choice[string]
 			for _, textItem := range v {
-				choices = append(choices, wr.Choice{Item: textItem[0].(string), Weight: getNumVal(textItem[1])})
+				choices = append(choices, weighted.Choice[string]{Item: textItem[0].(string), Weight: getNumVal(textItem[1])})
 			}
 
-			pool, _ := wr.NewChooser(choices...)
+			pool, _ := weighted.NewChooser(choices...)
 			newTextMap[fmt.Sprintf("%s:%s", category, k)] = pool
 		}
 	}
 
-	picker, _ := wr.NewChooser(wr.Choice{Item: APPNAME, Weight: 1})
+	picker, _ := weighted.NewChooser(weighted.Choice[string]{Item: APPNAME, Weight: 1})
 	newTextMap["常量:APPNAME"] = picker
 
-	picker, _ = wr.NewChooser(wr.Choice{Item: VERSION.String(), Weight: 1})
+	picker, _ = weighted.NewChooser(weighted.Choice[string]{Item: VERSION.String(), Weight: 1})
 	newTextMap["常量:VERSION"] = picker
 
 	d.TextMap = newTextMap
@@ -2131,6 +2245,11 @@ func (d *Dice) loads() {
 			d.Logger.Error("serve.yaml parse failed")
 			panic(err3)
 		}
+		var gmField struct {
+			DiceRandomGMEnabled *bool `yaml:"diceRandomGMEnabled"`
+		}
+		_ = yaml.Unmarshal(data, &gmField)
+		hasGMField := gmField.DiceRandomGMEnabled != nil
 
 		// 有一些配置项被用 jsbind 导出了，只能先留在 Dice 不迁移了
 		dNew := Dice{}
@@ -2156,53 +2275,8 @@ func (d *Dice) loads() {
 			}
 		}
 		d.DiceMasters = newDiceMasters
-		// 装载ServiceAtNew
-		// Pinenutn: So,我还是不知道ServiceAtNew到底是个什么鬼东西……太反直觉了……
-		d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
-		err = service.GroupInfoListGet(d.DBOperator, func(id string, updatedAt int64, data []byte) {
-			var groupInfo GroupInfo
-			err = json.Unmarshal(data, &groupInfo)
-			if err == nil {
-				groupInfo.GroupID = id
-				groupInfo.UpdatedAtTime = 0
-
-				// 初始化 nil 字段（加载时初始化，避免单独遍历）
-				if groupInfo.DiceIDActiveMap == nil {
-					groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
-				}
-				if groupInfo.DiceIDExistsMap == nil {
-					groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
-				}
-				if groupInfo.BotList == nil {
-					groupInfo.BotList = new(SyncMap[string, bool])
-				}
-				if groupInfo.InactivatedExtSet == nil {
-					groupInfo.InactivatedExtSet = StringSet{}
-				}
-
-				// 找出其中以群号开头的，这是1.2版本的bug
-				var toDelete []string
-				if groupInfo.DiceIDExistsMap != nil {
-					groupInfo.DiceIDExistsMap.Range(func(key string, value bool) bool {
-						if strings.HasPrefix(key, "QQ-Group:") {
-							toDelete = append(toDelete, key)
-						}
-						return true
-					})
-					for _, i := range toDelete {
-						groupInfo.DiceIDExistsMap.Delete(i)
-					}
-				}
-				d.ImSession.ServiceAtNew.Store(id, &groupInfo)
-			} else {
-				d.Logger.Errorf("加载群信息失败: %s", id)
-			}
-		})
-		if err != nil {
-			d.Logger.Errorf("加载群信息失败 %s", err)
-		}
-		// 延迟加载：不再遍历群组替换扩展对象，改为在 GetActivatedExtList 中延迟处理
-		// nil 字段初始化已移至 GroupInfoListGet 回调中，避免单独遍历
+		// 群组数据加载已移至 loadGroups：需等待内置扩展、JS 插件、扩展包全部注册后进行，
+		// 使 activatedExtList 在反序列化时即可解析为全局共享的 ExtInfo 指针
 
 		if config.VersionCode != 0 && config.VersionCode < 10005 {
 			d.RunAfterLoaded = append(d.RunAfterLoaded, func() {
@@ -2222,7 +2296,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2253,7 +2327,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2269,7 +2343,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2288,7 +2362,7 @@ func (d *Dice) loads() {
 
 				SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 				d.GenerateTextMap()
-				d.SaveText()
+				_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 			})
 		}
 
@@ -2303,37 +2377,13 @@ func (d *Dice) loads() {
 			}
 			SetupTextHelpInfo(d, d.TextMapHelpInfo, d.TextMapRaw, "configs/text-template.yaml")
 			d.GenerateTextMap()
-			d.SaveText()
+			_ = d.SaveText() // SaveText 已记录失败日志；启动及迁移仍继续使用内存文案。
 		})
 
 		d.Config = config
-
-		// 1.4.5 版本 - 覆写lagrange配置
-		// for _, i := range d.ImSession.EndPoints {
-		// 	if i.ProtocolType == "onebot" {
-		// 		pa := i.Adapter.(*PlatformAdapterGocq)
-		// 		if pa.BuiltinMode == "lagrange" {
-		// 			signServerUrl, signServerVersion := RWLagrangeSignServerUrl(d, i, "sealdice", false, "30366")
-		// 			if signServerUrl != "" {
-		// 				// 版本为空，覆写为 "30366"
-		// 				if signServerVersion == "" {
-		// 					RWLagrangeSignServerUrl(d, i, "sealdice", true, "30366")
-		// 				}
-		// 			}
-		// 		}
-		// 	}
-		// }
-
-		// 设置全局群名缓存和用户名缓存
-		dm := d.Parent
-		now := time.Now().Unix()
-		// Pinenutn: Range模板 ServiceAtNew重构代码
-		d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
-			// Pinenutn: ServiceAtNew重构
-			// Pinenutn: 这里曾经可能是个Lockfree.hashmap？ 函数有变动
-			dm.GroupNameCache.Store(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
-			return true
-		})
+		if d.migrateDiceRandomGMConfig(hasGMField) {
+			d.MarkModified()
+		}
 		d.Logger.Info("serve.yaml loaded")
 	} else {
 		d.Logger.Info("serve.yaml not found")
@@ -2368,13 +2418,91 @@ func (d *Dice) loads() {
 	d.MarkModified()
 }
 
+// loadGroups 加载群组数据。
+// 必须在内置扩展、JS 插件、扩展包全部注册完成后调用（见 Dice.Init）：
+// 此时 ExtRegistry 完整，反序列化 activatedExtList 可直接解析为全局共享的
+// ExtInfo 指针，避免每个群持有大量占位 ExtInfo 对象（约 416B/个）常驻内存。
+func (d *Dice) loadGroups() {
+	d.ImSession.ServiceAtNew = new(SyncMap[string, *GroupInfo])
+
+	// 显式预热 sonic 编译缓存，避免首个群反序列化时 JIT 编译卡顿
+	_ = sonic.Pretouch(reflect.TypeOf(groupInfoDecodeJSON{}))
+
+	// json 解码无法传递 Dice 上下文，加载期间临时提供 name -> *ExtInfo 解析器
+	// 已删除（IsDeleted）的 wrapper 同样返回：它是共享对象，保留群的开启状态
+	prevResolver := extJSONResolver
+	extJSONResolver = func(name string) *ExtInfo {
+		if d.ExtRegistry == nil {
+			return nil
+		}
+		if ext, ok := d.ExtRegistry.Load(name); ok && ext != nil {
+			return ext
+		}
+		return nil
+	}
+	defer func() { extJSONResolver = prevResolver }()
+
+	err := service.GroupInfoListGet(d.DBOperator, func(id string, _ int64, data []byte) {
+		var groupInfo GroupInfo
+		if err := groupInfo.UnmarshalJSON(data); err != nil {
+			d.Logger.Errorf("加载群信息失败: %s", id)
+			return
+		}
+		groupInfo.GroupID = id
+		groupInfo.UpdatedAtTime = 0
+
+		// 初始化 nil 字段（加载时初始化，避免单独遍历）
+		if groupInfo.DiceIDActiveMap == nil {
+			groupInfo.DiceIDActiveMap = new(SyncMap[string, bool])
+		}
+		if groupInfo.DiceIDExistsMap == nil {
+			groupInfo.DiceIDExistsMap = new(SyncMap[string, bool])
+		}
+		if groupInfo.BotList == nil {
+			groupInfo.BotList = new(SyncMap[string, bool])
+		}
+		if groupInfo.InactivatedExtSet == nil {
+			groupInfo.InactivatedExtSet = StringSet{}
+		}
+
+		// 找出其中以群号开头的，这是1.2版本的bug
+		var toDelete []string
+		groupInfo.DiceIDExistsMap.Range(func(key string, _ bool) bool {
+			if strings.HasPrefix(key, "QQ-Group:") {
+				toDelete = append(toDelete, key)
+			}
+			return true
+		})
+		for _, i := range toDelete {
+			groupInfo.DiceIDExistsMap.Delete(i)
+		}
+		d.ImSession.ServiceAtNew.Store(id, &groupInfo)
+	})
+	if err != nil {
+		d.Logger.Errorf("加载群信息失败 %s", err)
+	}
+
+	// 设置全局群名缓存和用户名缓存
+	dm := d.Parent
+	now := time.Now().Unix()
+	// Pinenutn: Range模板 ServiceAtNew重构代码
+	d.ImSession.ServiceAtNew.Range(func(key string, groupInfo *GroupInfo) bool {
+		// Pinenutn: ServiceAtNew重构
+		// Pinenutn: 这里曾经可能是个Lockfree.hashmap？ 函数有变动
+		dm.GroupNameCache.Store(key, &GroupNameCacheItem{Name: groupInfo.GroupName, time: now})
+		return true
+	})
+}
+
 func (d *Dice) loadIMSessionEndpoints(imSession *IMSession) bool {
 	if imSession == nil || imSession.EndPoints == nil {
 		d.ImSession.EndPoints = make([]*EndPointInfo, 0)
+		d.ImSession.RefreshEndPointsSnapshot()
 		return true
 	}
 
 	d.ImSession.EndPoints = imSession.EndPoints
+	d.ImSession.RefreshEndPointsSnapshot()
 	return false
 }
 
@@ -2415,21 +2543,89 @@ func (d *Dice) loadAdvanced() {
 	d.AdvancedConfig = advancedConfig
 }
 
-func (d *Dice) SaveText() {
-	buf, err := yaml.Marshal(d.TextMapRaw)
+func (d *Dice) SaveText() error {
+	buf, err := marshalTextTemplate(d.TextMapRaw)
 	if err != nil {
 		d.Logger.Error("Dice.SaveText", err)
-	} else {
-		newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
-		bakFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml.bak")
-		// ioutil.WriteFile(filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml"), buf, 0644)
-		current, err := os.ReadFile(newFn)
-		if err != nil {
-			_ = os.WriteFile(bakFn, current, 0o644) //nolint:gosec
-		}
-
-		_ = os.WriteFile(newFn, buf, 0o644)
+		return err
 	}
+
+	newFn := filepath.Join(d.BaseConfig.DataDir, "configs/text-template.yaml")
+	if err := saveTextTemplateFile(newFn, buf); err != nil {
+		d.Logger.Error("Dice.SaveText", err)
+		return err
+	}
+	return nil
+}
+
+func marshalTextTemplate(texts TextTemplateWithWeightDict) (buf []byte, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			buf = nil
+			err = fmt.Errorf("序列化文案失败: %v", recovered)
+		}
+	}()
+
+	buf, err = yaml.Marshal(texts)
+	if err != nil {
+		return nil, fmt.Errorf("序列化文案失败: %w", err)
+	}
+
+	// 再次解析序列化结果，避免异常数据覆盖掉现有文案文件。
+	var parsed TextTemplateWithWeightDict
+	if err := yaml.Unmarshal(buf, &parsed); err != nil {
+		return nil, fmt.Errorf("校验生成的文案 YAML 失败: %w", err)
+	}
+	return buf, nil
+}
+
+func saveTextTemplateFile(filename string, data []byte) error {
+	dir := filepath.Dir(filename)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("创建文案目录失败: %w", err)
+	}
+
+	current, err := os.ReadFile(filename)
+	if err == nil {
+		backupErr := writeFileAtomically(filename+".bak", current, 0o644)
+		if backupErr != nil {
+			return fmt.Errorf("备份文案文件失败: %w", backupErr)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("读取现有文案文件失败: %w", err)
+	}
+
+	if err := writeFileAtomically(filename, data, 0o644); err != nil {
+		return fmt.Errorf("写入文案文件失败: %w", err)
+	}
+	return nil
+}
+
+func writeFileAtomically(filename string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(filename), "."+filepath.Base(filename)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName) //nolint:gosec
+	}()
+
+	if err := tmp.Chmod(perm); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpName, filename) // #nosec G703 -- tmpName is created in the destination directory.
 }
 
 // ApplyExtDefaultSettings 应用扩展默认配置，同时处理插件的启用和禁用
@@ -2502,6 +2698,7 @@ func (d *Dice) ApplyExtDefaultSettings() {
 }
 
 func (d *Dice) Save(isAuto bool) {
+	d.ImSession.RefreshEndPointsSnapshot()
 	saveStartTime := time.Now()
 
 	configStartTime := time.Now()
@@ -2517,7 +2714,7 @@ func (d *Dice) Save(isAuto bool) {
 		}{
 			// 这些都是由于导出到 goja 无法拆分的字段
 			d.ImSession,
-			d.DeckList,
+			d.DeckListSnapshot(),
 			d.CommandPrefix,
 			d.DiceMasters,
 

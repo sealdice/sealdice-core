@@ -17,13 +17,19 @@ func RegisterBuiltinExtCore(dice *Dice) {
 		GetDescText: GetExtensionDesc,
 		OnGroupLeave: func(ctx *MsgContext, event *events.GroupLeaveEvent) {
 			if event.UserID == ctx.EndPoint.UserID {
+				// 骰子作为群主解散群聊时也会收到自操作离群事件，这并非被他人踢出。
+				// 此处直接返回而不复用 skip，避免继续发送“被踢出群”的误导通知。
+				if event.OperatorID == ctx.EndPoint.UserID {
+					return
+				}
+
 				opUID := event.OperatorID
 				groupName := ctx.Dice.Parent.TryGetGroupName(event.GroupID)
 				userName := ctx.Dice.Parent.TryGetUserName(opUID)
 				if opUID == "" {
 					txt := fmt.Sprintf("退出群组<%s>(%s)，但操作者ID为空，停止继续处理", groupName, event.GroupID)
 					dice.Logger.Info(txt)
-					ctx.Notice(txt)
+					ctx.Notice(txt, NoticeTypeGroup)
 					return
 				}
 
@@ -50,7 +56,7 @@ func RegisterBuiltinExtCore(dice *Dice) {
 
 				txt := fmt.Sprintf("被踢出群: 在群组<%s>(%s)中被踢出，操作者:<%s>(%s)%s", groupName, event.GroupID, userName, event.OperatorID, extra)
 				dice.Logger.Info(txt)
-				ctx.Notice(txt)
+				ctx.Notice(txt, NoticeTypeGroup)
 			}
 		},
 	}

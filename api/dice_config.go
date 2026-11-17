@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/labstack/echo/v4"
 	"golang.org/x/time/rate"
@@ -25,6 +26,7 @@ type DiceConfigInfo struct {
 	MaxExecuteTime      string   `json:"maxExecuteTime"`      // 最大骰点次数
 	MaxCocCardGen       string   `json:"maxCocCardGen"`       // 最大coc制卡数
 	ServerAddress       string   `form:"serveAddress"        json:"serveAddress"`
+	TrayTooltip         string   `json:"trayTooltip"`
 	HelpDocEngineType   int      `json:"helpDocEngineType"`
 }
 
@@ -76,6 +78,7 @@ func DiceConfig(c echo.Context) error {
 		LogPageItemLimit:    limit,
 		DefaultCocRuleIndex: cocRule,
 		ServerAddress:       myDice.Parent.ServeAddress,
+		TrayTooltip:         myDice.Parent.GetTrayTooltip(),
 		HelpDocEngineType:   myDice.Parent.HelpDocEngineType,
 		MaxExecuteTime:      maxExec,
 		MaxCocCardGen:       maxCard,
@@ -95,6 +98,7 @@ func DiceConfigSet(c echo.Context) error {
 
 	jsonMap := make(map[string]interface{})
 	err := json.NewDecoder(c.Request().Body).Decode(&jsonMap)
+	randomModeModified := false
 
 	stringConvert := func(val interface{}) []string {
 		var lst []string
@@ -111,6 +115,37 @@ func DiceConfigSet(c echo.Context) error {
 		myDice.Logger.Error("DiceConfigSet", err)
 		return c.JSON(http.StatusOK, nil)
 	}
+
+	if val, ok := jsonMap["diceRandomMode"]; ok {
+		if v, ok := val.(string); ok && strings.EqualFold(strings.TrimSpace(v), string(dice.DiceRandomModeGM)) && !myDice.Config.DiceRandomGMEnabled {
+			return c.JSON(http.StatusBadRequest, Response{
+				"result": false,
+				"err":    "国密源默认禁用。请先在基本设置中确认启用国密源，或使用 .randalgo set gm 完成二次确认。",
+			})
+		}
+	}
+
+	trayTooltip := ""
+	trayTooltipModified := false
+	if val, ok := jsonMap["trayTooltip"]; ok {
+		value, ok := val.(string)
+		if !ok {
+			return c.JSON(http.StatusBadRequest, Response{
+				"result": false,
+				"err":    "托盘提示文本必须是字符串",
+			})
+		}
+		value = strings.TrimSpace(value)
+		if utf8.RuneCountInString(value) > dice.MaxTrayTooltipPrefixLength {
+			return c.JSON(http.StatusBadRequest, Response{
+				"result": false,
+				"err":    "托盘提示文本前缀不能超过" + strconv.Itoa(dice.MaxTrayTooltipPrefixLength) + "个字符",
+			})
+		}
+		trayTooltip = value
+		trayTooltipModified = true
+	}
+
 	if val, ok := jsonMap["commandPrefix"]; ok {
 		myDice.CommandPrefix = stringConvert(val)
 	}
@@ -134,7 +169,13 @@ func DiceConfigSet(c echo.Context) error {
 
 	config := &myDice.Config
 	if val, ok := jsonMap["noticeIds"]; ok {
-		config.NoticeIDs = stringConvert(val)
+		rawTargets := stringConvert(val)
+		config.NoticeIDs = make([]string, 0, len(rawTargets))
+		for _, rawTarget := range rawTargets {
+			if target := dice.ParseNoticeTarget(rawTarget); target.ID != "" {
+				config.NoticeIDs = append(config.NoticeIDs, target.String())
+			}
+		}
 	}
 
 	if val, ok := jsonMap["defaultCocRuleIndex"]; ok { //nolint:nestif
@@ -248,6 +289,24 @@ func DiceConfigSet(c echo.Context) error {
 		config.WorkInQQChannel = val.(bool)
 	}
 
+	if val, ok := jsonMap["diceRandomMode"]; ok {
+		if v, ok := val.(string); ok {
+			switch strings.ToLower(strings.TrimSpace(v)) {
+			case string(dice.DiceRandomModeGM):
+				config.DiceRandomMode = string(dice.DiceRandomModeGM)
+			case string(dice.DiceRandomModeNIST):
+				config.DiceRandomMode = string(dice.DiceRandomModeNIST)
+			case string(dice.DiceRandomModeCRNG):
+				config.DiceRandomMode = string(dice.DiceRandomModeCRNG)
+			case string(dice.DiceRandomModeHybrid):
+				config.DiceRandomMode = string(dice.DiceRandomModeHybrid)
+			default:
+				config.DiceRandomMode = string(dice.DiceRandomModePCG)
+			}
+			randomModeModified = true
+		}
+	}
+
 	if val, ok := jsonMap["QQChannelLogMessage"]; ok {
 		config.QQChannelLogMessage = val.(bool)
 	}
@@ -347,6 +406,9 @@ func DiceConfigSet(c echo.Context) error {
 			myDice.Parent.ServeAddress = val.(string)
 		}
 	}
+	if trayTooltipModified {
+		myDice.Parent.SetTrayTooltip(trayTooltip)
+	}
 
 	// if val, ok := jsonMap["customBotExtraText"]; ok {
 	// 	myDice.CustomBotExtraText = val.(string)
@@ -403,6 +465,29 @@ func DiceConfigSet(c echo.Context) error {
 
 	if val, ok := jsonMap["officialQQUseMarkdown"]; ok {
 		config.OfficialQQUseMarkdown = val.(bool)
+	}
+
+	if val, ok := jsonMap["officialQQUseNameCard"]; ok {
+		config.OfficialQQUseNameCard = val.(bool)
+	}
+	if val, ok := jsonMap["officialQQUseNameCardTemplate"]; ok {
+		if text, ok := val.(string); ok {
+			text = strings.TrimSpace(text)
+			if utf8.RuneCountInString(text) > dice.MaxOfficialQQNameCardTemplateRunes {
+				return c.JSON(http.StatusBadRequest, Response{
+					"result": false,
+					"err":    "名片渲染模板不能超过" + strconv.Itoa(dice.MaxOfficialQQNameCardTemplateRunes) + "个字符",
+				})
+			}
+			config.OfficialQQNameCardTmpl = text
+		}
+	}
+	if !config.OfficialQQUseMarkdown {
+		config.OfficialQQUseNameCard = false
+	}
+
+	if val, ok := jsonMap["officialQQEnableIdentityMigration"]; ok {
+		config.OfficialQQMigrationEnable = val.(bool)
 	}
 
 	if val, ok := jsonMap["playerNameWrapEnable"]; ok {
@@ -467,6 +552,11 @@ func DiceConfigSet(c echo.Context) error {
 	}
 
 	// 统一标记为修改
+	if randomModeModified {
+		if err := myDice.ActivateDiceRandomMode(); err != nil {
+			myDice.Logger.Warnf("[随机源] 应用管理界面随机模式失败，已使用 PCG 回退: %v", err)
+		}
+	}
 	myDice.MarkModified()
 	myDice.Parent.Save()
 	return c.JSON(http.StatusOK, nil)
@@ -480,7 +570,7 @@ func DiceMailTest(c echo.Context) error {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}
 
-	err := myDice.SendMail("", dice.MailTest)
+	err := myDice.SendMail("", dice.MailTest, dice.NoticeTypeSystem)
 	if err != nil {
 		return Error(&c, err.Error(), Response{})
 	}

@@ -4,7 +4,54 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/Masterminds/semver/v3"
 )
+
+func TestIsJSAPIVersionCompatible(t *testing.T) {
+	compatibleVersions := []*semver.Version{
+		semver.MustParse("1.6.1-dev"),
+		semver.MustParse("1.6.0"),
+		semver.MustParse("1.5.0"),
+	}
+	tests := []struct {
+		name           string
+		currentVersion string
+		constraint     string
+		want           bool
+	}{
+		{name: "prerelease satisfies older stable minimum", currentVersion: "1.6.1-dev", constraint: ">=1.6.0", want: true},
+		{name: "prerelease does not satisfy its stable minimum", currentVersion: "1.6.1-dev", constraint: ">=1.6.1", want: false},
+		{name: "prerelease satisfies its stable maximum", currentVersion: "1.6.1-dev", constraint: "<=1.6.1", want: true},
+		{name: "prerelease exceeds older stable maximum", currentVersion: "1.6.1-dev", constraint: "<=1.6.0", want: false},
+		{name: "prerelease satisfies bounded range", currentVersion: "1.6.1-dev", constraint: ">=1.6.0, <1.6.1", want: true},
+		{name: "prerelease satisfies caret range", currentVersion: "1.6.1-dev", constraint: "^1.6.0", want: true},
+		{name: "strict equality does not use compatibility list", currentVersion: "1.6.1-dev", constraint: "=1.6.0", want: false},
+		{name: "prerelease satisfies exact prerelease", currentVersion: "1.6.1-dev", constraint: "=1.6.1-dev", want: true},
+		{name: "plain version uses compatibility list", currentVersion: "1.6.1-dev", constraint: "1.6.0", want: true},
+		{name: "unknown plain version is rejected", currentVersion: "1.6.1-dev", constraint: "1.6.2", want: false},
+		{name: "stable version behavior is unchanged", currentVersion: "1.6.1", constraint: ">=1.6.1", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			constraint, err := semver.NewConstraint(tt.constraint)
+			if err != nil {
+				t.Fatalf("NewConstraint(%q) error = %v", tt.constraint, err)
+			}
+
+			got := isJSAPIVersionCompatible(
+				constraint,
+				tt.constraint,
+				semver.MustParse(tt.currentVersion),
+				compatibleVersions,
+			)
+			if got != tt.want {
+				t.Errorf("isJSAPIVersionCompatible(%q, %q) = %v, want %v", tt.currentVersion, tt.constraint, got, tt.want)
+			}
+		})
+	}
+}
 
 func TestSortJsScripts(t *testing.T) {
 	type args struct {

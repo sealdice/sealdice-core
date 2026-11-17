@@ -150,7 +150,7 @@ func resourceUpload(c echo.Context) error {
 
 		myDice.Logger.Infof("保存资源文件: %s", path)
 		var dst *os.File
-		dst, err = os.Create(path)
+		dst, err = os.Create(path) // #nosec G703 -- the sanitized filename is reduced to its base name.
 		if err != nil {
 			errors = append(errors, file.Filename)
 			continue

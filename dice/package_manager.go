@@ -1,6 +1,7 @@
 package dice
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,12 +23,30 @@ import (
 	"sealdice-core/dice/sealpack"
 )
 
-const maxPackageArchiveSize int64 = 128 << 20
+const (
+	packageStreamBufferSize           = 32 << 10
+	defaultPackageDownloadIdleTimeout = 2 * time.Minute
+)
+
+var packageOperations = make(chan struct{}, 1)
+
+var packageHTTPClient = newPackageHTTPClient()
+
+func newPackageHTTPClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 30 * time.Second
+	return &http.Client{Transport: transport}
+}
 
 // PackageManager 扩展包管理器
 type PackageManager struct {
-	lock   *sync.RWMutex
-	parent *Dice
+	lock                *sync.RWMutex
+	parent              *Dice
+	downloadIdleTimeout time.Duration
+
+	// 记录已脱离当前 manifest、但仍需从当前进程运行时清理的内容；进程重启后无需保留。
+	detachedReload    packageReloadContentFlags
+	detachedReloadGen uint64 // 防止重载结束时清除执行期间新增的范围
 
 	// 已安装的包
 	packages map[string]*sealpack.Instance
@@ -74,11 +93,18 @@ type PackageUploadPreview struct {
 	InstallAction   string             `json:"installAction"`
 }
 
+// PackageDownloadOptions carries optional store metadata used for early checks.
+type PackageDownloadOptions struct {
+	Hashes       map[string]string
+	ExpectedSize uint64
+}
+
 // NewPackageManager 创建包管理器
 func NewPackageManager(parent *Dice) *PackageManager {
 	pm := &PackageManager{
 		lock:                   new(sync.RWMutex),
 		parent:                 parent,
+		downloadIdleTimeout:    defaultPackageDownloadIdleTimeout,
 		packages:               make(map[string]*sealpack.Instance),
 		dependencyGraph:        make(map[string][]string),
 		reverseDependencyGraph: make(map[string][]string),
@@ -93,6 +119,9 @@ func (pm *PackageManager) Init() error {
 	}
 	if err := pm.ensurePackageDirs(); err != nil {
 		return err
+	}
+	if err := pm.cleanupPackageStagingDir(); err != nil && pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Warnf("清理遗留扩展包暂存文件失败: %v", err)
 	}
 
 	pm.lock.Lock()
@@ -113,7 +142,10 @@ func (pm *PackageManager) ensurePackageDirs() error {
 	if err := os.MkdirAll(pm.getSourcePackagesPath(), 0o755); err != nil {
 		return err
 	}
-	return os.MkdirAll(pm.getCachePackagesPath(), 0o755)
+	if err := os.MkdirAll(pm.getCachePackagesPath(), 0o755); err != nil {
+		return err
+	}
+	return os.MkdirAll(pm.getPackageStagingDir(), 0o755)
 }
 
 func (pm *PackageManager) RefreshFromDisk() (*PackageRefreshResult, error) {
@@ -150,10 +182,14 @@ func (pm *PackageManager) refreshFromDiskLocked(markPendingReload bool) (*Packag
 			if err != nil {
 				pm.parent.Logger.Warnf("恢复扩展包 %s 失败: %v", pkgID, err)
 			} else {
-				if markPendingReload && packageNeedsRefreshPendingReload(pkg, instance, wasStale) {
-					pm.addPendingReloadHints(instance, pm.generateReloadHints(instance.Manifest).ReloadHints)
+				changed := packageSourceChanged(pkg, instance) || wasStale
+				if markPendingReload && changed {
+					pm.retainDetachedReloadScopeLocked(pkg)
+					if packageNeedsRefreshPendingReload(pkg, instance, wasStale) {
+						pm.addPendingReloadHints(instance, pm.generateReloadHints(instance.Manifest).ReloadHints)
+					}
 				}
-				if packageSourceChanged(pkg, instance) || wasStale {
+				if changed {
 					result.Updated = append(result.Updated, pkgID)
 				}
 				loaded[pkgID] = instance
@@ -176,6 +212,9 @@ func (pm *PackageManager) refreshFromDiskLocked(markPendingReload bool) (*Packag
 			}
 		}
 
+		if markPendingReload {
+			pm.retainDetachedReloadScopeLocked(pkg)
+		}
 		pm.parent.Logger.Warnf("扩展包 %s 的源文件和缓存均丢失，已移除记录", pkgID)
 		result.Removed = append(result.Removed, pkgID)
 	}
@@ -222,12 +261,32 @@ func (pm *PackageManager) refreshFromDiskLocked(markPendingReload bool) (*Packag
 
 func (pm *PackageManager) scanSourceArtifacts() (map[string][]*packageArtifactCandidate, error) {
 	candidates := make(map[string][]*packageArtifactCandidate)
-	err := filepath.WalkDir(pm.getSourcePackagesPath(), func(pkgFilePath string, d fs.DirEntry, walkErr error) error {
+	sourceRootPath := pm.getSourcePackagesPath()
+	sourceRoot, openRootErr := os.OpenRoot(sourceRootPath)
+	if openRootErr != nil {
+		pm.parent.Logger.Warnf("打开扩展包源目录失败: %v", openRootErr)
+		return candidates, nil
+	}
+	defer sourceRoot.Close()
+
+	err := filepath.WalkDir(sourceRootPath, func(pkgFilePath string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			pm.parent.Logger.Warnf("扫描扩展包目录时发生错误: %v", walkErr)
 			return nil
 		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), "staged-") && strings.HasSuffix(strings.ToLower(d.Name()), ".tmp") {
+			relPath, relErr := filepath.Rel(sourceRootPath, pkgFilePath)
+			if relErr != nil {
+				pm.parent.Logger.Warnf("计算扩展包临时文件相对路径失败 %s: %v", pkgFilePath, relErr)
+				return nil
+			}
+			_ = sourceRoot.Remove(relPath)
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(d.Name()), sealpack.Extension) {
 			return nil
 		}
 
@@ -284,10 +343,14 @@ func (pm *PackageManager) scanCacheArtifacts() map[string]*packageCacheCandidate
 			pm.parent.Logger.Warnf("读取扩展包缓存 manifest 失败 %s: %v", infoPath, openErr)
 			return nil
 		}
-		data, readErr := io.ReadAll(infoFile)
+		data, readErr := io.ReadAll(io.LimitReader(infoFile, sealpack.MaxManifestSize+1))
 		_ = infoFile.Close()
 		if readErr != nil {
 			pm.parent.Logger.Warnf("读取扩展包缓存 manifest 失败 %s: %v", infoPath, readErr)
+			return nil
+		}
+		if int64(len(data)) > sealpack.MaxManifestSize {
+			pm.parent.Logger.Warnf("扩展包缓存 manifest 超过 %d MiB: %s", sealpack.MaxManifestSize/(1024*1024), infoPath)
 			return nil
 		}
 		manifest, parseErr := sealpack.ParseManifest(data)
@@ -447,11 +510,7 @@ func (pm *PackageManager) installCacheMatchesCandidate(candidate *packageArtifac
 	if statErr != nil {
 		return false
 	}
-	data, err := os.ReadFile(infoPath)
-	if err != nil {
-		return false
-	}
-	manifest, parseErr := sealpack.ParseManifest(data)
+	manifest, parseErr := sealpack.ParseManifestFile(infoPath)
 	if parseErr != nil || manifest.Package.ID != candidate.Manifest.Package.ID || manifest.Package.Version != candidate.Manifest.Package.Version {
 		return false
 	}
@@ -463,11 +522,33 @@ func (pm *PackageManager) installCacheMatchesCandidate(candidate *packageArtifac
 }
 
 func (pm *PackageManager) stageExtractPackage(pkgPath, pkgID string) (string, error) {
+	archiveInfo, err := sealpack.InspectArchive(pkgPath)
+	if err != nil {
+		return "", err
+	}
+	return pm.stageExtractPackageContext(context.Background(), pkgPath, pkgID, archiveInfo.UncompressedSize)
+}
+
+func (pm *PackageManager) stageExtractPackageContext(ctx context.Context, pkgPath, pkgID string, uncompressedSize uint64) (string, error) {
+	if err := pm.checkPackageDiskRequirements(packageDiskRequirement{path: pm.getCachePackagesPath(), bytes: uncompressedSize}); err != nil {
+		return "", err
+	}
 	tempDir, err := os.MkdirTemp(pm.getCachePackagesPath(), strings.ReplaceAll(sealpack.PackageIDToSafePath(pkgID), string(os.PathSeparator), "-")+"-")
 	if err != nil {
 		return "", err
 	}
-	if _, err := sealpack.ExtractArchive(pkgPath, tempDir); err != nil {
+	diskGuard := newPackageDiskGuard(pm, pm.getCachePackagesPath(), uncompressedSize)
+	progress := func(written, _ uint64) error {
+		if written < diskGuard.nextCheck && written < uncompressedSize {
+			return nil
+		}
+		chunk := uint64(0)
+		if written > diskGuard.written {
+			chunk = written - diskGuard.written
+		}
+		return diskGuard.BeforeWrite(chunk)
+	}
+	if _, err := sealpack.ExtractArchiveWithProgress(ctx, pkgPath, tempDir, progress); err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", err
 	}
@@ -699,7 +780,71 @@ func (pm *PackageManager) saveState() error {
 		return err
 	}
 
-	return os.WriteFile(pm.getStatePath(), data, 0644)
+	return writePackageStateFileAtomic(pm.getStatePath(), data)
+}
+
+func writePackageStateFileAtomic(statePath string, data []byte) error {
+	dir := filepath.Dir(statePath)
+	staged, err := os.CreateTemp(dir, "."+filepath.Base(statePath)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err = staged.Write(data); err != nil {
+		return err
+	}
+	if err = staged.Sync(); err != nil {
+		return err
+	}
+	if err = staged.Close(); err != nil {
+		return err
+	}
+
+	if _, statErr := os.Stat(statePath); errors.Is(statErr, os.ErrNotExist) {
+		if err = os.Rename(stagedPath, statePath); err != nil {
+			return err
+		}
+		keepStaged = true
+		return nil
+	} else if statErr != nil {
+		return statErr
+	}
+
+	backup, err := os.CreateTemp(dir, "."+filepath.Base(statePath)+".backup-*")
+	if err != nil {
+		return err
+	}
+	backupPath := backup.Name()
+	if err = backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return err
+	}
+	if err = os.Remove(backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(statePath, backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(stagedPath, statePath); err != nil {
+		if rollbackErr := os.Rename(backupPath, statePath); rollbackErr != nil {
+			return errors.Join(
+				fmt.Errorf("替换扩展包状态文件失败: %w", err),
+				fmt.Errorf("回滚扩展包状态文件失败: %w", rollbackErr),
+			)
+		}
+		return err
+	}
+	_ = os.Remove(backupPath)
+	keepStaged = true
+	return nil
 }
 
 func loadPackageConfigFromUserData(userDataPath string) (map[string]interface{}, error) {
@@ -726,18 +871,26 @@ func loadPackageConfigFromUserData(userDataPath string) (map[string]interface{},
 // Install 安装扩展包
 // 将 .sealpack 复制到 data/packages/，并解压到 cache/packages/
 func (pm *PackageManager) Install(pkgPath string) error {
+	return pm.InstallContext(context.Background(), pkgPath)
+}
+
+// InstallContext installs a managed package source with cancellation support.
+func (pm *PackageManager) InstallContext(ctx context.Context, pkgPath string) error {
 	validatedPath, err := pm.validateManagedPackageSource(pkgPath)
 	if err != nil {
 		return err
 	}
-	return pm.installFromSource(validatedPath)
+	return pm.installFromSourceContext(ctx, validatedPath, false)
 }
 
-func (pm *PackageManager) installFromSource(pkgPath string) error {
+func (pm *PackageManager) installFromSourceContext(ctx context.Context, pkgPath string, sourceAlreadyStaged bool) error {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
-	archiveInfo, err := sealpack.InspectArchive(pkgPath)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	archiveInfo, err := sealpack.InspectArchiveContext(ctx, pkgPath)
 	if err != nil {
 		return err
 	}
@@ -778,29 +931,50 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		}
 	}
 
-	stagedSourcePath, err := pm.stageSourceArtifact(pkgPath, destDir)
+	stagedSourcePath := pkgPath
+	if !sourceAlreadyStaged {
+		stagedSourcePath, err = pm.stageSourceArtifact(pkgPath, destDir)
+		if err != nil {
+			return err
+		}
+	}
+	stagedCachePath, err := pm.stageExtractPackageContext(ctx, pkgPath, pkgID, archiveInfo.UncompressedSize)
 	if err != nil {
+		if !sourceAlreadyStaged {
+			_ = os.Remove(stagedSourcePath)
+		}
 		return err
 	}
-	stagedCachePath, err := pm.stageExtractPackage(pkgPath, pkgID)
-	if err != nil {
-		_ = os.Remove(stagedSourcePath)
+
+	if err := ctx.Err(); err != nil {
+		if !sourceAlreadyStaged {
+			_ = os.Remove(stagedSourcePath)
+		}
+		_ = os.RemoveAll(stagedCachePath)
+		return err
+	}
+
+	// 在移动源文件/切换安装目录前先创建用户数据目录，
+	// 失败时不会留下“源文件和安装缓存已就位但包未注册”的半安装状态。
+	userDataPath := pm.getUserDataPath(pkgID)
+	if err := os.MkdirAll(userDataPath, 0o755); err != nil {
+		if !sourceAlreadyStaged {
+			_ = os.Remove(stagedSourcePath)
+		}
+		_ = os.RemoveAll(stagedCachePath)
 		return err
 	}
 
 	if err := os.Rename(stagedSourcePath, destPkgPath); err != nil {
-		_ = os.Remove(stagedSourcePath)
+		if !sourceAlreadyStaged {
+			_ = os.Remove(stagedSourcePath)
+		}
 		_ = os.RemoveAll(stagedCachePath)
 		return err
 	}
 	if err := pm.swapInstallDir(stagedCachePath, pm.getPackageInstallPath(pkgID)); err != nil {
 		_ = os.Remove(destPkgPath)
 		pm.removeEmptyParents(filepath.Dir(destPkgPath), pm.getSourcePackagesPath())
-		return err
-	}
-
-	userDataPath := pm.getUserDataPath(pkgID)
-	if err := os.MkdirAll(userDataPath, 0o755); err != nil {
 		return err
 	}
 
@@ -819,6 +993,9 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 		pm.parent.Logger.Warnf("读取扩展包 %s 用户配置失败: %v", pkgID, readErr)
 	}
 
+	if existing != nil {
+		pm.retainDetachedReloadScopeLocked(existing)
+	}
 	pm.packages[pkgID] = &sealpack.Instance{
 		Manifest:      manifest,
 		State:         state,
@@ -846,126 +1023,130 @@ func (pm *PackageManager) installFromSource(pkgPath string) error {
 	return nil
 }
 
-func (pm *PackageManager) prepareDownloadedPackage(url string, hashes map[string]string, tempFilePrefix string) (string, error) {
-	if len(url) == 0 {
-		return "", errors.New("未提供下载链接")
+func (pm *PackageManager) prepareDownloadedPackageContext(ctx context.Context, url string, options PackageDownloadOptions, targetDir, pattern string) (string, uint64, error) {
+	if strings.TrimSpace(url) == "" {
+		return "", 0, errors.New("未提供下载链接")
+	}
+	if _, err := packageSHA256Expectation(options.Hashes); err != nil {
+		return "", 0, err
+	}
+	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G703 -- targetDir is selected from manager-controlled package directories.
+		return "", 0, errors.New("创建临时目录失败: " + err.Error())
+	}
+	if options.ExpectedSize > 0 {
+		if err := pm.checkIncomingPackageEstimate(targetDir, options.ExpectedSize); err != nil {
+			return "", 0, err
+		}
+	}
+	if pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Infof("正在从 URL 下载扩展包: %s", url)
 	}
 
-	pm.parent.Logger.Infof("正在从 URL 下载扩展包: %s", url)
-
-	statusCode, data, err := downloadPackageArchive(url)
+	downloadCtx, cancelDownload := context.WithCancel(ctx)
+	defer cancelDownload()
+	req, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return "", errors.New("下载扩展包失败: " + err.Error())
+		return "", 0, err
 	}
-	if statusCode != http.StatusOK {
-		return "", fmt.Errorf("无法获取扩展包内容，状态码: %d", statusCode)
+	req.Header.Set("Accept-Encoding", "identity")
+	resp, err := packageHTTPClient.Do(req) //nolint:gosec
+	if err != nil {
+		return "", 0, errors.New("下载扩展包失败: " + err.Error())
 	}
-	if hashErr := verifyDownloadedPackageHash(data, hashes); hashErr != nil {
-		return "", hashErr
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		if len(message) == 0 {
+			return "", 0, fmt.Errorf("无法获取扩展包内容，状态码: %d", resp.StatusCode)
+		}
+		return "", 0, fmt.Errorf("无法获取扩展包内容，状态码: %d: %s", resp.StatusCode, strings.TrimSpace(string(message)))
 	}
-	if unsupported := unsupportedPackageHashAlgorithms(hashes); len(unsupported) > 0 && pm.parent != nil && pm.parent.Logger != nil {
+
+	expectedSize := options.ExpectedSize
+	if resp.ContentLength > 0 {
+		expectedSize = uint64(resp.ContentLength)
+		if diskErr := pm.checkIncomingPackageEstimate(targetDir, expectedSize); diskErr != nil {
+			return "", 0, diskErr
+		}
+	}
+	startedAt := time.Now()
+	idleTimeout := pm.downloadIdleTimeout
+	if idleTimeout <= 0 {
+		idleTimeout = defaultPackageDownloadIdleTimeout
+	}
+	idleWatchdog := newPackageIdleWatchdog(cancelDownload, idleTimeout)
+	defer idleWatchdog.Stop()
+	body := &progressPackageReader{src: resp.Body, progress: idleWatchdog.Progress}
+	path, written, err := pm.writePackageStream(downloadCtx, targetDir, pattern, body, expectedSize, options.Hashes)
+	if err != nil {
+		if idleWatchdog.TimedOut() {
+			return "", written, fmt.Errorf("下载扩展包失败: 连续 %s 没有接收到数据", idleTimeout)
+		}
+		return "", written, errors.New("下载扩展包失败: " + err.Error())
+	}
+	if unsupported := unsupportedPackageHashAlgorithms(options.Hashes); len(unsupported) > 0 && pm.parent != nil && pm.parent.Logger != nil {
 		pm.parent.Logger.Warnf("下载校验目前仅支持 sha256，已忽略以下算法: %s", strings.Join(unsupported, ", "))
 	}
-
-	tmpDir := pm.getPackageTempDir()
-	if mkdirErr := os.MkdirAll(tmpDir, 0755); mkdirErr != nil {
-		return "", errors.New("创建临时目录失败: " + mkdirErr.Error())
+	if pm.parent != nil && pm.parent.Logger != nil {
+		pm.parent.Logger.Infof("扩展包下载完成: %s, 用时 %s", formatPackageBytes(written), time.Since(startedAt).Round(time.Millisecond))
 	}
-
-	tmpFile, err := os.CreateTemp(tmpDir, tempFilePrefix)
-	if err != nil {
-		return "", errors.New("创建临时文件失败: " + err.Error())
-	}
-	tmpPath := tmpFile.Name()
-	if _, writeErr := tmpFile.Write(data); writeErr != nil {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
-		return "", errors.New("保存临时文件失败: " + writeErr.Error())
-	}
-	if closeErr := tmpFile.Close(); closeErr != nil {
-		_ = os.Remove(tmpPath)
-		return "", errors.New("保存临时文件失败: " + closeErr.Error())
-	}
-
-	return tmpPath, nil
+	return path, written, nil
 }
 
-// InstallFromStream streams an uploaded .sealpack into a temporary file, then installs it.
+func (pm *PackageManager) checkIncomingPackageEstimate(targetDir string, compressedSize uint64) error {
+	return pm.checkPackageDiskRequirements(
+		packageDiskRequirement{path: targetDir, bytes: compressedSize},
+		packageDiskRequirement{path: pm.getCachePackagesPath(), bytes: compressedSize},
+	)
+}
+
+// InstallFromStream streams an uploaded .sealpack into managed staging, then installs it.
 func (pm *PackageManager) InstallFromStream(src io.Reader) error {
+	return pm.InstallFromStreamContext(context.Background(), src)
+}
+
+// InstallFromStreamContext is the cancellable form of InstallFromStream.
+func (pm *PackageManager) InstallFromStreamContext(ctx context.Context, src io.Reader) error {
 	if src == nil {
 		return errors.New("未提供上传内容")
 	}
-
-	tmpDir := pm.getPackageTempDir()
-	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
-		return errors.New("创建临时目录失败: " + err.Error())
-	}
-
-	tmpFile, err := os.CreateTemp(tmpDir, "package_upload_*.sealpack")
+	release, err := acquirePackageOperation(ctx)
 	if err != nil {
-		return errors.New("创建临时文件失败: " + err.Error())
+		return err
 	}
-	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
-
-	written, copyErr := copyPackageArchive(tmpFile, src)
-	closeErr := tmpFile.Close()
-	if copyErr != nil {
-		return errors.New("保存上传文件失败: " + copyErr.Error())
+	defer release()
+	if dirErr := pm.ensurePackageDirs(); dirErr != nil {
+		return dirErr
 	}
-	if closeErr != nil {
-		return errors.New("保存上传文件失败: " + closeErr.Error())
+	stagedPath, _, err := pm.writePackageStream(ctx, pm.getPackageStagingDir(), "package_upload_*.part", src, 0, nil)
+	if err != nil {
+		return errors.New("保存上传文件失败: " + err.Error())
 	}
-	if written == 0 {
-		return errors.New("上传文件为空")
-	}
-
-	return pm.Install(tmpPath)
+	defer os.Remove(stagedPath)
+	return pm.installFromSourceContext(ctx, stagedPath, true)
 }
 
-// PreviewFromStream streams an uploaded .sealpack into a temporary file, then inspects it.
-func (pm *PackageManager) PreviewFromStream(src io.Reader) (*PackageUploadPreview, error) {
+// PreviewFromStreamContext streams an uploaded .sealpack into a temporary file, then inspects it.
+func (pm *PackageManager) PreviewFromStreamContext(ctx context.Context, src io.Reader) (*PackageUploadPreview, error) {
 	if src == nil {
 		return nil, errors.New("未提供上传内容")
 	}
-
-	tmpDir := pm.getPackageTempDir()
-	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
-		return nil, errors.New("创建临时目录失败: " + err.Error())
-	}
-
-	tmpFile, err := os.CreateTemp(tmpDir, "package_preview_*.sealpack")
-	if err != nil {
-		return nil, errors.New("创建临时文件失败: " + err.Error())
-	}
-	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
-
-	written, copyErr := copyPackageArchive(tmpFile, src)
-	closeErr := tmpFile.Close()
-	if copyErr != nil {
-		return nil, errors.New("保存上传文件失败: " + copyErr.Error())
-	}
-	if closeErr != nil {
-		return nil, errors.New("保存上传文件失败: " + closeErr.Error())
-	}
-	if written == 0 {
-		return nil, errors.New("上传文件为空")
-	}
-
-	return pm.Preview(tmpPath)
-}
-
-func (pm *PackageManager) Preview(pkgPath string) (*PackageUploadPreview, error) {
-	validatedPath, err := pm.validateManagedPackageSource(pkgPath)
+	release, err := acquirePackageOperation(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return pm.previewFromSource(validatedPath)
+	defer release()
+	tmpDir := pm.getPackageTempDir()
+	path, _, err := pm.writePackageStream(ctx, tmpDir, "package_preview_*.sealpack", src, 0, nil)
+	if err != nil {
+		return nil, errors.New("保存上传文件失败: " + err.Error())
+	}
+	defer os.Remove(path)
+	return pm.previewFromSourceContext(ctx, path)
 }
 
-func (pm *PackageManager) previewFromSource(pkgPath string) (*PackageUploadPreview, error) {
-	archiveInfo, err := sealpack.InspectArchive(pkgPath)
+func (pm *PackageManager) previewFromSourceContext(ctx context.Context, pkgPath string) (*PackageUploadPreview, error) {
+	archiveInfo, err := sealpack.InspectArchiveContext(ctx, pkgPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1015,15 +1196,170 @@ func packageUploadContentCounts(files []string) map[string]int {
 }
 
 func copyPackageArchive(dst io.Writer, src io.Reader) (int64, error) {
-	limited := &io.LimitedReader{R: src, N: maxPackageArchiveSize + 1}
-	written, err := io.Copy(dst, limited)
+	return io.CopyBuffer(dst, src, make([]byte, packageStreamBufferSize))
+}
+
+type contextPackageReader struct {
+	ctx context.Context
+	src io.Reader
+}
+
+type progressPackageReader struct {
+	src      io.Reader
+	progress func()
+}
+
+func (r *progressPackageReader) Read(data []byte) (int, error) {
+	n, err := r.src.Read(data)
+	if n > 0 {
+		r.progress()
+	}
+	return n, err
+}
+
+type packageIdleWatchdog struct {
+	progress chan struct{}
+	stop     chan struct{}
+	timedOut chan struct{}
+	stopOnce sync.Once
+}
+
+func newPackageIdleWatchdog(cancel context.CancelFunc, timeout time.Duration) *packageIdleWatchdog {
+	watchdog := &packageIdleWatchdog{
+		progress: make(chan struct{}, 1),
+		stop:     make(chan struct{}),
+		timedOut: make(chan struct{}),
+	}
+	go func() {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		for {
+			select {
+			case <-watchdog.progress:
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(timeout)
+			case <-timer.C:
+				close(watchdog.timedOut)
+				cancel()
+				return
+			case <-watchdog.stop:
+				return
+			}
+		}
+	}()
+	return watchdog
+}
+
+func (w *packageIdleWatchdog) Progress() {
+	select {
+	case w.progress <- struct{}{}:
+	default:
+	}
+}
+
+func (w *packageIdleWatchdog) Stop() {
+	w.stopOnce.Do(func() { close(w.stop) })
+}
+
+func (w *packageIdleWatchdog) TimedOut() bool {
+	select {
+	case <-w.timedOut:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *contextPackageReader) Read(data []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.src.Read(data)
+}
+
+type guardedPackageWriter struct {
+	dst   io.Writer
+	guard *packageDiskGuard
+}
+
+func (w *guardedPackageWriter) Write(data []byte) (int, error) {
+	if err := w.guard.BeforeWrite(uint64(len(data))); err != nil {
+		return 0, err
+	}
+	return w.dst.Write(data)
+}
+
+func (pm *PackageManager) writePackageStream(ctx context.Context, targetDir, pattern string, src io.Reader, expectedSize uint64, hashes map[string]string) (string, uint64, error) {
+	if err := os.MkdirAll(targetDir, 0o755); err != nil { // #nosec G703 -- targetDir is selected from manager-controlled package directories.
+		return "", 0, err
+	}
+	expectedSHA256, err := packageSHA256Expectation(hashes)
 	if err != nil {
-		return written, err
+		return "", 0, err
 	}
-	if written > maxPackageArchiveSize {
-		return written, fmt.Errorf("扩展包文件超过大小限制 %d MiB", maxPackageArchiveSize/(1024*1024))
+
+	file, err := os.CreateTemp(targetDir, pattern)
+	if err != nil {
+		return "", 0, err
 	}
-	return written, nil
+	path := file.Name()
+	keep := false
+	defer func() {
+		_ = file.Close()
+		if !keep {
+			_ = os.Remove(path)
+		}
+	}()
+
+	var destination io.Writer = file
+	hasher := sha256.New()
+	if expectedSHA256 != "" {
+		destination = io.MultiWriter(file, hasher)
+	}
+	guard := newPackageDiskGuard(pm, targetDir, expectedSize)
+	written, err := copyPackageArchive(
+		&guardedPackageWriter{dst: destination, guard: guard},
+		&contextPackageReader{ctx: ctx, src: src},
+	)
+	if err != nil {
+		return "", uint64(max(written, 0)), err
+	}
+	if written == 0 {
+		return "", 0, errors.New("扩展包文件为空")
+	}
+	if err := file.Close(); err != nil {
+		return "", uint64(written), err
+	}
+	if expectedSHA256 != "" {
+		actual := hex.EncodeToString(hasher.Sum(nil))
+		if !strings.EqualFold(actual, expectedSHA256) {
+			return "", uint64(written), fmt.Errorf("扩展包 SHA-256 校验失败，期望 %s，实际 %s", strings.ToLower(expectedSHA256), actual)
+		}
+	}
+	keep = true
+	return path, uint64(written), nil
+}
+
+func packageSHA256Expectation(hashes map[string]string) (string, error) {
+	if len(hashes) == 0 {
+		return "", nil
+	}
+	for algorithm, expected := range hashes {
+		if !strings.EqualFold(algorithm, "sha256") {
+			continue
+		}
+		expected = strings.TrimSpace(expected)
+		if expected == "" {
+			return "", errors.New("download.hash.sha256 不能为空")
+		}
+		return expected, nil
+	}
+	return "", errors.New("下载校验不支持提供的哈希算法，仅支持 sha256")
 }
 
 func (pm *PackageManager) getPackageTempDir() string {
@@ -1035,6 +1371,18 @@ func (pm *PackageManager) getPackageTempDir() string {
 		baseDir = pm.parent.BaseConfig.DataDir
 	}
 	return filepath.Join(baseDir, "temp")
+}
+
+func (pm *PackageManager) getPackageStagingDir() string {
+	return filepath.Join(pm.getSourcePackagesPath(), ".staging")
+}
+
+func (pm *PackageManager) cleanupPackageStagingDir() error {
+	stagingDir := pm.getPackageStagingDir()
+	if err := os.RemoveAll(stagingDir); err != nil {
+		return err
+	}
+	return os.MkdirAll(stagingDir, 0o755)
 }
 
 func (pm *PackageManager) cleanupLegacyPackageTempDir() error {
@@ -1105,17 +1453,18 @@ func (pm *PackageManager) validateManagedPackageSource(pkgPath string) (string, 
 }
 
 func (pm *PackageManager) stageSourceArtifact(srcPath, destDir string) (string, error) {
-	tempFile, err := os.CreateTemp(destDir, "staged-*.sealpack")
+	// 不用 .sealpack 后缀，避免崩溃残留被 scanSourceArtifacts 当成正式源包。
+	tempFile, err := os.CreateTemp(destDir, "staged-*.tmp")
 	if err != nil {
 		return "", err
 	}
 	tempPath := tempFile.Name()
 	if err := tempFile.Close(); err != nil {
-		_ = os.Remove(tempPath)
+		_ = os.Remove(tempPath) // #nosec G703 -- tempPath is returned by os.CreateTemp.
 		return "", err
 	}
 	if err := pm.copyFile(srcPath, tempPath); err != nil {
-		_ = os.Remove(tempPath)
+		_ = os.Remove(tempPath) // #nosec G703 -- tempPath is returned by os.CreateTemp.
 		return "", errors.New("failed to copy extension package: " + err.Error())
 	}
 	return tempPath, nil
@@ -1173,6 +1522,7 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpack.UninstallMode) e
 			}
 			pm.removeEmptyParents(filepath.Dir(pkg.UserDataPath), filepath.Join(".", "data", "extensions"))
 		}
+		pm.retainDetachedReloadScopeLocked(pkg)
 		delete(pm.packages, pkgID)
 
 	case sealpack.UninstallModeKeepData:
@@ -1184,6 +1534,7 @@ func (pm *PackageManager) Uninstall(pkgID string, mode sealpack.UninstallMode) e
 			_ = os.Remove(pkg.SourcePath)
 			pm.removeEmptyParents(filepath.Dir(pkg.SourcePath), pm.getSourcePackagesPath())
 		}
+		pm.retainDetachedReloadScopeLocked(pkg)
 		delete(pm.packages, pkgID)
 
 	case sealpack.UninstallModeDisable:
@@ -1430,9 +1781,9 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 		return err
 	}
 
-	pkg.Config = config
+	oldConfig := pkg.Config
 
-	// 保存到用户数据目录
+	// 先持久化配置文件，成功后再更新内存，失败时内存保持旧值。
 	if err := os.MkdirAll(pkg.UserDataPath, 0o755); err != nil {
 		return err
 	}
@@ -1441,12 +1792,19 @@ func (pm *PackageManager) SetConfig(pkgID string, config map[string]interface{})
 	if err != nil {
 		return err
 	}
-
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
 		return err
 	}
 
-	return pm.saveState()
+	pkg.Config = config
+	if err := pm.saveState(); err != nil {
+		pkg.Config = oldConfig
+		if oldData, marshalErr := json.MarshalIndent(oldConfig, "", "  "); marshalErr == nil {
+			_ = os.WriteFile(configPath, oldData, 0644)
+		}
+		return err
+	}
+	return nil
 }
 
 // List 列出所有已安装的包
@@ -1720,6 +2078,7 @@ func (pm *PackageManager) generateReloadHints(manifest *sealpack.Manifest) *seal
 func (pm *PackageManager) Reload(pkgID string) (*sealpack.ReloadResult, error) {
 	pm.lock.RLock()
 	pkg, exists := pm.packages[pkgID]
+	detachedReloadGen := pm.detachedReloadGen
 	pm.lock.RUnlock()
 
 	if !exists {
@@ -1735,6 +2094,7 @@ func (pm *PackageManager) Reload(pkgID string) (*sealpack.ReloadResult, error) {
 
 	pm.lock.Lock()
 	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
+	pm.clearDetachedReloadScopeLocked(exec.succeeded, detachedReloadGen)
 	if pendingChanged {
 		if err := pm.saveState(); err != nil {
 			pm.parent.Logger.Warnf("failed to save package state: %v", err)
@@ -1753,12 +2113,16 @@ func (pm *PackageManager) ReloadByContent(contentType string) (*sealpack.ReloadR
 	if err != nil {
 		return nil, err
 	}
+	pm.lock.RLock()
+	detachedReloadGen := pm.detachedReloadGen
+	pm.lock.RUnlock()
 
 	exec := pm.reloadPackageContent(flags)
 	result := exec.result
 
 	pm.lock.Lock()
 	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
+	pm.clearDetachedReloadScopeLocked(exec.succeeded, detachedReloadGen)
 	if pendingChanged {
 		if err := pm.saveState(); err != nil {
 			pm.parent.Logger.Warnf("failed to save package state: %v", err)
@@ -1772,7 +2136,8 @@ func (pm *PackageManager) ReloadByContent(contentType string) (*sealpack.ReloadR
 
 func (pm *PackageManager) ReloadAll() (*sealpack.ReloadResult, error) {
 	pm.lock.RLock()
-	flags := packageReloadContentFlags{}
+	flags := pm.detachedReload
+	detachedReloadGen := pm.detachedReloadGen
 	for _, pkg := range pm.packages {
 		if pkg == nil || pkg.Manifest == nil {
 			continue
@@ -1788,12 +2153,8 @@ func (pm *PackageManager) ReloadAll() (*sealpack.ReloadResult, error) {
 	result := exec.result
 
 	pm.lock.Lock()
-	pendingChanged := false
-	for _, pkg := range pm.packages {
-		if pm.clearPendingReloadLocked(pkg, exec.succeeded) {
-			pendingChanged = true
-		}
-	}
+	pendingChanged := pm.clearPendingReloadForAllLocked(exec.succeeded)
+	pm.clearDetachedReloadScopeLocked(exec.succeeded, detachedReloadGen)
 	if pendingChanged {
 		_ = pm.saveState()
 	}
@@ -1854,6 +2215,63 @@ func (flags packageReloadContentFlags) merge(other packageReloadContentFlags) pa
 	flags.helpdoc = flags.helpdoc || other.helpdoc
 	flags.templates = flags.templates || other.templates
 	return flags
+}
+
+func (flags packageReloadContentFlags) without(other packageReloadContentFlags) packageReloadContentFlags {
+	if other.scripts {
+		flags.scripts = false
+	}
+	if other.decks {
+		flags.decks = false
+	}
+	if other.reply {
+		flags.reply = false
+	}
+	if other.helpdoc {
+		flags.helpdoc = false
+	}
+	if other.templates {
+		flags.templates = false
+	}
+	return flags
+}
+
+func packageReloadContentFlagsFromHints(hints []string) packageReloadContentFlags {
+	flags := packageReloadContentFlags{}
+	for _, hint := range hints {
+		flags.scripts = flags.scripts || reloadHintMatchesContentType(hint, "scripts")
+		flags.decks = flags.decks || reloadHintMatchesContentType(hint, "decks")
+		flags.reply = flags.reply || reloadHintMatchesContentType(hint, "reply")
+		flags.helpdoc = flags.helpdoc || reloadHintMatchesContentType(hint, "helpdoc")
+		flags.templates = flags.templates || reloadHintMatchesContentType(hint, "templates")
+	}
+	return flags
+}
+
+func packageReloadContentFlagsFromPreviousInstance(pkg *sealpack.Instance) packageReloadContentFlags {
+	if pkg == nil {
+		return packageReloadContentFlags{}
+	}
+	if pkg.State == sealpack.PackageStateEnabled {
+		return packageReloadContentFlagsFromManifest(pkg.Manifest)
+	}
+	return packageReloadContentFlagsFromHints(pkg.PendingReload)
+}
+
+func (pm *PackageManager) retainDetachedReloadScopeLocked(pkg *sealpack.Instance) {
+	flags := packageReloadContentFlagsFromPreviousInstance(pkg)
+	if flags.count() == 0 {
+		return
+	}
+	pm.detachedReload = pm.detachedReload.merge(flags)
+	pm.detachedReloadGen++
+}
+
+func (pm *PackageManager) clearDetachedReloadScopeLocked(succeeded packageReloadContentFlags, generation uint64) {
+	if pm.detachedReloadGen != generation {
+		return
+	}
+	pm.detachedReload = pm.detachedReload.without(succeeded)
 }
 
 func (flags packageReloadContentFlags) contains(kind string) bool {
@@ -2069,7 +2487,7 @@ func (pm *PackageManager) unlinkPackageResources(pkg *sealpack.Instance) error {
 
 // copyFile 复制文件
 func (pm *PackageManager) copyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
+	srcFile, err := os.Open(src) // #nosec G703 -- callers validate managed package paths before copying.
 	if err != nil {
 		return err
 	}
@@ -2088,54 +2506,17 @@ func (pm *PackageManager) copyFile(src, dst string) error {
 	return dstFile.Sync()
 }
 
-func downloadPackageArchive(url string) (int, []byte, error) {
-	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
-	if err != nil {
-		return 0, nil, err
-	}
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec
-	if err != nil {
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return resp.StatusCode, nil, nil
-	}
-	if resp.ContentLength > maxPackageArchiveSize {
-		return 0, nil, fmt.Errorf("扩展包文件超过大小限制 %d MiB", maxPackageArchiveSize/(1024*1024))
-	}
-
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxPackageArchiveSize+1))
-	if err != nil {
-		return 0, nil, err
-	}
-	if int64(len(data)) > maxPackageArchiveSize {
-		return 0, nil, fmt.Errorf("扩展包文件超过大小限制 %d MiB", maxPackageArchiveSize/(1024*1024))
-	}
-	return http.StatusOK, data, nil
-}
-
 func verifyDownloadedPackageHash(data []byte, hashes map[string]string) error {
-	if len(hashes) == 0 {
-		return nil
+	expected, err := packageSHA256Expectation(hashes)
+	if err != nil || expected == "" {
+		return err
 	}
-	for algorithm, expected := range hashes {
-		if !strings.EqualFold(algorithm, "sha256") {
-			continue
-		}
-		expected = strings.TrimSpace(expected)
-		if expected == "" {
-			return errors.New("download.hash.sha256 不能为空")
-		}
-		sum := sha256.Sum256(data)
-		actual := hex.EncodeToString(sum[:])
-		if !strings.EqualFold(actual, expected) {
-			return fmt.Errorf("扩展包 SHA-256 校验失败，期望 %s，实际 %s", strings.ToLower(expected), actual)
-		}
-		return nil
+	sum := sha256.Sum256(data)
+	actual := hex.EncodeToString(sum[:])
+	if !strings.EqualFold(actual, expected) {
+		return fmt.Errorf("扩展包 SHA-256 校验失败，期望 %s，实际 %s", strings.ToLower(expected), actual)
 	}
-	return errors.New("下载校验不支持提供的哈希算法，仅支持 sha256")
+	return nil
 }
 
 func unsupportedPackageHashAlgorithms(hashes map[string]string) []string {
@@ -2155,33 +2536,55 @@ func unsupportedPackageHashAlgorithms(hashes map[string]string) []string {
 
 // InstallFromURL 从 URL 下载并安装扩展包
 func (pm *PackageManager) InstallFromURL(url string, hashes map[string]string) error {
-	tmpPath, err := pm.prepareDownloadedPackage(url, hashes, "package_download_*.sealpack")
+	return pm.InstallFromURLContext(context.Background(), url, hashes)
+}
+
+// InstallFromURLContext is the cancellable form of InstallFromURL.
+func (pm *PackageManager) InstallFromURLContext(ctx context.Context, url string, hashes map[string]string) error {
+	return pm.InstallFromURLWithOptionsContext(ctx, url, PackageDownloadOptions{Hashes: hashes})
+}
+
+// InstallFromURLWithOptionsContext downloads directly into managed staging and installs it.
+func (pm *PackageManager) InstallFromURLWithOptionsContext(ctx context.Context, url string, options PackageDownloadOptions) error {
+	release, err := acquirePackageOperation(ctx)
 	if err != nil {
 		return err
 	}
-
-	// 安装扩展包
-	err = pm.Install(tmpPath)
-
-	// 清理临时文件
-	if removeErr := os.Remove(tmpPath); removeErr != nil {
-		pm.parent.Logger.Warnf("清理临时扩展包文件失败 %s: %v", tmpPath, removeErr)
+	defer release()
+	if dirErr := pm.ensurePackageDirs(); dirErr != nil {
+		return dirErr
 	}
-
-	return err
+	stagedPath, _, err := pm.prepareDownloadedPackageContext(ctx, url, options, pm.getPackageStagingDir(), "package_download_*.part")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(stagedPath)
+	return pm.installFromSourceContext(ctx, stagedPath, true)
 }
 
-// PreviewFromURL 从 URL 下载扩展包并返回包内容预览。
-func (pm *PackageManager) PreviewFromURL(url string, hashes map[string]string) (*PackageUploadPreview, error) {
-	tmpPath, err := pm.prepareDownloadedPackage(url, hashes, "package_preview_download_*.sealpack")
+// PreviewFromURLWithOptionsContext downloads a package into staging and inspects it without installing it.
+func (pm *PackageManager) PreviewFromURLWithOptionsContext(ctx context.Context, url string, options PackageDownloadOptions) (*PackageUploadPreview, error) {
+	release, err := acquirePackageOperation(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if removeErr := os.Remove(tmpPath); removeErr != nil && pm.parent != nil && pm.parent.Logger != nil {
-			pm.parent.Logger.Warnf("清理临时扩展包文件失败 %s: %v", tmpPath, removeErr)
-		}
-	}()
+	defer release()
+	if dirErr := pm.ensurePackageDirs(); dirErr != nil {
+		return nil, dirErr
+	}
+	stagedPath, _, err := pm.prepareDownloadedPackageContext(ctx, url, options, pm.getPackageStagingDir(), "package_preview_download_*.part")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(stagedPath)
+	return pm.previewFromSourceContext(ctx, stagedPath)
+}
 
-	return pm.Preview(tmpPath)
+func acquirePackageOperation(ctx context.Context) (func(), error) {
+	select {
+	case packageOperations <- struct{}{}:
+		return func() { <-packageOperations }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }

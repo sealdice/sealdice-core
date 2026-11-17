@@ -5,7 +5,6 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/logger"
-	"sealdice-core/utils/cache"
 )
 
 func PostgresDBInit(dsn string) (*gorm.DB, error) {
@@ -18,12 +17,6 @@ func PostgresDBInit(dsn string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// GetOtterCacheDB 逻辑保持不变
-	cacheDB, err := cache.GetOtterCacheDB(db)
-	if err != nil {
-		return nil, err
-	}
-
 	// 返回数据库连接
-	return cacheDB, nil
+	return db, nil
 }

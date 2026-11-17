@@ -32,7 +32,7 @@ func TestPackageAssetServesInstalledFile(t *testing.T) {
 	if err := pm.Init(); err != nil {
 		t.Fatalf("PackageManager.Init() error = %v", err)
 	}
-	manager := &dice.DiceManager{Dice: []*dice.Dice{testDice}}
+	manager := &dice.DiceManager{Dice: testDice}
 	token := "test-token"
 	manager.AccessTokens.Store(token, true)
 	testDice.Parent = manager

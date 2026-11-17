@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -63,8 +64,22 @@ func ensureGroupLogState(ctx *MsgContext, group *GroupInfo) GroupLogState {
 	return getGroupLogState(group)
 }
 
-func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
-	if ctx.SystemTemplate == nil {
+// EvalPlayerGroupCardTemplate 只求值 .sn 模板，不调用平台改名接口。
+// 求值 panic 转为 error，避免名片异常中断正文回复。
+func EvalPlayerGroupCardTemplate(ctx *MsgContext, tmpl string) (result string, err error) {
+	if ctx == nil || ctx.Dice == nil {
+		return "", errors.New("无法求值名片模板：上下文为空")
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			result = ""
+			err = fmt.Errorf("名片模板求值异常: %v", r)
+			if ctx.Dice.Logger != nil {
+				ctx.Dice.Logger.Errorf("%v\n%s", err, debug.Stack())
+			}
+		}
+	}()
+	if ctx.SystemTemplate == nil && ctx.Group != nil {
 		ctx.SystemTemplate = ctx.Group.GetCharTemplate(ctx.Dice)
 	}
 	config := ctx.GenDefaultRollVmConfig()
@@ -73,11 +88,26 @@ func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) 
 	}
 	v := ctx.EvalFString(tmpl, config)
 	if v.vm.Error != nil {
-		ctx.Dice.Logger.Infof("SN指令模板错误: %v", v.vm.Error.Error())
 		return "", v.vm.Error
 	}
 
-	text := v.ToString()
+	return v.ToString(), nil
+}
+
+func SetPlayerGroupCardByTemplate(ctx *MsgContext, tmpl string) (string, error) {
+	text, err := EvalPlayerGroupCardTemplate(ctx, tmpl)
+	if err != nil {
+		if ctx != nil && ctx.Dice != nil && ctx.Dice.Logger != nil {
+			ctx.Dice.Logger.Infof("SN指令模板错误: %v", err.Error())
+		}
+		return "", err
+	}
+
+	// 官方 QQ 没有修改群名片的能力，名片改由回复顶部的状态栏承载。
+	if ctx.EndPoint == nil || ctx.EndPoint.Adapter == nil || isOfficialQQEndpoint(ctx.EndPoint) {
+		return text, nil
+	}
+
 	if ctx.EndPoint.Platform == "QQ" && len(text) >= 60 { // Note(Xiangze-Li): 2023-08-09实测群名片长度限制为59个英文字符, 20个中文字符是可行的, 但分别判断过于繁琐
 		return text, ErrGroupCardOverlong
 	}
@@ -586,15 +616,14 @@ func RegisterBuiltinExtLog(self *Dice) {
 				logFileNamePrefix := DiceFormatTmpl(ctx, "日志:记录_导出_文件名前缀")
 				logFile, notice, err := GetLogTxt(ctx, group.GroupID, logName, logFileNamePrefix)
 				if err != nil {
-					reply := err.Error()
+					ctx.Dice.Logger.Errorf("导出日志失败: 群=%s 记录=%s err=%v", group.GroupID, logName, err)
+					reply := logExportErrorReply(err)
 					if strings.Contains(reply, "此log不存在") || strings.Contains(reply, "名字是否正确") {
 						reply += logKeyHintText()
 					}
 					ReplyToSenderRaw(ctx, msg, reply, "skip")
 					return CmdExecuteResult{Matched: true, Solved: true}
 				}
-				defer os.Remove(logFile)
-
 				var emails []string
 				if len(cmdArgs.Args) > 2 {
 					emails = cmdArgs.Args[2:]
@@ -610,12 +639,15 @@ func RegisterBuiltinExtLog(self *Dice) {
 						}
 						if len(rightEmails) > 0 {
 							emailMsg := DiceFormatTmpl(ctx, "日志:记录_导出_邮件附言")
-							dice.SendMailRow(
+							if err := dice.SendMailRow(
 								fmt.Sprintf("Seal 记录提取: %s", logFileNamePrefix),
 								rightEmails,
 								emailMsg,
 								[]string{logFile},
-							)
+							); err != nil {
+								ReplyToSenderRaw(ctx, msg, "日志邮件发送失败，请联系骰主检查邮件配置和运行日志", "skip")
+								return CmdExecuteResult{Matched: true, Solved: true}
+							}
 							text := DiceFormatTmpl(ctx, "日志:记录_导出_邮箱发送前缀") + strings.Join(rightEmails, "\n")
 							ReplyToSenderRaw(ctx, msg, text, "skip")
 							return CmdExecuteResult{Matched: true, Solved: true}
@@ -625,12 +657,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 					ReplyToSenderRaw(ctx, msg, DiceFormat(ctx, "{核心:骰子名字}未配置邮箱，将直接发送记录文件"), "skip")
 				}
 
-				var uri string
-				if runtime.GOOS == "windows" {
-					uri = "files:///" + logFile
-				} else {
-					uri = "files://" + logFile
-				}
+				uri := logExportFileURI(logFile)
 				SendFileToSenderRaw(ctx, msg, uri, "skip")
 				VarSetValueStr(ctx, "$t文件名字", logFileNamePrefix)
 				reply := DiceFormatTmpl(ctx, "日志:记录_导出_成功")
@@ -766,7 +793,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 	cmdSn := &CmdItemInfo{
 		Name:               "sn",
 		ShortHelp:          helpSn,
-		Help:               "跑团名片(需要管理权限):\n" + helpSn,
+		Help:               "跑团名片(部分平台需要管理权限):\n" + helpSn,
 		CheckCurrentBotOn:  true,
 		CheckMentionOthers: true,
 		HelpFunc: func(isShort bool) string {
@@ -798,7 +825,7 @@ func RegisterBuiltinExtLog(self *Dice) {
 			if isShort {
 				return text
 			}
-			return "跑团名片(需要管理权限):\n" + text
+			return "跑团名片(部分平台需要管理权限):\n" + text
 		},
 		Solve: func(ctx *MsgContext, msg *Message, cmdArgs *CmdArgs) CmdExecuteResult {
 			val := cmdArgs.GetArgN(1)
@@ -813,12 +840,11 @@ func RegisterBuiltinExtLog(self *Dice) {
 			}
 
 			// sn 指令(除 help 外)需要骰子具有群管理员权限。提前检测 bot 在群中的角色,
-			// 若明确无管理权限则给出明确提示, 避免用户反复尝试。不支持角色检查的适配器
+			// 若明确无管理权限则给出明确提示, 由于协议端问题，目前只能做提示。不支持角色检查的适配器
 			// 返回 ok=false, 此时保持原有行为(直接尝试设置)不做阻断。
 			if valLower != "help" && ctx.Group != nil {
 				if detail, ok := checkBotGroupRole(ctx, ctx.Group.GroupID); ok && detail != "owner" && detail != "admin" {
-					ReplyToSender(ctx, msg, "设置群名片需要骰子具有群管理员权限，请在群内将骰子设为管理员后重试 .sn 指令。")
-					return CmdExecuteResult{Matched: true, Solved: true}
+					ReplyToSender(ctx, msg, "【警告】骰子当前可能不具备管理员权限，请检查，若确认具备管理员权限可无视此误报。")
 				}
 			}
 
@@ -1158,15 +1184,25 @@ func LogEditByID(ctx *MsgContext, groupID, content string, messageID interface{}
 }
 
 func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix string) (string, string, error) {
-	// 创建临时文件
 	tempPattern, notice := storylog.BuildTempPattern(fileNamePrefix)
-	tempLog, err := os.CreateTemp("", tempPattern)
+	exportDir, err := filepath.Abs(filepath.Join(ctx.Dice.BaseConfig.DataDir, "log-exports"))
 	if err != nil {
-		return "", notice, errors.New("log导出出现未知错误")
+		return "", notice, fmt.Errorf("解析日志导出目录失败: %w", err)
 	}
+	if mkdirErr := os.MkdirAll(exportDir, 0o755); mkdirErr != nil {
+		return "", notice, fmt.Errorf("创建日志导出目录失败: %w", mkdirErr)
+	}
+
+	// 日志导出文件需要被 OneBot/NapCat 等外部进程从共享数据卷读取，
+	// 因此直接落在 data/default/log-exports，而不是系统临时目录。
+	tempLog, err := os.CreateTemp(exportDir, tempPattern)
+	if err != nil {
+		return "", notice, fmt.Errorf("创建日志导出文件失败: %w", err)
+	}
+	keepFile := false
 	defer func() {
 		_ = tempLog.Close()
-		if err != nil {
+		if !keepFile {
 			_ = os.Remove(tempLog.Name()) //nolint:gosec
 		}
 	}()
@@ -1238,7 +1274,35 @@ func GetLogTxt(ctx *MsgContext, groupID string, logName string, fileNamePrefix s
 		return "", notice, errors.New("此log不存在，或条目数为空，名字是否正确？")
 	}
 
+	// 仅在文件完整写入后开放共享读取，避免外部进程读到半成品。
+	if err := tempLog.Chmod(0o644); err != nil {
+		return "", notice, fmt.Errorf("设置日志导出文件权限失败: %w", err)
+	}
+	keepFile = true
 	return tempLog.Name(), notice, nil
+}
+
+func logExportErrorReply(err error) string {
+	var pathErr *os.PathError
+	if !errors.As(err, &pathErr) || pathErr.Path == "" {
+		return err.Error()
+	}
+
+	// 保留操作和失败原因供用户排查，完整路径仅写入运行日志。
+	replyErr := *pathErr
+	replyErr.Path = filepath.Base(pathErr.Path)
+	return strings.Replace(err.Error(), pathErr.Error(), replyErr.Error(), 1)
+}
+
+func logExportFileURI(filePath string) string {
+	if absolutePath, err := filepath.Abs(filePath); err == nil {
+		filePath = absolutePath
+	}
+	uriPath := filepath.ToSlash(filePath)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	return (&url.URL{Scheme: "files", Path: uriPath}).String()
 }
 
 func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, string, string, error) {
@@ -1247,7 +1311,6 @@ func LogSendToBackend(ctx *MsgContext, groupID string, logName string) (bool, st
 
 func logSendToBackend(ctx *MsgContext, groupID string, logName string, skipResolve bool) (bool, string, string, error) {
 	dice := ctx.Dice
-	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
 	if !skipResolve {
 		resolvedName, err := resolveLogNameForGroup(dice.DBOperator, groupID, logName)
@@ -1258,6 +1321,22 @@ func logSendToBackend(ctx *MsgContext, groupID string, logName string, skipResol
 			logName = resolvedName
 		}
 	}
+
+	logInfo, err := service.LogGetByGroupIDAndName(dice.DBOperator, groupID, logName)
+	if err != nil {
+		return false, "", "", err
+	}
+	return uploadLogInfoToBackend(ctx, logInfo, false)
+}
+
+func LogSendToBackendByInfo(ctx *MsgContext, logInfo *model.LogInfo, force bool) (bool, string, error) {
+	unofficial, url, _, err := uploadLogInfoToBackend(ctx, logInfo, force)
+	return unofficial, url, err
+}
+
+func uploadLogInfoToBackend(ctx *MsgContext, logInfo *model.LogInfo, force bool) (bool, string, string, error) {
+	dice := ctx.Dice
+	dirPath := filepath.Join(dice.BaseConfig.DataDir, "log-exports")
 
 	var sealBackends []string
 	for _, sealBackend := range BackendUrls {
@@ -1271,9 +1350,10 @@ func logSendToBackend(ctx *MsgContext, groupID string, logName string, skipResol
 		Log:      dice.Logger,
 		Backends: sealBackends,
 
-		LogName:   logName,
+		LogName:   logInfo.Name,
 		UniformID: ctx.EndPoint.UserID,
-		GroupID:   groupID,
+		GroupID:   logInfo.GroupID,
+		Force:     force,
 	}
 	uploadCtx.Version = storylog.StoryVersionV1
 

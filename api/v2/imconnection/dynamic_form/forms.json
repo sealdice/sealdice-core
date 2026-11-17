@@ -1,0 +1,89 @@
+{
+  "gocq": [
+    { "name": "QQ 账号", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 1, "default": "", "placeholder": "旧内置 gocq 已废弃" },
+    { "name": "密码", "input_type": 0, "is_required": 0, "field_name": "password", "check_type": 0, "default": "", "placeholder": "旧内置 gocq 登录密码，当前协议已废弃", "sensitive": true },
+    { "name": "协议", "input_type": 1, "is_required": 0, "field_name": "protocol", "check_type": 1, "default": "1", "placeholder": "旧内置 gocq 协议编号，当前协议已废弃" },
+    { "name": "版本", "input_type": 0, "is_required": 0, "field_name": "appVersion", "check_type": 0, "default": "", "placeholder": "旧内置 gocq 客户端版本，当前协议已废弃" }
+  ],
+  "walle-q": [
+    { "name": "QQ 账号", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 1, "default": "", "placeholder": "Walle-Q 登录 QQ 号，当前协议未在 v2 启用" },
+    { "name": "密码", "input_type": 0, "is_required": 1, "field_name": "password", "check_type": 0, "default": "", "placeholder": "Walle-Q 登录密码，当前协议未在 v2 启用", "sensitive": true },
+    { "name": "协议", "input_type": 1, "is_required": 1, "field_name": "protocol", "check_type": 1, "default": "1", "placeholder": "Walle-Q 协议编号，当前协议未在 v2 启用" }
+  ],
+  "lagrange": [
+    { "name": "QQ 账号", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 1, "default": "", "placeholder": "输入即将扫码登录的 QQ 号" },
+    { "name": "签名版本", "input_type": 0, "is_required": 1, "field_name": "signServerVersion", "check_type": 0, "default": "", "placeholder": "请选择签名版本" },
+    { "name": "签名服务", "input_type": 0, "is_required": 1, "field_name": "signServerName", "check_type": 0, "default": "", "placeholder": "请选择签名服务或填写自定义地址" }
+  ],
+  "discord": [
+    { "name": "Token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "", "placeholder": "Discord Bot Token，用于连接 Discord 网关", "sensitive": true },
+    { "name": "HTTP 代理地址", "input_type": 0, "is_required": 0, "field_name": "proxyURL", "check_type": 0, "default": "", "placeholder": "例：http://127.0.0.1:7890" },
+    { "name": "反向代理地址", "input_type": 0, "is_required": 0, "field_name": "reverseProxyUrl", "check_type": 0, "default": "", "placeholder": "Discord API 反向代理地址，通常留空" },
+    { "name": "反向代理 CDN 地址", "input_type": 0, "is_required": 0, "field_name": "reverseProxyCDNUrl", "check_type": 0, "default": "", "placeholder": "Discord CDN 反向代理地址，通常留空" }
+  ],
+  "kook": [
+    { "name": "Token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "", "placeholder": "KOOK Bot Token，用于连接 KOOK 网关", "sensitive": true }
+  ],
+  "telegram": [
+    { "name": "Token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "", "placeholder": "Telegram Bot Token，由 BotFather 创建机器人后获得", "sensitive": true },
+    { "name": "HTTP 代理地址", "input_type": 0, "is_required": 0, "field_name": "proxyURL", "check_type": 0, "default": "", "placeholder": "http://127.0.0.1:7890" }
+  ],
+  "minecraft": [
+    { "name": "连接地址", "input_type": 0, "is_required": 1, "field_name": "url", "check_type": 0, "default": "", "placeholder": "127.0.0.1:8887" }
+  ],
+  "dodo": [
+    { "name": "ClientID", "input_type": 0, "is_required": 1, "field_name": "clientID", "check_type": 0, "default": "", "placeholder": "Dodo 开放平台应用 ClientID" },
+    { "name": "Token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "", "placeholder": "Dodo 开放平台应用 Token", "sensitive": true }
+  ],
+  "dingtalk": [
+    { "name": "ClientID", "input_type": 0, "is_required": 1, "field_name": "clientID", "check_type": 0, "default": "", "placeholder": "钉钉开放平台应用 ClientID" },
+    { "name": "Token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "", "placeholder": "钉钉开放平台应用 Token 或 ClientSecret", "sensitive": true },
+    { "name": "昵称", "input_type": 0, "is_required": 0, "field_name": "nickname", "check_type": 0, "default": "", "placeholder": "此账号在海豹内显示的名称，可留空" },
+    { "name": "RobotCode", "input_type": 0, "is_required": 1, "field_name": "robotCode", "check_type": 0, "default": "", "placeholder": "钉钉机器人 RobotCode" }
+  ],
+  "slack": [
+    { "name": "Bot Token", "input_type": 0, "is_required": 1, "field_name": "botToken", "check_type": 0, "default": "", "placeholder": "Slack Bot User OAuth Token，通常以 xoxb- 开头", "sensitive": true },
+    { "name": "App Token", "input_type": 0, "is_required": 1, "field_name": "appToken", "check_type": 0, "default": "", "placeholder": "Slack App-Level Token，通常以 xapp- 开头", "sensitive": true }
+  ],
+  "officialqq": [
+    { "name": "机器人 ID", "input_type": 0, "is_required": 0, "field_name": "appID", "check_type": 0, "default": "", "placeholder": "QQ 官方机器人 AppID" },
+    { "name": "机器人密钥", "input_type": 0, "is_required": 0, "field_name": "appSecret", "check_type": 0, "default": "", "placeholder": "QQ 官方机器人 AppSecret", "sensitive": true },
+    { "name": "Webhook 模式", "input_type": 10, "is_required": 0, "field_name": "useWebhook", "check_type": 0, "default": "false", "placeholder": "开启后改为接收官方 QQ Webhook 回调" },
+    { "name": "Webhook 路径", "input_type": 0, "is_required": 0, "field_name": "webhookPath", "check_type": 0, "default": "/webhook", "placeholder": "例如 /webhook" },
+    { "name": "Webhook 端口", "input_type": 1, "minimum": 1, "maximum": 65535, "is_required": 0, "field_name": "webhookPort", "check_type": 1, "default": "8099", "placeholder": "默认 8099" }
+  ],
+  "satori": [
+    { "name": "平台", "input_type": 12, "is_required": 1, "field_name": "platform", "check_type": 0, "default": "QQ", "placeholder": "Satori 适配的平台，目前仅开放 QQ", "sub_option": [{ "label": "QQ", "value": "QQ" }] },
+    { "name": "主机", "input_type": 0, "is_required": 1, "field_name": "host", "check_type": 0, "default": "", "placeholder": "127.0.0.1" },
+    { "name": "端口", "input_type": 1, "minimum": 1, "maximum": 65535, "is_required": 1, "field_name": "port", "check_type": 1, "default": "", "placeholder": "Satori HTTP/WebSocket 服务端口，例如 5500" },
+    { "name": "Token", "input_type": 0, "is_required": 0, "field_name": "token", "check_type": 0, "default": "", "placeholder": "Satori 鉴权 Token，未启用鉴权时可留空", "sensitive": true }
+  ],
+  "onebot-reverse": [
+    { "name": "QQ 账号", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 1, "default": "", "placeholder": "此 OneBot 反向连接对应的 QQ 号" },
+    { "name": "连接地址", "input_type": 0, "is_required": 1, "field_name": "reverseAddr", "check_type": 0, "default": ":4001", "placeholder": "0.0.0.0:4001" }
+  ],
+  "gocq-separate": [
+    { "name": "工作目录", "input_type": 0, "is_required": 0, "field_name": "relWorkDir", "check_type": 0, "default": "", "placeholder": "保留字段，通常留空由海豹自动生成" },
+    { "name": "连接地址", "input_type": 0, "is_required": 1, "field_name": "connectUrl", "check_type": 0, "default": "", "placeholder": "ws://127.0.0.1:1234" },
+    { "name": "访问令牌", "input_type": 0, "is_required": 0, "field_name": "accessToken", "check_type": 0, "default": "", "placeholder": "OneBot 访问令牌，协议端未配置时可留空", "sensitive": true },
+    { "name": "QQ 账号", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 1, "default": "", "placeholder": "此 OneBot 正向连接对应的 QQ 号" }
+  ],
+  "red": [
+    { "name": "主机", "input_type": 0, "is_required": 1, "field_name": "host", "check_type": 0, "default": "", "placeholder": "Red 协议主机地址，当前协议已废弃" },
+    { "name": "端口", "input_type": 1, "minimum": 1, "maximum": 65535, "is_required": 1, "field_name": "port", "check_type": 1, "default": "", "placeholder": "Red 协议端口，当前协议已废弃" },
+    { "name": "令牌", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "", "placeholder": "Red 协议鉴权令牌，当前协议已废弃", "sensitive": true }
+  ],
+  "sealchat": [
+    { "name": "连接地址", "input_type": 0, "is_required": 1, "field_name": "url", "check_type": 0, "default": "", "placeholder": "ws://127.0.0.1:3212/ws/seal" },
+    { "name": "Token", "input_type": 0, "is_required": 1, "field_name": "token", "check_type": 0, "default": "", "placeholder": "SealChat 连接 Token", "sensitive": true }
+  ],
+  "milky": [
+    { "name": "WebSocket Gateway", "input_type": 0, "is_required": 1, "field_name": "wsGateway", "check_type": 0, "default": "", "placeholder": "ws://127.0.0.1:3000/event" },
+    { "name": "REST Gateway", "input_type": 0, "is_required": 1, "field_name": "restGateway", "check_type": 0, "default": "", "placeholder": "http://127.0.0.1:3000/api" },
+    { "name": "Token", "input_type": 0, "is_required": 0, "field_name": "token", "check_type": 0, "default": "", "placeholder": "Milky 鉴权 Token，协议端未配置时可留空", "sensitive": true }
+  ],
+  "milky-internal": [
+    { "name": "QQ 账号", "input_type": 0, "is_required": 1, "field_name": "account", "check_type": 1, "default": "", "placeholder": "输入即将扫码登录的 QQ 号" },
+    { "name": "协议端", "input_type": 12, "is_required": 1, "field_name": "builtInMode", "check_type": 0, "default": "yogurt", "placeholder": "选择内置 Milky 使用的协议端实现", "sub_option": [{ "label": "Yogurt", "value": "yogurt" }, { "label": "LagrangeV2", "value": "lagrangeV2" }] }
+  ]
+}

@@ -30,6 +30,11 @@ func CustomReplyConfigReadFromPath(dice *Dice, filePath string, filename string)
 				dice.Logger.Error("读取自定义回复配置文件发生异常，请检查格式是否正确")
 				return nil, err
 			}
+			if normalizeReplyVMVersion(rc.VMVersion) == ReplyVMVersionV2 || hasReplyVMVersionV2Marker(af) {
+				rc.VMVersion = ReplyVMVersionV2
+			} else {
+				rc.VMVersion = ""
+			}
 		}
 	}
 
@@ -51,7 +56,24 @@ func CustomReplyConfigCheckExists(dice *Dice, filename string) bool {
 	return false
 }
 
+func hasReplyVMVersionV2Marker(data []byte) bool {
+	text := strings.TrimPrefix(string(data), "\ufeff")
+	firstLine, _, _ := strings.Cut(text, "\n")
+	return strings.TrimSpace(firstLine) == ReplyVMVersionV2Marker
+}
+
+func (c *ReplyConfig) vmVersionForExecution(dice *Dice) string {
+	if normalizeReplyVMVersion(c.VMVersion) == ReplyVMVersionV2 {
+		return ReplyVMVersionV2
+	}
+	return dice.getTargetVmEngineVersion(VMVersionReply)
+}
+
 func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
+	return CustomReplyConfigNewWithVMVersion(dice, filename, ReplyVMVersionV2)
+}
+
+func CustomReplyConfigNewWithVMVersion(dice *Dice, filename string, vmVersion string) *ReplyConfig {
 	for _, i := range dice.CustomReplyConfig {
 		if i.PackageID == "" && strings.EqualFold(i.Filename, filename) {
 			return nil
@@ -60,6 +82,7 @@ func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 
 	nowTime := time.Now().Unix()
 	rc := &ReplyConfig{
+		VMVersion:       normalizeReplyVMVersion(vmVersion),
 		Enable:          true,
 		Filename:        filename,
 		Name:            filename,
@@ -69,27 +92,30 @@ func CustomReplyConfigNew(dice *Dice, filename string) *ReplyConfig {
 		Author:          []string{"无名海豹"},
 		Conditions:      []ReplyConditionBase{},
 	}
-	dice.CustomReplyConfig = append(dice.CustomReplyConfig, rc)
-	rc.Save(dice)
+	if err := dice.SaveReplyConfig(rc, &vmVersion); err != nil {
+		dice.Logger.Errorf("保存新自定义回复文件失败: %s: %v", filename, err)
+		return nil
+	}
 	return rc
 }
 
 func CustomReplyConfigDelete(dice *Dice, filename string) bool {
 	attrConfigFn := dice.GetExtConfigFilePath("reply", filename)
-	if _, err := os.Stat(attrConfigFn); err == nil {
-		err := os.Remove(attrConfigFn)
-		if err == nil {
-			var rcs []*ReplyConfig
-			for _, i := range dice.CustomReplyConfig {
-				if i.Filename != filename {
-					rcs = append(rcs, i)
-				}
-			}
-			dice.CustomReplyConfig = rcs
-		}
-		return true
+	if _, err := os.Stat(attrConfigFn); err != nil {
+		return false
 	}
-	return false
+	if err := os.Remove(attrConfigFn); err != nil {
+		dice.Logger.Errorf("删除自定义回复文件失败: %s: %v", filename, err)
+		return false
+	}
+	var rcs []*ReplyConfig
+	for _, i := range dice.CustomReplyConfig {
+		if i.Filename != filename {
+			rcs = append(rcs, i)
+		}
+	}
+	dice.CustomReplyConfig = rcs
+	return true
 }
 
 func ReplyReload(dice *Dice) {
@@ -133,7 +159,10 @@ func ReplyReload(dice *Dice) {
 		rc, err := CustomReplyConfigRead(dice, i)
 		if err == nil {
 			dice.Logger.Info("读取自定义回复配置:", i)
-			rc.Save(dice)
+			if saveErr := rc.Save(dice); saveErr != nil {
+				dice.Logger.Errorf("保存自定义回复配置失败: %s: %v", i, saveErr)
+				continue
+			}
 			rcs = append(rcs, rc)
 		} else {
 			dice.Logger.Info("读取自定义回复配置 - 失败:", i)
@@ -200,6 +229,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 				if !rc.Enable {
 					continue
 				}
+				vmVersion := rc.vmVersionForExecution(ctx.Dice)
 				condIndex := -1
 				defer func() {
 					if r := recover(); r != nil {
@@ -215,7 +245,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 				{
 					commonCondOK := true
 					for _, cond := range rc.Conditions {
-						if !cond.Check(ctx, msg, nil, cleanText) {
+						if !cond.Check(ctx, msg, nil, cleanText, vmVersion) {
 							commonCondOK = false
 							break
 						}
@@ -247,7 +277,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 
 					checkTrue := true
 					for _, i := range i.Conditions {
-						if !i.Check(ctx, msg, nil, cleanText) {
+						if !i.Check(ctx, msg, nil, cleanText, vmVersion) {
 							checkTrue = false
 							break
 						}
@@ -268,7 +298,7 @@ func RegisterBuiltinExtReply(dice *Dice) {
 					SetTempVars(ctx, msg.Sender.Nickname)
 					VarSetValueStr(ctx, "$tMsgID", fmt.Sprintf("%v", msg.RawID))
 					for _, j := range i.Results {
-						j.Execute(ctx, msg, nil)
+						j.Execute(ctx, msg, nil, vmVersion)
 					}
 					executed = true
 					break

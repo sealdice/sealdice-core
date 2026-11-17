@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="900" viewBox="0 0 1480 900">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.10" />
+    </filter>
+    <style>
+      text { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; }
+      .title { font-size: 28px; font-weight: 700; fill: #172033; }
+      .subtitle { font-size: 14px; fill: #64748b; }
+      .frame-title { font-size: 18px; font-weight: 700; }
+      .row-title { font-size: 15px; font-weight: 700; }
+      .sample { font-size: 13px; font-weight: 600; }
+      .meta { font-size: 12px; }
+      .button-text { font-size: 12px; font-weight: 700; }
+      .sidebar-brand { font-size: 16px; font-weight: 700; fill: #ffffff; }
+      .sidebar-text { font-size: 12px; fill: rgba(255,255,255,0.82); }
+    </style>
+  </defs>
+
+  <rect width="1480" height="900" fill="#eef2f6" />
+  <text x="40" y="46" class="title">四种语义色对比 · Warning 方案 B</text>
+  <text x="40" y="72" class="subtitle">Warning 预览为平衡琥珀：Light #A26B0C / Dark #CA9438。仅供最终确认，尚未写入应用主题。</text>
+
+  <!-- Light application shell -->
+  <g filter="url(#shadow)">
+    <rect x="40" y="100" width="680" height="750" rx="12" fill="#f4f6f9" />
+    <path d="M52 100h128v750H52c-6.6 0-12-5.4-12-12V112c0-6.6 5.4-12 12-12z" fill="#243247" />
+  </g>
+  <text x="62" y="139" class="sidebar-brand">SealDice</text>
+  <text x="62" y="163" class="sidebar-text">浅色主题</text>
+  <rect x="54" y="194" width="112" height="36" rx="6" fill="#ffffff" opacity="0.07" />
+  <rect x="54" y="240" width="112" height="36" rx="6" fill="#3069e5" opacity="0.30" />
+  <rect x="62" y="206" width="68" height="7" rx="3.5" fill="#ffffff" opacity="0.62" />
+  <rect x="62" y="252" width="78" height="7" rx="3.5" fill="#ffffff" opacity="0.92" />
+  <rect x="62" y="298" width="58" height="7" rx="3.5" fill="#ffffff" opacity="0.42" />
+
+  <text x="208" y="138" class="frame-title" fill="#172033">浅色主页面</text>
+  <text x="208" y="160" class="meta" fill="#64748b">页面 #F4F6F9 · 内容面 #FFFFFF</text>
+  <rect x="204" y="184" width="488" height="626" rx="10" fill="#ffffff" stroke="#d9e0e9" />
+  <text x="230" y="220" font-size="16" font-weight="700" fill="#172033">状态与操作示例</text>
+  <text x="230" y="242" class="meta" fill="#8490a3">比较四色的文字强度、浅底状态和实色面积</text>
+
+  <!-- Light Primary -->
+  <rect x="228" y="272" width="440" height="105" rx="8" fill="#f9fbfd" stroke="#e6ebf1" />
+  <circle cx="252" cy="304" r="10" fill="#3069e5" />
+  <path d="M248 304l3 3 6-7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="274" y="301" class="row-title" fill="#172033">Primary</text>
+  <text x="274" y="322" class="meta" fill="#64748b">#3069E5 · 白卡 4.91:1</text>
+  <text x="414" y="308" class="sample" fill="#3069e5">主题状态</text>
+  <rect x="496" y="287" width="76" height="34" rx="6" fill="#ecf2fd" />
+  <text x="534" y="309" text-anchor="middle" class="sample" fill="#3069e5">浅底</text>
+  <rect x="584" y="287" width="66" height="34" rx="6" fill="#3069e5" />
+  <text x="617" y="309" text-anchor="middle" class="button-text" fill="#fff">操作</text>
+  <rect x="248" y="344" width="402" height="6" rx="3" fill="#3069e5" opacity="0.22" />
+
+  <!-- Light Success -->
+  <rect x="228" y="391" width="440" height="105" rx="8" fill="#f9fbfd" stroke="#e6ebf1" />
+  <circle cx="252" cy="423" r="10" fill="#218755" />
+  <path d="M248 423l3 3 6-7" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="274" y="420" class="row-title" fill="#172033">Success</text>
+  <text x="274" y="441" class="meta" fill="#64748b">#218755 · 白卡 4.51:1</text>
+  <text x="414" y="427" class="sample" fill="#218755">运行正常</text>
+  <rect x="496" y="406" width="76" height="34" rx="6" fill="#ebf4f0" />
+  <text x="534" y="428" text-anchor="middle" class="sample" fill="#218755">已完成</text>
+  <rect x="584" y="406" width="66" height="34" rx="6" fill="#218755" />
+  <text x="617" y="428" text-anchor="middle" class="button-text" fill="#fff">确认</text>
+  <rect x="248" y="463" width="402" height="6" rx="3" fill="#218755" opacity="0.22" />
+
+  <!-- Light Warning B -->
+  <rect x="228" y="510" width="440" height="105" rx="8" fill="#fffcf7" stroke="#a26b0c" stroke-opacity="0.26" />
+  <circle cx="252" cy="542" r="10" fill="#a26b0c" />
+  <path d="M252 535v8m0 5h.1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" />
+  <text x="274" y="539" class="row-title" fill="#172033">Warning · 方案 B</text>
+  <text x="274" y="560" class="meta" fill="#64748b">#A26B0C · 白卡 4.52:1</text>
+  <text x="414" y="546" class="sample" fill="#a26b0c">需要注意</text>
+  <rect x="496" y="525" width="76" height="34" rx="6" fill="#f6f0e7" />
+  <text x="534" y="547" text-anchor="middle" class="sample" fill="#a26b0c">待处理</text>
+  <rect x="584" y="525" width="66" height="34" rx="6" fill="#a26b0c" />
+  <text x="617" y="547" text-anchor="middle" class="button-text" fill="#fff">继续</text>
+  <rect x="248" y="582" width="402" height="6" rx="3" fill="#a26b0c" opacity="0.24" />
+
+  <!-- Light Error -->
+  <rect x="228" y="629" width="440" height="105" rx="8" fill="#f9fbfd" stroke="#e6ebf1" />
+  <circle cx="252" cy="661" r="10" fill="#dd2929" />
+  <path d="M248 657l8 8m0-8l-8 8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" />
+  <text x="274" y="658" class="row-title" fill="#172033">Error</text>
+  <text x="274" y="679" class="meta" fill="#64748b">#DD2929 · 白卡 4.75:1</text>
+  <text x="414" y="665" class="sample" fill="#dd2929">操作失败</text>
+  <rect x="496" y="644" width="76" height="34" rx="6" fill="#fceaea" />
+  <text x="534" y="666" text-anchor="middle" class="sample" fill="#dd2929">有错误</text>
+  <rect x="584" y="644" width="66" height="34" rx="6" fill="#dd2929" />
+  <text x="617" y="666" text-anchor="middle" class="button-text" fill="#fff">删除</text>
+  <rect x="248" y="701" width="402" height="6" rx="3" fill="#dd2929" opacity="0.22" />
+
+  <rect x="228" y="754" width="440" height="34" rx="7" fill="#f7f9fb" />
+  <text x="448" y="776" text-anchor="middle" class="meta" fill="#526078">方案 B 更偏琥珀，仍与 Success 保持明显色相距离</text>
+
+  <!-- Dark application shell -->
+  <g filter="url(#shadow)">
+    <rect x="760" y="100" width="680" height="750" rx="12" fill="#0f1522" />
+    <path d="M772 100h128v750H772c-6.6 0-12-5.4-12-12V112c0-6.6 5.4-12 12-12z" fill="#090e18" />
+  </g>
+  <text x="782" y="139" class="sidebar-brand">SealDice</text>
+  <text x="782" y="163" class="sidebar-text">深色主题</text>
+  <rect x="774" y="194" width="112" height="36" rx="6" fill="#ffffff" opacity="0.07" />
+  <rect x="774" y="240" width="112" height="36" rx="6" fill="#6791f1" opacity="0.30" />
+  <rect x="782" y="206" width="68" height="7" rx="3.5" fill="#ffffff" opacity="0.66" />
+  <rect x="782" y="252" width="78" height="7" rx="3.5" fill="#ffffff" opacity="0.94" />
+  <rect x="782" y="298" width="58" height="7" rx="3.5" fill="#ffffff" opacity="0.46" />
+
+  <text x="928" y="138" class="frame-title" fill="#f8fafc">深色主页面</text>
+  <text x="928" y="160" class="meta" fill="#94a3b8">页面 #0F1522 · 内容面 #151D2B</text>
+  <rect x="924" y="184" width="488" height="626" rx="10" fill="#151d2b" stroke="#334155" />
+  <text x="950" y="220" font-size="16" font-weight="700" fill="#f8fafc">状态与操作示例</text>
+  <text x="950" y="242" class="meta" fill="#94a3b8">暗色语义色使用深字实色控件，保留充足明度</text>
+
+  <!-- Dark Primary -->
+  <rect x="948" y="272" width="440" height="105" rx="8" fill="#182133" stroke="#334155" />
+  <circle cx="972" cy="304" r="10" fill="#6791f1" />
+  <path d="M968 304l3 3 6-7" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="994" y="301" class="row-title" fill="#f8fafc">Primary</text>
+  <text x="994" y="322" class="meta" fill="#94a3b8">#6791F1 · 深卡 5.55:1</text>
+  <text x="1134" y="308" class="sample" fill="#6791f1">主题状态</text>
+  <rect x="1216" y="287" width="76" height="34" rx="6" fill="#22304b" />
+  <text x="1254" y="309" text-anchor="middle" class="sample" fill="#6791f1">浅底</text>
+  <rect x="1304" y="287" width="66" height="34" rx="6" fill="#6791f1" />
+  <text x="1337" y="309" text-anchor="middle" class="button-text" fill="#111827">操作</text>
+  <rect x="968" y="344" width="402" height="6" rx="3" fill="#6791f1" opacity="0.28" />
+
+  <!-- Dark Success -->
+  <rect x="948" y="391" width="440" height="105" rx="8" fill="#182133" stroke="#334155" />
+  <circle cx="972" cy="423" r="10" fill="#4cac73" />
+  <path d="M968 423l3 3 6-7" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="994" y="420" class="row-title" fill="#f8fafc">Success</text>
+  <text x="994" y="441" class="meta" fill="#94a3b8">#4CAC73 · 深卡 6.00:1</text>
+  <text x="1134" y="427" class="sample" fill="#4cac73">运行正常</text>
+  <rect x="1216" y="406" width="76" height="34" rx="6" fill="#1d3135" />
+  <text x="1254" y="428" text-anchor="middle" class="sample" fill="#4cac73">已完成</text>
+  <rect x="1304" y="406" width="66" height="34" rx="6" fill="#4cac73" />
+  <text x="1337" y="428" text-anchor="middle" class="button-text" fill="#111827">确认</text>
+  <rect x="968" y="463" width="402" height="6" rx="3" fill="#4cac73" opacity="0.28" />
+
+  <!-- Dark Warning B -->
+  <rect x="948" y="510" width="440" height="105" rx="8" fill="#1b2230" stroke="#ca9438" stroke-opacity="0.34" />
+  <circle cx="972" cy="542" r="10" fill="#ca9438" />
+  <path d="M972 535v8m0 5h.1" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" />
+  <text x="994" y="539" class="row-title" fill="#f8fafc">Warning · 方案 B</text>
+  <text x="994" y="560" class="meta" fill="#94a3b8">#CA9438 · 深卡 6.28:1</text>
+  <text x="1134" y="546" class="sample" fill="#ca9438">需要注意</text>
+  <rect x="1216" y="525" width="76" height="34" rx="6" fill="#2e2e2d" />
+  <text x="1254" y="547" text-anchor="middle" class="sample" fill="#ca9438">待处理</text>
+  <rect x="1304" y="525" width="66" height="34" rx="6" fill="#ca9438" />
+  <text x="1337" y="547" text-anchor="middle" class="button-text" fill="#111827">继续</text>
+  <rect x="968" y="582" width="402" height="6" rx="3" fill="#ca9438" opacity="0.30" />
+
+  <!-- Dark Error -->
+  <rect x="948" y="629" width="440" height="105" rx="8" fill="#182133" stroke="#334155" />
+  <circle cx="972" cy="661" r="10" fill="#ea6666" />
+  <path d="M968 657l8 8m0-8l-8 8" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" />
+  <text x="994" y="658" class="row-title" fill="#f8fafc">Error</text>
+  <text x="994" y="679" class="meta" fill="#94a3b8">#EA6666 · 深卡 5.30:1</text>
+  <text x="1134" y="665" class="sample" fill="#ea6666">操作失败</text>
+  <rect x="1216" y="644" width="76" height="34" rx="6" fill="#332733" />
+  <text x="1254" y="666" text-anchor="middle" class="sample" fill="#ea6666">有错误</text>
+  <rect x="1304" y="644" width="66" height="34" rx="6" fill="#ea6666" />
+  <text x="1337" y="666" text-anchor="middle" class="button-text" fill="#111827">删除</text>
+  <rect x="968" y="701" width="402" height="6" rx="3" fill="#ea6666" opacity="0.28" />
+
+  <rect x="948" y="754" width="440" height="34" rx="7" fill="#1c2636" />
+  <text x="1168" y="776" text-anchor="middle" class="meta" fill="#cbd5e1">深色 Warning 随方案 B 转向明亮琥珀，但不过度发黄</text>
+
+  <text x="40" y="882" class="meta" fill="#64748b">确认此图后，再将 Warning 方案 B 同步到 base.css、运行时 palette 与测试。</text>
+</svg>

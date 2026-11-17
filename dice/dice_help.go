@@ -81,6 +81,8 @@ const (
 
 const HelpConfigFilename = "help_config.yaml"
 
+const helpContentParserVersion = 2
+
 type HelpConfig struct {
 	Aliases map[string][]string `json:"aliases" yaml:"aliases"`
 }
@@ -105,11 +107,15 @@ type HelpFileMeta struct {
 }
 
 type HelpIndexMeta struct {
-	Files map[string]HelpFileMeta `json:"files"`
+	ContentParserVersion int                     `json:"contentParserVersion"`
+	Files                map[string]HelpFileMeta `json:"files"`
 }
 
 func newEmptyHelpIndexMeta() *HelpIndexMeta {
-	return &HelpIndexMeta{Files: make(map[string]HelpFileMeta)}
+	return &HelpIndexMeta{
+		ContentParserVersion: helpContentParserVersion,
+		Files:                make(map[string]HelpFileMeta),
+	}
 }
 
 func reconcileHelpIndexMeta(indexMeta *HelpIndexMeta, metaTrusted, indexFreshlyCreated bool) (*HelpIndexMeta, bool) {
@@ -259,28 +265,29 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 				return
 			}
 			filePath := filepath.Clean(d.Path)
+			fromPath := helpFromPath(filePath)
 			hash, size, hashErr := computeHelpFileHash(filePath)
 			if hashErr != nil {
 				d.LoadStatus = LoadError
 				return
 			}
-			newMeta.Files[filePath] = HelpFileMeta{
+			newMeta.Files[fromPath] = HelpFileMeta{
 				Hash:  hash,
 				Size:  size,
 				Group: d.Group,
 			}
-			oldMeta, okOld := indexMeta.Files[filePath]
+			oldMeta, okOld := indexMeta.Files[fromPath]
 			if okOld && oldMeta.Hash == hash && oldMeta.Size == size && oldMeta.Group == d.Group {
 				d.LoadStatus = Loaded
 				return
 			}
 			if m.searchEngine != nil {
-				delErr := m.searchEngine.DeleteByFrom(filePath)
+				delErr := m.searchEngine.DeleteByFrom(fromPath)
 				if delErr != nil {
-					log.Warnf("[帮助文档] 删除旧帮助索引失败(from=%s): %v", filePath, delErr)
+					log.Warnf("[帮助文档] 删除旧帮助索引失败(from=%s): %v", fromPath, delErr)
 				}
 			}
-			ok := m.loadHelpDoc(d.Group, d.Path)
+			ok := m.loadHelpDoc(d.Group, filePath)
 			err = m.AddItemApply(false)
 			if ok && err == nil {
 				d.LoadStatus = Loaded
@@ -303,28 +310,29 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 					return nil
 				}
 				filePath := filepath.Clean(d.Path)
+				fromPath := helpFromPath(filePath)
 				hash, size, hashErr := computeHelpFileHash(filePath)
 				if hashErr != nil {
 					d.LoadStatus = LoadError
 					return hashErr
 				}
-				newMeta.Files[filePath] = HelpFileMeta{
+				newMeta.Files[fromPath] = HelpFileMeta{
 					Hash:  hash,
 					Size:  size,
 					Group: d.Group,
 				}
-				oldMeta, okOld := indexMeta.Files[filePath]
+				oldMeta, okOld := indexMeta.Files[fromPath]
 				if okOld && oldMeta.Hash == hash && oldMeta.Size == size && oldMeta.Group == d.Group {
 					d.LoadStatus = Loaded
 					return nil
 				}
 				if m.searchEngine != nil {
-					delErr := m.searchEngine.DeleteByFrom(filePath)
+					delErr := m.searchEngine.DeleteByFrom(fromPath)
 					if delErr != nil {
-						log.Warnf("[帮助文档] 删除旧扩展包帮助索引失败(from=%s): %v", filePath, delErr)
+						log.Warnf("[帮助文档] 删除旧扩展包帮助索引失败(from=%s): %v", fromPath, delErr)
 					}
 				}
-				ok := m.loadHelpDoc(d.Group, d.Path)
+				ok := m.loadHelpDoc(d.Group, filePath)
 				applyErr := m.AddItemApply(false)
 				if ok && applyErr == nil {
 					d.LoadStatus = Loaded
@@ -343,7 +351,7 @@ func (m *HelpManager) Load(dice *Dice, internalCmdMap CmdMapCls, extList []*ExtI
 	if m.searchEngine != nil {
 		for oldPath := range indexMeta.Files {
 			if _, okNew := newMeta.Files[oldPath]; !okNew {
-				delErr := m.searchEngine.DeleteByFrom(oldPath)
+				delErr := m.searchEngine.DeleteByFrom(helpFromPath(oldPath))
 				if delErr != nil {
 					log.Warnf("[帮助文档] 删除已移除帮助文档索引失败(from=%s): %v", oldPath, delErr)
 				}
@@ -403,23 +411,88 @@ func (m *HelpManager) refreshHelpGroupAliases(config HelpConfig) {
 }
 
 func (m *HelpManager) SaveHelpConfig(config *HelpConfig) error {
-	m.Config = config
-	m.refreshHelpGroupAliases(*config)
-
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(filepath.Join("./data/helpdoc", HelpConfigFilename), data, 0644)
+	configPath := filepath.Join("./data/helpdoc", HelpConfigFilename)
+	if err := writeHelpConfigFileAtomic(configPath, data); err != nil {
+		return err
+	}
+
+	m.Config = config
+	m.refreshHelpGroupAliases(*config)
+	return nil
+}
+
+func writeHelpConfigFileAtomic(configPath string, data []byte) error {
+	dir := filepath.Dir(configPath)
+	staged, err := os.CreateTemp(dir, "."+filepath.Base(configPath)+".tmp-*")
 	if err != nil {
 		return err
 	}
+	stagedPath := staged.Name()
+	keepStaged := false
+	defer func() {
+		_ = staged.Close()
+		if !keepStaged {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err = staged.Write(data); err != nil {
+		return err
+	}
+	if err = staged.Sync(); err != nil {
+		return err
+	}
+	if err = staged.Close(); err != nil {
+		return err
+	}
+
+	if _, statErr := os.Stat(configPath); errors.Is(statErr, os.ErrNotExist) {
+		if err = os.Rename(stagedPath, configPath); err != nil {
+			return err
+		}
+		keepStaged = true
+		return nil
+	} else if statErr != nil {
+		return statErr
+	}
+
+	backup, err := os.CreateTemp(dir, "."+filepath.Base(configPath)+".backup-*")
+	if err != nil {
+		return err
+	}
+	backupPath := backup.Name()
+	if err = backup.Close(); err != nil {
+		_ = os.Remove(backupPath)
+		return err
+	}
+	if err = os.Remove(backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(configPath, backupPath); err != nil {
+		return err
+	}
+	if err = os.Rename(stagedPath, configPath); err != nil {
+		if rollbackErr := os.Rename(backupPath, configPath); rollbackErr != nil {
+			return errors.Join(
+				fmt.Errorf("替换帮助文档配置失败: %w", err),
+				fmt.Errorf("回滚帮助文档配置失败: %w", rollbackErr),
+			)
+		}
+		return err
+	}
+	_ = os.Remove(backupPath)
+	keepStaged = true
 	return nil
 }
 
 func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 	log := logger.M()
 	fileExt := filepath.Ext(path)
+	from := helpFromPath(path)
 
 	switch fileExt {
 	case ".json":
@@ -432,7 +505,7 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 				for k, v := range data.Helpdoc {
 					_ = m.AddItem(docengine.HelpTextItem{
 						Group:       group,
-						From:        path,
+						From:        from,
 						Title:       k,
 						Content:     v,
 						PackageName: data.Mod,
@@ -477,11 +550,11 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 						}
 					}
 					key := keyBuilder.String()
-					content := row[synonymCount+1]
+					content := unescapeXlsxHelpContent(row[synonymCount+1])
 
 					_ = m.AddItem(docengine.HelpTextItem{
 						Group:       group,
-						From:        path,
+						From:        from,
 						Title:       key,
 						Content:     content,
 						PackageName: s,
@@ -497,6 +570,33 @@ func (m *HelpManager) loadHelpDoc(group string, path string) bool {
 		return true
 	}
 	return false
+}
+
+func unescapeXlsxHelpContent(content string) string {
+	if !strings.Contains(content, `\`) {
+		return content
+	}
+
+	var result strings.Builder
+	result.Grow(len(content))
+	for i := 0; i < len(content); i++ {
+		if content[i] != '\\' || i+1 >= len(content) {
+			result.WriteByte(content[i])
+			continue
+		}
+
+		switch content[i+1] {
+		case 'n':
+			result.WriteByte('\n')
+			i++
+		case '\\':
+			result.WriteByte('\\')
+			i++
+		default:
+			result.WriteByte(content[i])
+		}
+	}
+	return result.String()
 }
 
 // validateXlsxHeaders 验证 xlsx 格式 helpdoc 的表头是否是 Key Synonym（可能有多列） Content Description Catalogue Tag
@@ -687,6 +787,14 @@ func (m *HelpManager) loadHelpIndexMeta() (*HelpIndexMeta, bool) {
 	if meta.Files == nil {
 		meta.Files = make(map[string]HelpFileMeta)
 	}
+	if meta.ContentParserVersion != helpContentParserVersion {
+		logger.M().Infof(
+			"[帮助文档] 内容解析版本已更新(%d -> %d)，将重新构建索引",
+			meta.ContentParserVersion,
+			helpContentParserVersion,
+		)
+		return newEmptyHelpIndexMeta(), false
+	}
 	return &meta, true
 }
 
@@ -706,6 +814,13 @@ func (m *HelpManager) saveHelpIndexMeta(meta *HelpIndexMeta) {
 	if err := os.WriteFile(helpIndexMetaPath, data, 0644); err != nil {
 		logger.M().Warnf("[帮助文档] 写入索引 meta 文件失败(%s): %v", helpIndexMetaPath, err)
 	}
+}
+
+func helpFromPath(filePath string) string {
+	if filePath == "" {
+		return ""
+	}
+	return filepath.ToSlash(filepath.Clean(filePath))
 }
 
 func computeHelpFileHash(filePath string) (uint64, int64, error) {
@@ -759,7 +874,8 @@ func (m *HelpManager) GetContent(item *docengine.HelpTextItem, depth int) string
 	if depth > 7 {
 		return "{递归层数过多，不予显示}"
 	}
-	txt := item.Content
+	// 帮助文档中的 ./ 资源路径始终相对于该条目的来源文件。
+	txt := rewriteRelativeResourcePaths(item.From, item.Content)
 	re := regexp.MustCompile(`\{[^}\n]+\}`)
 	matched := re.FindAllStringSubmatchIndex(txt, -1)
 	if len(matched) == 0 {
@@ -1060,37 +1176,45 @@ func (m *HelpManager) DeleteHelpDoc(keys []string) error {
 		keySet[key] = true
 	}
 
+	type target struct {
+		node  *HelpDoc
+		isDir bool
+	}
+	targets := make([]target, 0)
 	for _, node := range m.HelpDocTree {
 		err := traverseHelpDocTree(node, func(d *HelpDoc) error {
-			if !d.IsDir {
-				_, ok := keySet[d.Key]
-				if ok {
-					_, err := os.Stat(d.Path)
-					if !os.IsNotExist(err) {
-						err := os.Remove(d.Path)
-						if err != nil {
-							return err
-						}
-					}
-					d.Deleted = true
-				}
+			if !d.IsDir && keySet[d.Key] {
+				targets = append(targets, target{node: d, isDir: false})
 			}
 			return nil
 		})
 		if err != nil {
 			return err
 		}
-		_, ok := keySet[node.Key]
-		if ok {
-			_, err := os.Stat(node.Path)
-			if !os.IsNotExist(err) {
-				err := os.RemoveAll(node.Path)
-				if err != nil {
-					return err
-				}
-			}
-			node.Deleted = true
+		if keySet[node.Key] {
+			targets = append(targets, target{node: node, isDir: true})
 		}
+	}
+
+	// 先统一检查可删除性，避免“删到一半失败”导致内存标记与磁盘不一致。
+	for _, item := range targets {
+		if _, err := os.Stat(item.node.Path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	for _, item := range targets {
+		var err error
+		if item.isDir {
+			err = os.RemoveAll(item.node.Path)
+		} else {
+			err = os.Remove(item.node.Path)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	for _, item := range targets {
+		item.node.Deleted = true
 	}
 	return nil
 }
@@ -1171,6 +1295,9 @@ func (m *HelpManager) GetHelpItemPage(pageNum, pageSize int, id, group, from, ti
 		return 0, HelpTextVos{}
 	}
 	// ID为空的情形，分页查询数据
+	if from != "" {
+		from = filepath.ToSlash(from)
+	}
 	total, result, err := m.searchEngine.PaginateDocuments(pageSize, pageNum, group, from, title)
 	if err != nil {
 		return 0, nil

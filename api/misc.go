@@ -34,7 +34,7 @@ func upgrade(c echo.Context) error {
 
 	if dm.AppVersionOnline != nil {
 		if dm.AppVersionOnline.VersionLatestCode != dm.AppVersionCode {
-			dm.UpdateRequestChan <- myDice
+			dm.UpdateRequestChan <- struct{}{}
 			ret := <-dm.UpdateDownloadedChan
 			if ret == "" {
 				myDice.Save(true)
@@ -45,7 +45,7 @@ func upgrade(c echo.Context) error {
 				myDice.Logger.Infof("将备份文件复制到此路径: %s", tmpPath)
 				_ = cp.Copy(bakFn, tmpPath)
 
-				dm.UpdateRequestChan <- myDice
+				dm.UpdateRequestChan <- struct{}{}
 				return c.JSON(200, map[string]interface{}{
 					"text": "准备开始升级，服务即将离线",
 				})

@@ -1,0 +1,44 @@
+name: UI checks
+
+on:
+  pull_request:
+    paths: ["ui/**", "**.go", "go.mod", "go.sum", ".github/workflows/ui.yml"]
+  push:
+    paths: ["ui/**", "**.go", "go.mod", "go.sum", ".github/workflows/ui.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5
+        with:
+          package_json_file: ui/package.json
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - run: pnpm install --frozen-lockfile
+      - name: Generate API from this checkout
+        run: pnpm run generate-api
+      # Build prepares auto-import/component declarations before vue-tsc.
+      - name: Build, type-check, verify configuration and test
+        run: pnpm run check:prepared

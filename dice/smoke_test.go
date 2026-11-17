@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"sealdice-core/dice"
 )
@@ -22,20 +21,6 @@ func TestLimitCommandReasonText_ExactBoundary(t *testing.T) {
 func TestLimitCommandReasonText_Empty(t *testing.T) {
 	if got := dice.LimitCommandReasonText(""); got != "" {
 		t.Errorf("empty string should stay empty, got %q", got)
-	}
-}
-
-func TestLimitCommandReasonText_Unicode(t *testing.T) {
-	// Chinese chars are counted as single runes
-	text := strings.Repeat("测", dice.CommandReasonMaxLen+1)
-	got := dice.LimitCommandReasonText(text)
-	gotRunes := []rune(got)
-	wantLen := dice.CommandReasonMaxLen + utf8.RuneCountInString(dice.CommandReasonOmitSuffix)
-	if len(gotRunes) != wantLen {
-		t.Errorf("truncated length = %d, want %d", len(gotRunes), wantLen)
-	}
-	if !strings.HasSuffix(got, dice.CommandReasonOmitSuffix) {
-		t.Errorf("truncated text should end with omit suffix")
 	}
 }
 

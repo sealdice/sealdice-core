@@ -227,7 +227,7 @@ check-blank = false
 [linters.settings.exhaustive]
 # Program elements to check for exhaustiveness.
 # Default: [ switch ]
-check = ['switch', 'map']
+check = ['switch', 'mapliteral']
 default-signifies-exhaustive = true
 
 [linters.settings.exhaustruct]

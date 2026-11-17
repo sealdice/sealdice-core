@@ -52,7 +52,7 @@ func V160LogIDZeroCleanMigrate(dboperator operator.DatabaseOperator, logf func(s
 	// 由后续的 V160LogSizeRepairMigration 负责“建列 + 全量重算”，避免在此处因列缺失而报错。
 	var recountRows int64
 	if migrator.HasColumn(&model.LogInfo{}, "size") {
-		recountResult := db.Model(&model.LogInfo{}).Where("id > 0").Update("size", gorm.Expr(
+		recountResult := db.Model(&model.LogInfo{}).Where("id > 0").UpdateColumn("size", gorm.Expr(
 			"(SELECT COUNT(1) FROM log_items WHERE log_items.log_id = logs.id AND log_items.removed IS NULL)",
 		))
 		if recountResult.Error != nil {

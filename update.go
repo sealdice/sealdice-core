@@ -89,7 +89,12 @@ func UpdateCheckRequestListen(dm *dice.DiceManager) {
 }
 
 func UpdateRequestListen(dm *dice.DiceManager) {
-	curDice := <-dm.UpdateRequestChan
+	<-dm.UpdateRequestChan
+	curDice := dm.GetDice()
+	if curDice == nil {
+		dm.UpdateDownloadedChan <- "Dice实例不存在"
+		return
+	}
 	log := curDice.Logger
 	updatePackFn, err := downloadUpdate(dm, log)
 	if err == nil {

@@ -11,7 +11,6 @@ import (
 
 	"sealdice-core/logger"
 	"sealdice-core/model"
-	"sealdice-core/utils/cache"
 	"sealdice-core/utils/constant"
 )
 
@@ -87,25 +86,19 @@ func (s *MYSQLEngine) DBCheck() {
 
 // DataDBInit 初始化
 func (s *MYSQLEngine) dataDBInit() (*gorm.DB, error) {
-	dataContext := context.WithValue(s.ctx, cache.CacheKey, cache.DataDBCacheKey)
-	dataDB := s.DB.WithContext(dataContext)
-	return dataDB, nil
+	return s.DB, nil
 }
 
 func (s *MYSQLEngine) logDBInit() (*gorm.DB, error) {
 	// logs特殊建表
-	logsContext := context.WithValue(s.ctx, cache.CacheKey, cache.LogsDBCacheKey)
-	logDB := s.DB.WithContext(logsContext)
-	return logDB, nil
+	return s.DB, nil
 }
 
 func (s *MYSQLEngine) censorDBInit() (*gorm.DB, error) {
-	censorContext := context.WithValue(s.ctx, cache.CacheKey, cache.CensorsDBCacheKey)
-	censorDB := s.DB.WithContext(censorContext)
-	if err := censorDB.AutoMigrate(&model.CensorLog{}); err != nil {
+	if err := s.DB.AutoMigrate(&model.CensorLog{}); err != nil {
 		return nil, err
 	}
-	return censorDB, nil
+	return s.DB, nil
 }
 
 func (s *MYSQLEngine) Type() string {

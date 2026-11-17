@@ -58,6 +58,7 @@ func banConfigSet(c echo.Context) error {
 
 	config.BanList.JointScorePercentOfGroup = v.JointScorePercentOfGroup
 	config.BanList.JointScorePercentOfInviter = v.JointScorePercentOfInviter
+	config.BanList.BanNotifyIntervalMinutes = v.BanNotifyIntervalMinutes
 	myDice.MarkModified()
 
 	return c.JSON(http.StatusOK, myDice.Config.BanList)
@@ -72,16 +73,25 @@ func banMapList(c echo.Context) error {
 }
 
 func banMapDeleteOne(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
 	v := dice.BanListInfoItem{}
 	err := c.Bind(&v)
 	if err != nil {
 		return c.String(430, err.Error())
 	}
-	(&myDice.Config).BanList.DeleteByID(myDice, v.ID)
+	if err := myDice.Config.BanList.DeleteByID(myDice, v.ID); err != nil {
+		myDice.Logger.Errorf("删除黑名单条目失败: %v", err)
+		return c.String(http.StatusInternalServerError, "删除黑名单条目失败")
+	}
 	return c.JSON(http.StatusOK, nil)
 }
 
 func banMapAddOne(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
 	if dm.JustForTest {
 		return c.JSON(200, map[string]interface{}{
 			"testMode": true,
@@ -139,6 +149,9 @@ func banMapAddOne(c echo.Context) error {
 //}
 
 func banExport(c echo.Context) error {
+	if !doAuth(c) {
+		return c.JSON(http.StatusForbidden, nil)
+	}
 	if dm.JustForTest {
 		return Error(&c, "展示模式不支持该操作", Response{"testMode": true})
 	}

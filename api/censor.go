@@ -143,6 +143,10 @@ func getLevelConfig(
 		// 仅增加怒气值
 		h = append(h, dice.CensorHandlerText[dice.AddScore])
 	}
+	if handler&(1<<dice.SendEncodedDetails) != 0 {
+		// 向当前会话发送编码后的命中详情
+		h = append(h, dice.CensorHandlerText[dice.SendEncodedDetails])
+	}
 	return LevelConfig{
 		Threshold: thresholds[level],
 		Handlers:  h,
@@ -244,7 +248,7 @@ func censorSetConfig(c echo.Context) error {
 }
 
 func setLevelHandlers(level censor.Level, handlers []string) {
-	newHandlers := map[dice.CensorHandler]bool{}
+	newHandlers := make(map[dice.CensorHandler]bool)
 	for _, newH := range handlers {
 		switch newH {
 		case "SendWarning":
@@ -259,6 +263,8 @@ func setLevelHandlers(level censor.Level, handlers []string) {
 			newHandlers[dice.BanInviter] = true
 		case "AddScore":
 			newHandlers[dice.AddScore] = true
+		case "SendEncodedDetails":
+			newHandlers[dice.SendEncodedDetails] = true
 		}
 	}
 
@@ -269,6 +275,7 @@ func setLevelHandlers(level censor.Level, handlers []string) {
 	handlerVal = newHandlerVal(handlerVal, dice.BanGroup, newHandlers)
 	handlerVal = newHandlerVal(handlerVal, dice.BanInviter, newHandlers)
 	handlerVal = newHandlerVal(handlerVal, dice.AddScore, newHandlers)
+	handlerVal = newHandlerVal(handlerVal, dice.SendEncodedDetails, newHandlers)
 
 	(&myDice.Config).CensorHandlers[level] = handlerVal
 }
@@ -419,7 +426,7 @@ func censorUploadWordFiles(c echo.Context) error {
 
 	file.Filename = strings.ReplaceAll(file.Filename, "/", "_")
 	file.Filename = strings.ReplaceAll(file.Filename, "\\", "_")
-	dst, err := os.Create(filepath.Join("./data/censor", file.Filename))
+	dst, err := os.Create(filepath.Join("./data/censor", file.Filename)) // #nosec G703 -- path separators are replaced before joining.
 	if err != nil {
 		return err
 	}
@@ -449,7 +456,10 @@ func censorDeleteWordFiles(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 
-	myDice.CensorManager.DeleteCensorWordFiles(v.Keys)
+	if err := myDice.CensorManager.DeleteCensorWordFiles(v.Keys); err != nil {
+		myDice.Logger.Error("censorDeleteWordFiles", err)
+		return c.JSON(http.StatusInternalServerError, err.Error())
+	}
 
 	return Success(&c, Response{})
 }

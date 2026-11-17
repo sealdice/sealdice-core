@@ -5,7 +5,6 @@ import (
 	"gorm.io/gorm"
 
 	"sealdice-core/logger"
-	"sealdice-core/utils/cache"
 )
 
 func MySQLDBInit(dsn string) (*gorm.DB, error) {
@@ -17,11 +16,6 @@ func MySQLDBInit(dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 存疑，MYSQL是否需要使用缓存
-	cacheDB, err := cache.GetOtterCacheDB(db)
-	if err != nil {
-		return nil, err
-	}
 	// 返回数据库连接
-	return cacheDB, nil
+	return db, nil
 }
