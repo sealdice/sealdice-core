@@ -112,39 +112,6 @@
       >
         {{ field.label }}
       </n-button>
-
-      <div v-else-if="field.kind === 'upload'" class="upgrade-block">
-        <n-checkbox v-model:checked="upgradeConfirmed"> 我已阅读功能描述 </n-checkbox>
-        <n-flex v-if="isContainerMode" wrap>
-          <n-button type="primary" disabled>
-            <template #icon>
-              <i-tabler-upload />
-            </template>
-            上传压缩包
-          </n-button>
-          <n-text type="warning" class="text-xs"
-            >容器模式下固件升级被禁用，请手动拉取最新镜像</n-text
-          >
-        </n-flex>
-        <n-upload
-          v-else
-          action=""
-          :show-file-list="false"
-          :custom-request="handleUpload"
-          :disabled="!upgradeConfirmed || busyActionId === field.id"
-        >
-          <n-button
-            type="primary"
-            :disabled="!upgradeConfirmed"
-            :loading="busyActionId === field.id"
-          >
-            <template #icon>
-              <i-tabler-upload />
-            </template>
-            上传压缩包
-          </n-button>
-        </n-upload>
-      </div>
     </div>
   </SettingRow>
 </template>
@@ -153,7 +120,6 @@
 import { computed, ref } from 'vue';
 import DOMPurify from 'dompurify';
 import MarkdownIt from 'markdown-it';
-import type { UploadCustomRequestOptions } from 'naive-ui';
 import type {
   BaseSettingFieldModel,
   BaseSettingValueModel,
@@ -175,10 +141,9 @@ const props = defineProps<{
   field: BaseSettingFieldModel;
   model: BaseSettingValueModel;
   initialModel?: BaseSettingValueModel | null;
-  isContainerMode: boolean;
   busyActionId?: string | null;
   highlighted?: boolean;
-  runAction: (fieldId: string, payload?: unknown) => Promise<void> | void;
+  runAction: (fieldId: string) => Promise<void> | void;
 }>();
 
 const emit = defineEmits<{
@@ -187,7 +152,6 @@ const emit = defineEmits<{
 
 const dialog = useDialog();
 const revealUnlockCode = ref(false);
-const upgradeConfirmed = ref(false);
 
 const fieldKey = computed(() => props.field.key);
 const fieldValue = computed(() => {
@@ -299,15 +263,6 @@ function updatePair(index: number, value: number | null) {
 async function handleAction() {
   await props.runAction(props.field.id);
 }
-
-async function handleUpload(options: UploadCustomRequestOptions) {
-  try {
-    await Promise.resolve(props.runAction(props.field.id, options.file.file as File));
-    options.onFinish();
-  } catch {
-    options.onError();
-  }
-}
 </script>
 
 <style scoped>
@@ -373,11 +328,5 @@ async function handleUpload(options: UploadCustomRequestOptions) {
 
 .number-pair-sep {
   margin: 0 1rem;
-}
-
-.upgrade-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 </style>

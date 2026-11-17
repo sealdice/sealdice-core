@@ -4,7 +4,6 @@ import type { BaseSettingPatch } from '@/api';
 import {
   getSdApiV2BaseLoginSalt,
   postSdApiV2BaseSettingMailTest,
-  postSdApiV2BaseSettingUpgrade,
   putSdApiV2BaseSettingValue,
 } from '@/api';
 import { passwordHash } from '@/features/auth/crypto';
@@ -58,25 +57,8 @@ export function useBaseSettingMutations(message: MessageApi) {
     },
   });
 
-  const upgradeMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const { data } = await postSdApiV2BaseSettingUpgrade({
-        body: { file },
-        throwOnError: true,
-      });
-      return data.item;
-    },
-    onSuccess: () => {
-      message.info('开始上传固件包，更新时程序可能离线');
-    },
-    onError: error => {
-      notifyError(error, message, '上传固件包失败');
-    },
-  });
-
   return {
     saveMutation,
     mailTestMutation,
-    upgradeMutation,
   };
 }

@@ -186,21 +186,16 @@ export function searchBaseSettingFields(index: BaseSettingSearchEntry[], keyword
 }
 
 export function isBaseSettingGroupWide(groupId: string) {
-  return ['ext-default-settings', 'upgrade', 'rate-limit-main'].includes(groupId);
+  return ['ext-default-settings', 'rate-limit-main'].includes(groupId);
 }
 
 export function getBaseSettingFieldLayout(
   field: Pick<BaseSettingFieldModel, 'kind'>
 ): BaseSettingFieldLayout {
   if (
-    [
-      'ext-default-settings',
-      'string-list',
-      'notice-targets',
-      'upload',
-      'master-list',
-      'textarea',
-    ].includes(field.kind)
+    ['ext-default-settings', 'string-list', 'notice-targets', 'master-list', 'textarea'].includes(
+      field.kind
+    )
   )
     return 'stacked';
   if (['boolean', 'action', 'unlock-code'].includes(field.kind)) return 'inline';
