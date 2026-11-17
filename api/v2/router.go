@@ -23,6 +23,7 @@ import (
 	"sealdice-core/api/v2/resource"
 	"sealdice-core/api/v2/story"
 	"sealdice-core/api/v2/tooltest"
+	"sealdice-core/api/v2/upgrade"
 	"sealdice-core/dice"
 )
 
@@ -73,6 +74,7 @@ func InitV2Router(api huma.API, dm *dice.DiceManager) *realtime.Server {
 		{"tool-test", toolTestService},
 		{"resource", resource.NewService(dm)},
 		{"extension", extension.NewService(dm)},
+		{"upgrade", upgrade.NewService(dm)},
 	} {
 		module.service.RegisterRoutes(groupFor(module.name, auth))
 		module.service.RegisterProtectedRoutes(groupFor(module.name, write))
