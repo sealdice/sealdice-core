@@ -313,8 +313,8 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   }
 
   function scheduleNextPoll(generation: number): void {
-    clearPollTimer();
     if (!pollingActive || generation !== connectGeneration) return;
+    clearPollTimer();
     pollTimer = globalThis.setTimeout(() => {
       pollTimer = null;
       void pollOnce(generation).finally(() => scheduleNextPoll(generation));

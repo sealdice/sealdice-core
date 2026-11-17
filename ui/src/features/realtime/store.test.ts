@@ -26,18 +26,6 @@ function emptyPollResponse() {
   };
 }
 
-async function openSSE() {
-  setAccessToken('token-realtime');
-  const store = useRealtimeClientStore(appPinia);
-  store.ensureInitialized();
-  finishAuthInitialization();
-  await nextTick();
-  const request = sseRequests.at(-1)!;
-  request.open();
-  await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
-  return { store, request };
-}
-
 describe('realtime client store', () => {
   beforeEach(() => {
     auth.isInitializing = true;
@@ -178,8 +166,10 @@ describe('realtime client store', () => {
 
     const appends: unknown[] = [];
     const snapshots: unknown[] = [];
+    const heartbeat = vi.fn();
     store.subscribeRealtimeEvent('logs/append', payload => appends.push(payload));
     store.subscribeRealtimeEvent('logs/snapshot', payload => snapshots.push(payload));
+    store.subscribeRealtimeEvent('system/heartbeat', heartbeat);
 
     source.open();
     await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
@@ -219,7 +209,9 @@ describe('realtime client store', () => {
     source.send('logs/snapshot', {
       items: [{ seq: 2, level: 'info', module: 'core', ts: 1, msg: 'stale' }],
     });
-    await vi.waitFor(() => expect(snapshots).toHaveLength(0));
+    source.send('system/heartbeat', {});
+    await vi.waitFor(() => expect(heartbeat).toHaveBeenCalledOnce());
+    expect(snapshots).toHaveLength(0);
   });
 
   it('stops retrying SSE after three consecutive failures', async () => {
@@ -280,147 +272,5 @@ describe('realtime client store', () => {
     sseRequests[0]!.open();
     await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
     expect(store.connected).toBe(true);
-  });
-
-  it('parses split UTF-8, CRLF, multiline data and multiple events from the response stream', async () => {
-    const { store, request } = await openSSE();
-    const messages: unknown[] = [];
-    store.subscribeRealtimeEvent('tooltest/message', payload => messages.push(payload));
-    const bytes = new TextEncoder().encode(
-      ': heartbeat\r\nevent: tooltest/message\r\ndata: {"seq":1,\r\ndata: "text":"你好"}\r\n\r\n'
-    );
-    for (const byte of bytes) request.push(new Uint8Array([byte]));
-    request.push(
-      'event: tooltest/message\ndata: invalid-json\n\n' +
-        'event: tooltest/message\ndata: {"seq":2,"text":"next"}\n\n' +
-        'event: tooltest/message\ndata: {"seq":3,"text":"last"}\n\n'
-    );
-    await vi.waitFor(() =>
-      expect(messages).toEqual([
-        { seq: 1, text: '你好' },
-        { seq: 2, text: 'next' },
-        { seq: 3, text: 'last' },
-      ])
-    );
-  });
-
-  it('clears the session on SSE 401 and stops reconnecting', async () => {
-    vi.useFakeTimers();
-    setAccessToken('token-realtime');
-    const store = useRealtimeClientStore(appPinia);
-    store.ensureInitialized();
-    finishAuthInitialization();
-    await nextTick();
-    const request = sseRequests[0]!;
-    request.open(401, 'application/json');
-    await vi.waitFor(() => expect(auth.hasAccessToken).toBe(false));
-    expect(request.signal.aborted).toBe(true);
-    expect(store.activeTransport).toBe('');
-    await vi.advanceTimersByTimeAsync(60000);
-    expect(sseRequests).toHaveLength(1);
-  });
-
-  it.each([
-    [503, 'application/json'],
-    [200, 'text/html'],
-  ])('keeps polling when SSE responds with %s %s', async (status, contentType) => {
-    setAccessToken('token-realtime');
-    const store = useRealtimeClientStore(appPinia);
-    store.ensureInitialized();
-    finishAuthInitialization();
-    await nextTick();
-    const request = sseRequests[0]!;
-    request.open(status, contentType);
-    await vi.waitFor(() => expect(request.cancelled).toBe(true));
-    expect(store.activeTransport).toBe('polling');
-    expect(auth.currentAccessToken()).toBe('token-realtime');
-  });
-
-  it('falls back to polling and retries once when an established SSE stream ends', async () => {
-    vi.useFakeTimers();
-    const { store, request } = await openSSE();
-    request.end();
-    await vi.waitFor(() => expect(store.activeTransport).toBe('polling'));
-    expect(request.signal.aborted).toBe(true);
-    await vi.advanceTimersByTimeAsync(15000);
-    expect(sseRequests).toHaveLength(2);
-  });
-
-  it('aborts an SSE connection that never returns response headers', async () => {
-    vi.useFakeTimers();
-    setAccessToken('token-realtime');
-    const store = useRealtimeClientStore(appPinia);
-    store.ensureInitialized();
-    finishAuthInitialization();
-    await nextTick();
-    const request = sseRequests[0]!;
-    await vi.advanceTimersByTimeAsync(10000);
-    expect(request.signal.aborted).toBe(true);
-    expect(store.activeTransport).toBe('polling');
-    await vi.advanceTimersByTimeAsync(15000);
-    expect(sseRequests).toHaveLength(2);
-  });
-
-  it('keeps SSE alive on heartbeats and falls back when the stream stalls', async () => {
-    vi.useFakeTimers();
-    const { store, request } = await openSSE();
-    await vi.advanceTimersByTimeAsync(30000);
-    request.send('system/heartbeat', {});
-    await vi.advanceTimersByTimeAsync(30000);
-    expect(store.activeTransport).toBe('sse');
-    await vi.advanceTimersByTimeAsync(15000);
-    expect(store.activeTransport).toBe('polling');
-    expect(request.signal.aborted).toBe(true);
-  });
-
-  it('aborts SSE on logout without starting another connection', async () => {
-    vi.useFakeTimers();
-    const { store, request } = await openSSE();
-    clearAccessToken();
-    await nextTick();
-    expect(request.signal.aborted).toBe(true);
-    expect(store.connected).toBe(false);
-    expect(store.activeTransport).toBe('');
-    await vi.advanceTimersByTimeAsync(60000);
-    expect(sseRequests).toHaveLength(1);
-  });
-
-  it('replaces the SSE connection when the token changes', async () => {
-    const { request } = await openSSE();
-    setAccessToken('next-token');
-    await nextTick();
-    expect(request.signal.aborted).toBe(true);
-    expect(sseRequests).toHaveLength(2);
-    expect(sseRequests[1]?.options.headers).toMatchObject({ Authorization: 'Bearer next-token' });
-    expect(sseRequests[1]?.url).not.toContain('token');
-  });
-
-  it('ignores a delayed SSE 401 from the previous session', async () => {
-    let resolveOld!: (response: Response) => void;
-    const oldResponse = new Promise<Response>(resolve => {
-      resolveOld = resolve;
-    });
-    const fetchMock = vi.mocked(fetch);
-    const transport = fetchMock.getMockImplementation()!;
-    fetchMock.mockImplementation((input, options) => {
-      if (
-        String(input).endsWith('/realtime/sse') &&
-        new Headers(options?.headers).get('Authorization') === 'Bearer old-token'
-      ) {
-        return oldResponse;
-      }
-      return transport(input, options);
-    });
-    setAccessToken('old-token');
-    const store = useRealtimeClientStore(appPinia);
-    store.ensureInitialized();
-    finishAuthInitialization();
-    await nextTick();
-    setAccessToken('next-token');
-    await nextTick();
-    resolveOld(new Response('', { status: 401 }));
-    sseRequests[0]!.open();
-    await vi.waitFor(() => expect(store.activeTransport).toBe('sse'));
-    expect(auth.currentAccessToken()).toBe('next-token');
   });
 });

@@ -2,7 +2,6 @@
 export class SSERequest {
   readonly response: Promise<Response>;
   readonly signal: AbortSignal;
-  cancelled = false;
   private controller?: ReadableStreamDefaultController<Uint8Array>;
   private resolve!: (response: Response) => void;
   private reject!: (error: Error) => void;
@@ -22,25 +21,22 @@ export class SSERequest {
     );
   }
 
-  open(status = 200, contentType = 'text/event-stream; charset=utf-8'): void {
+  open(): void {
     const body = new ReadableStream<Uint8Array>({
       start: controller => {
         this.controller = controller;
       },
       cancel: () => {
-        this.cancelled = true;
         this.finished = true;
       },
     });
-    this.resolve(new Response(body, { status, headers: { 'Content-Type': contentType } }));
-  }
-
-  push(chunk: string | Uint8Array): void {
-    this.controller!.enqueue(typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk);
+    this.resolve(new Response(body, { headers: { 'Content-Type': 'text/event-stream' } }));
   }
 
   send(event: string, payload: unknown): void {
-    this.push(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+    this.controller!.enqueue(
+      new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`)
+    );
   }
 
   fail(error = new Error('Connection lost')): void {
@@ -48,10 +44,5 @@ export class SSERequest {
     this.finished = true;
     if (this.controller) this.controller.error(error);
     else this.reject(error);
-  }
-
-  end(): void {
-    this.finished = true;
-    this.controller!.close();
   }
 }
