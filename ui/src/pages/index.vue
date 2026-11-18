@@ -7,7 +7,15 @@
         </template>
         容器模式下禁止直接更新，请手动拉取最新镜像
       </n-tooltip>
-      <n-button v-else-if="hasNewVersion" type="primary" disabled>升级新版</n-button>
+      <n-button
+        v-else-if="hasNewVersion"
+        type="primary"
+        :loading="upgradeMutation.isPending.value"
+        :disabled="isTestMode || upgradeStarted"
+        @click="confirmUpgrade"
+      >
+        升级新版
+      </n-button>
     </PageHeader>
 
     <section class="overview-grid" aria-label="实例状态">
@@ -178,7 +186,7 @@
 <script setup lang="tsx">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core';
-import { useQuery } from '@tanstack/vue-query';
+import { useMutation, useQuery } from '@tanstack/vue-query';
 import { filesize } from 'filesize';
 import dayjs from 'dayjs';
 import type { DataTableColumns, DataTableInst } from 'naive-ui';
@@ -186,6 +194,7 @@ import {
   getSdApiV2BaseNetworkHealthOptions,
   getSdApiV2BaseOverviewOptions,
   postSdApiV2GroupList,
+  postSdApiV2UpgradeExec,
 } from '@/api';
 import { useBaseLogStreamStore } from '@/features/base/logStreamStore';
 import { applyLogDisplayUpdate, type BaseLogEntry } from '@/features/base/logStreamState';
@@ -194,6 +203,12 @@ import {
   formatNetworkHealthTimestamp,
   normalizeNetworkHealthData,
 } from '@/features/base/networkHealth';
+import { notifyError } from '@/features/feedback/notifyError';
+import {
+  getTestModeBlockMessage,
+  isTestModeApiError,
+  useTestMode,
+} from '@/features/testMode/state';
 import { formatRuntimeSummary } from '@/features/base/runtimeSummary';
 
 import PageHeader from '@/components/shared/PageHeader.vue';
@@ -240,6 +255,55 @@ const hasNewVersion = computed(() => {
   return version.code < version.latestCode;
 });
 const isContainerMode = computed(() => overview.value?.runtime.containerMode === true);
+
+const message = useMessage();
+const dialog = useDialog();
+const { isTestMode } = useTestMode();
+
+const upgradeMutation = useMutation({
+  mutationFn: async () => {
+    const { data } = await postSdApiV2UpgradeExec({ throwOnError: true });
+    return data.item;
+  },
+  onSuccess: result => {
+    if (!result.success) {
+      message.error(`升级失败：${result.err || '未知原因'}`);
+      return;
+    }
+    message.success('升级已开始，服务即将离线，请在重连完成后手动刷新页面', { duration: 8000 });
+  },
+  onError: error => {
+    if (isTestModeApiError(error)) {
+      message.warning(getTestModeBlockMessage(error));
+      return;
+    }
+    notifyError(error, message, '升级失败');
+  },
+});
+
+// 请求成功不等于升级已启动：业务失败（success=false）后仍允许重试。
+const upgradeStarted = computed(() => upgradeMutation.data.value?.success === true);
+
+function confirmUpgrade() {
+  if (isTestMode.value) {
+    message.warning('展示模式不支持该操作');
+    return;
+  }
+  dialog.warning({
+    title: '升级新版本',
+    content: `确认升级到 ${overview.value?.version.latest ?? '最新版本'}？升级前会自动备份，下载完成后将自动重启海豹，期间服务离线。请确保能够接触到服务器，以防需要人工处理。`,
+    positiveText: '确认升级',
+    negativeText: '取消',
+    closable: false,
+    onPositiveClick: async () => {
+      try {
+        await upgradeMutation.mutateAsync();
+      } catch {
+        // 错误已由 mutation 的 onError 反馈。
+      }
+    },
+  });
+}
 
 const displayReverse = ref(true);
 const autoRefresh = ref(true);

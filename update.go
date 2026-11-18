@@ -88,26 +88,39 @@ func UpdateCheckRequestListen(dm *dice.DiceManager) {
 	}
 }
 
+// UpdateRequestListen 处理升级请求。下载或升级程序失败时继续监听，允许再次请求；
+// 更新包已交给升级程序后进程即将被替换，监听随之结束（旧 API 在成功路径上会多发一次请求，
+// 继续监听会在升级程序校验期间删除并重新下载更新包）。
 func UpdateRequestListen(dm *dice.DiceManager) {
-	<-dm.UpdateRequestChan
+	for {
+		<-dm.UpdateRequestChan
+		if handleUpdateRequest(dm) {
+			return
+		}
+	}
+}
+
+// handleUpdateRequest 处理一次升级请求，并通过 UpdateDownloadedChan 回复下载结果。
+// 返回 true 表示更新包已交给升级程序。
+func handleUpdateRequest(dm *dice.DiceManager) bool {
 	curDice := dm.GetDice()
 	if curDice == nil {
 		dm.UpdateDownloadedChan <- "Dice实例不存在"
-		return
+		return false
 	}
 	log := curDice.Logger
 	updatePackFn, err := downloadUpdate(dm, log)
-	if err == nil {
-		dm.UpdateDownloadedChan <- ""
-		time.Sleep(2 * time.Second)
-		log.Info("进行升级准备工作")
-
-		dm.UpdateSealdiceByFile(updatePackFn)
-		// 旧版本行为: 将新升级包里的主程序复制到当前目录，命名为 auto_update.exe 或 auto_update
-		// 然后重启主程序
-	} else {
+	if err != nil {
 		dm.UpdateDownloadedChan <- err.Error()
+		return false
 	}
+	dm.UpdateDownloadedChan <- ""
+	time.Sleep(2 * time.Second)
+	log.Info("进行升级准备工作")
+
+	// 旧版本行为: 将新升级包里的主程序复制到当前目录，命名为 auto_update.exe 或 auto_update
+	// 然后重启主程序
+	return dm.UpdateSealdiceByFile(updatePackFn)
 }
 
 func doReboot(dm *dice.DiceManager) {
