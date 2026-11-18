@@ -52,6 +52,7 @@
     "dompurify": "^3.4.16",
     "eruda": "^3.4.3",
     "es-toolkit": "^1.39.10",
+    "eventsource-parser": "^3.1.1",
     "file-saver": "^2.0.5",
     "filesize": "^11.0.13",
     "hyparquet": "^1.15.0",

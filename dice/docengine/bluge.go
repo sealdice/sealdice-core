@@ -14,6 +14,7 @@ import (
 
 	"github.com/fy0/bluge"
 	"github.com/fy0/bluge/index"
+	"github.com/fy0/bluge/index/mergeplan"
 	"github.com/fy0/bluge/search"
 	"github.com/oklog/ulid/v2"
 
@@ -22,11 +23,12 @@ import (
 
 type BlugeSearchEngine struct {
 	// mu serializes writer access and the numeric ID cache.
-	mu        sync.Mutex
-	Writer    *bluge.Writer
-	batch     *index.Batch
-	batchSize int
-	CurID     uint64
+	mu         sync.Mutex
+	Writer     *bluge.Writer
+	batch      *index.Batch
+	batchSize  int
+	batchBytes int
+	CurID      uint64
 
 	freshlyCreated bool
 	idList         []string
@@ -48,6 +50,9 @@ var reSpace = regexp.MustCompile(`\s+`)
 const (
 	deleteSearchBatchSize = 1000
 	writeBatchSize        = 50
+	// Bound pre-analysis input as well as document count. A single larger help
+	// entry is written alone so its contents and phrase searches stay intact.
+	writeBatchBytes = 256 << 10
 )
 
 func (d *BlugeSearchEngine) getNextID() string {
@@ -112,7 +117,18 @@ func openBlugeWriter(path string) (*bluge.Writer, bool, error) {
 		}
 	}
 
-	writer, err := bluge.OpenWriter(bluge.DefaultConfig(path))
+	// Keep analysis and merge workspace moderate without forcing tiny segments.
+	// Writer access is already serialized by BlugeSearchEngine.mu.
+	options := mergeplan.DefaultMergePlanOptions
+	options.SegmentsPerMergeTask = 4
+	options.FloorSegmentSize = 256 << 10
+	options.MaxSegmentSize = 8 << 20
+	config := bluge.DefaultConfig(path).
+		WithNumAnalysisWorkers(2).
+		WithMergeBufferSize(64 << 10).
+		WithMergePlanningByBytes(true).
+		WithMergePlanOptions(options)
+	writer, err := bluge.OpenWriter(config)
 	if err != nil {
 		return nil, false, err
 	}
@@ -134,6 +150,7 @@ func (d *BlugeSearchEngine) Init() error {
 	d.freshlyCreated = freshlyCreated
 	d.batch = bluge.NewBatch()
 	d.batchSize = 0
+	d.batchBytes = 0
 	d.markNumericIDDirtyLocked()
 	return nil
 }
@@ -223,6 +240,19 @@ func storedFields(match *search.DocumentMatch) (string, map[string]interface{}, 
 	return id, fields, err
 }
 
+// ID scans do not need to copy stored titles and bodies into a field map.
+func storedID(match *search.DocumentMatch) (string, error) {
+	var id string
+	err := match.VisitStoredFields(func(field string, value []byte) bool {
+		if field == "_id" {
+			id = string(value)
+			return false
+		}
+		return true
+	})
+	return id, err
+}
+
 func helpItemFromFields(internalID string, fields map[string]interface{}) *HelpTextItem {
 	return &HelpTextItem{
 		InternalID:  internalID,
@@ -264,7 +294,7 @@ func (d *BlugeSearchEngine) deleteByField(field, value string) error {
 			if match == nil {
 				break
 			}
-			id, _, visitErr := storedFields(match)
+			id, visitErr := storedID(match)
 			if visitErr != nil {
 				_ = reader.Close()
 				return visitErr
@@ -330,9 +360,22 @@ func (d *BlugeSearchEngine) AddItem(item HelpTextItem) (string, error) {
 	}
 	id := d.getNextID()
 	doc := helpDocument(id, item)
+	// Count field names, values and the update selector, as Bluge's input limits
+	// do. These bytes do not include tokens or segment-building workspace.
+	selector := doc.ID()
+	size := len(selector.Field()) + len(selector.Term())
+	for _, field := range *doc {
+		size += len(field.Name()) + len(field.Value())
+	}
+	if d.batchSize > 0 && size > writeBatchBytes-d.batchBytes {
+		if err := d.addItemApplyLocked(false); err != nil {
+			return "", err
+		}
+	}
 	d.batch.Update(doc.ID(), doc)
 	d.batchSize++
-	if d.batchSize >= writeBatchSize {
+	d.batchBytes += size
+	if d.batchSize >= writeBatchSize || d.batchBytes >= writeBatchBytes {
 		if err := d.addItemApplyLocked(false); err != nil {
 			return "", err
 		}
@@ -362,8 +405,11 @@ func (d *BlugeSearchEngine) addItemApplyLocked(end bool) error {
 	if err := d.Writer.Batch(d.batch); err != nil {
 		return err
 	}
-	d.batch.Reset()
+	// Batch.Reset retains document references in its backing slices. Start a
+	// fresh batch so a later small batch does not keep earlier analyzed text.
+	d.batch = bluge.NewBatch()
 	d.batchSize = 0
+	d.batchBytes = 0
 	if end {
 		d.batch = nil
 	}
@@ -460,7 +506,7 @@ func (d *BlugeSearchEngine) listAllDocumentIDsLocked() ([]string, error) {
 		if match == nil {
 			break
 		}
-		id, _, visitErr := storedFields(match)
+		id, visitErr := storedID(match)
 		if visitErr != nil {
 			return nil, visitErr
 		}

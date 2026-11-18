@@ -2427,7 +2427,6 @@ func (d *Dice) loadGroups() {
 
 	// 显式预热 sonic 编译缓存，避免首个群反序列化时 JIT 编译卡顿
 	_ = sonic.Pretouch(reflect.TypeOf(groupInfoDecodeJSON{}))
-	_ = sonic.Pretouch(reflect.TypeOf(extNameRefsJSON{}))
 
 	// json 解码无法传递 Dice 上下文，加载期间临时提供 name -> *ExtInfo 解析器
 	// 已删除（IsDeleted）的 wrapper 同样返回：它是共享对象，保留群的开启状态
@@ -2445,7 +2444,7 @@ func (d *Dice) loadGroups() {
 
 	err := service.GroupInfoListGet(d.DBOperator, func(id string, _ int64, data []byte) {
 		var groupInfo GroupInfo
-		if err := sonic.Unmarshal(data, &groupInfo); err != nil {
+		if err := groupInfo.UnmarshalJSON(data); err != nil {
 			d.Logger.Errorf("加载群信息失败: %s", id)
 			return
 		}

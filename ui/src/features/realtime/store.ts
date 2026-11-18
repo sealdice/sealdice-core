@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { createParser } from 'eventsource-parser';
 import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 import { getApiBaseUrl, joinApiBasePath, reportNetworkError } from '@/api';
 import { appPinia } from '@/pinia';
@@ -59,7 +60,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
 
   const listeners = new Map<string, Set<RealtimeEventHandler>>();
 
-  let eventSource: EventSource | null = null;
+  let sseController: AbortController | null = null;
   let reconnectTimer: TimerHandle | null = null;
   let pollTimer: TimerHandle | null = null;
   let sseConnectTimer: TimerHandle | null = null;
@@ -131,11 +132,7 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     dispatch(event, payload);
   }
 
-  function buildRealtimeURL(
-    path: string,
-    query: Record<string, string | number> = {},
-    includeToken = true
-  ): string {
+  function buildRealtimeURL(path: string, query: Record<string, string | number> = {}): string {
     // 测试环境没有 window，回退到固定 origin，避免仅因构造 URL 就抛错。
     const fallbackOrigin =
       typeof window === 'undefined' ? 'http://127.0.0.1' : window.location.origin;
@@ -143,11 +140,6 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     for (const [key, value] of Object.entries(query)) {
       url.searchParams.set(key, String(value));
     }
-    const token = authStore.currentAccessToken();
-    if (includeToken && token) {
-      url.searchParams.set('token', token);
-    }
-
     return url.toString();
   }
 
@@ -173,11 +165,8 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
 
   function closeSSE(): void {
     clearSSEWatchdogs();
-    if (!eventSource) return;
-    eventSource.onopen = null;
-    eventSource.onerror = null;
-    eventSource.close();
-    eventSource = null;
+    sseController?.abort();
+    sseController = null;
   }
 
   function stopPolling(): void {
@@ -198,10 +187,10 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     reportNetworkError();
   }
 
-  function resetSSEWatchdog(generation: number, source: EventSource): void {
+  function resetSSEWatchdog(generation: number, controller: AbortController): void {
     sseStallTimer = clearWindowTimer(sseStallTimer);
     sseStallTimer = globalThis.setTimeout(() => {
-      if (generation !== connectGeneration || eventSource !== source) return;
+      if (generation !== connectGeneration || sseController !== controller) return;
       failSSE(generation);
     }, SSE_STALL_TIMEOUT);
   }
@@ -254,18 +243,14 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     const controller = new AbortController();
     const timeout = globalThis.setTimeout(() => controller.abort(), POLL_TIMEOUT);
     const connectionsVersionAtRequest = connectionVersion;
+    const token = authStore.currentAccessToken();
     try {
-      const token = authStore.currentAccessToken();
       const response = await fetch(
-        buildRealtimeURL(
-          '/sd-api/v2/realtime/poll',
-          {
-            afterLogSeq: logSeq,
-            afterToolSeq: toolSeq,
-            afterEpoch: serverEpoch,
-          },
-          false
-        ),
+        buildRealtimeURL('/sd-api/v2/realtime/poll', {
+          afterLogSeq: logSeq,
+          afterToolSeq: toolSeq,
+          afterEpoch: serverEpoch,
+        }),
         {
           cache: 'no-store',
           headers: {
@@ -275,7 +260,8 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
           signal: controller.signal,
         }
       );
-      if (generation !== connectGeneration) return false;
+      if (generation !== connectGeneration || token !== authStore.currentAccessToken())
+        return false;
       if (response.status === 401) {
         authStore.clearAccessToken();
         disconnect();
@@ -285,7 +271,8 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
         throw new Error(`poll failed: ${response.status}`);
       }
       const data = (await response.json()) as { item?: PollData } | PollData;
-      if (generation !== connectGeneration) return false;
+      if (generation !== connectGeneration || token !== authStore.currentAccessToken())
+        return false;
       applyPollData(
         'item' in data && data.item ? data.item : (data as PollData),
         connectionsVersionAtRequest
@@ -298,7 +285,8 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
       }
       return true;
     } catch {
-      if (generation !== connectGeneration) return false;
+      if (generation !== connectGeneration || token !== authStore.currentAccessToken())
+        return false;
       if (pollingActive) {
         connected.value = false;
         connecting.value = false;
@@ -325,8 +313,8 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   }
 
   function scheduleNextPoll(generation: number): void {
-    clearPollTimer();
     if (!pollingActive || generation !== connectGeneration) return;
+    clearPollTimer();
     pollTimer = globalThis.setTimeout(() => {
       pollTimer = null;
       void pollOnce(generation).finally(() => scheduleNextPoll(generation));
@@ -366,13 +354,14 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     disconnectDialogShown = false;
   }
 
-  async function switchToSSE(generation: number, source: EventSource): Promise<void> {
+  async function switchToSSE(generation: number, controller: AbortController): Promise<void> {
     // 切换前把轮询游标追平，覆盖 SSE 订阅建立前可能遗漏的最后一段事件。
     if (pollPromise && pollPromiseGeneration === generation) {
       await pollPromise;
     }
+    if (generation !== connectGeneration || sseController !== controller) return;
     const drained = await pollOnce(generation);
-    if (generation !== connectGeneration || eventSource !== source) return;
+    if (generation !== connectGeneration || sseController !== controller) return;
     if (!drained) {
       // 追赶失败时不能启用 SSE，否则未送达的工具回复会丢失。
       closeSSE();
@@ -398,57 +387,101 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
   }
 
   function connectRealtime(generation: number, fromFallback: boolean): void {
-    if (typeof EventSource === 'undefined') {
-      if (!fromFallback) {
-        startPolling(generation);
-      }
-      return;
-    }
-
     closeSSE();
-    const source = new EventSource(buildRealtimeURL('/sd-api/v2/realtime/sse'));
-    eventSource = source;
+    const controller = new AbortController();
+    sseController = controller;
     if (!fromFallback) {
       connecting.value = true;
     }
 
     sseConnectTimer = globalThis.setTimeout(() => {
-      if (generation !== connectGeneration || eventSource !== source) return;
+      if (generation !== connectGeneration || sseController !== controller) return;
       failSSE(generation);
     }, SSE_CONNECT_TIMEOUT);
 
-    source.onopen = () => {
-      if (generation !== connectGeneration || eventSource !== source) return;
+    void streamRealtime(generation, controller, fromFallback);
+  }
+
+  async function streamRealtime(
+    generation: number,
+    controller: AbortController,
+    fromFallback: boolean
+  ): Promise<void> {
+    const token = authStore.currentAccessToken();
+    try {
+      const response = await fetch(buildRealtimeURL('/sd-api/v2/realtime/sse'), {
+        headers: {
+          Accept: 'text/event-stream',
+          Authorization: `Bearer ${token}`,
+        },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (
+        generation !== connectGeneration ||
+        sseController !== controller ||
+        token !== authStore.currentAccessToken()
+      ) {
+        await response.body?.cancel();
+        return;
+      }
+      if (response.status === 401) {
+        authStore.clearAccessToken();
+        disconnect();
+        return;
+      }
+      if (
+        !response.ok ||
+        response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !==
+          'text/event-stream' ||
+        !response.body
+      ) {
+        await response.body?.cancel();
+        throw new Error(`SSE connection failed: ${response.status}`);
+      }
+
       sseConnectTimer = clearWindowTimer(sseConnectTimer);
-      resetSSEWatchdog(generation, source);
+      resetSSEWatchdog(generation, controller);
       if (fromFallback) {
-        void switchToSSE(generation, source);
+        void switchToSSE(generation, controller);
       } else {
         activateSSE();
       }
-    };
 
-    source.onerror = () => {
-      if (generation !== connectGeneration || eventSource !== source) return;
-      failSSE(generation);
-    };
-
-    for (const eventName of knownEventNames) {
-      source.addEventListener(eventName, event => {
-        if (generation !== connectGeneration || eventSource !== source) return;
-        resetSSEWatchdog(generation, source);
-        const messageEvent = event as MessageEvent<string>;
-        let payload: unknown = null;
-        if (messageEvent.data) {
-          try {
-            payload = JSON.parse(messageEvent.data);
-          } catch {
-            return;
+      const parser = createParser({
+        onEvent(event) {
+          if (generation !== connectGeneration || sseController !== controller) return;
+          const eventName = knownEventNames.find(name => name === event.event);
+          if (!eventName) return;
+          resetSSEWatchdog(generation, controller);
+          let payload: unknown = null;
+          if (event.data) {
+            try {
+              payload = JSON.parse(event.data);
+            } catch {
+              return;
+            }
           }
-        }
-        dispatchRealtimeEvent(eventName, payload);
+          dispatchRealtimeEvent(eventName, payload);
+        },
       });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      try {
+        while (!controller.signal.aborted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          parser.feed(decoder.decode(value, { stream: true }));
+        }
+      } finally {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+      }
+    } catch {
+      // 主动取消和旧连接的错误不会触发新会话的重连。
     }
+    if (generation !== connectGeneration || sseController !== controller) return;
+    failSSE(generation);
   }
 
   let stopAuthWatch: (() => void) | undefined;
@@ -458,9 +491,9 @@ export const useRealtimeClientStore = defineStore('realtime-client', () => {
     initialized = true;
 
     stopAuthWatch = watch(
-      () => authStore.hasAccessToken && !authStore.isInitializing,
-      canAccess => {
-        if (canAccess) {
+      () => (authStore.isInitializing ? '' : authStore.currentAccessToken()),
+      token => {
+        if (token) {
           reconnect();
         } else {
           disconnect();

@@ -23,7 +23,7 @@ require (
 	github.com/dop251/goja v0.0.0-20260216154549-8b74ce4618c5
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/evanw/esbuild v0.27.1
-	github.com/fy0/bluge v0.8.0
+	github.com/fy0/bluge v0.8.1
 	github.com/fy0/go-autostart v0.0.0-20220515100644-a25d81ed766b
 	github.com/fy0/gojax v0.0.0-20221225152702-4140cf8509bd
 	github.com/fy0/systray v1.2.2
