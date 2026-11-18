@@ -2,10 +2,7 @@ package basesetting
 
 import (
 	"context"
-	"io"
 	"math"
-	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,9 +50,6 @@ func (s *Service) RegisterProtectedRoutes(grp *huma.Group) {
 	huma.Post(grp, "/mail-test", s.MailTest, func(o *huma.Operation) {
 		o.Description = "发送测试邮件"
 	})
-	huma.Post(grp, "/upgrade", s.Upgrade, func(o *huma.Operation) {
-		o.Description = "上传固件升级包"
-	})
 }
 
 func (s *Service) GetValue(_ context.Context, _ *request.Empty) (*response.ItemResponse[BaseSettingValueResp], error) {
@@ -79,46 +73,6 @@ func (s *Service) MailTest(_ context.Context, _ *request.Empty) (*response.ItemR
 	if err := s.dice.SendMail("", dice.MailTest); err != nil {
 		return nil, huma.Error500InternalServerError(err.Error())
 	}
-	return response.NewItemResponse(BaseSettingActionResp{Success: true}), nil
-}
-
-func (s *Service) Upgrade(_ context.Context, req *BaseSettingUpgradeReq) (*response.ItemResponse[BaseSettingActionResp], error) {
-	if s.dm.UpdateSealdiceByFile == nil {
-		return nil, huma.Error500InternalServerError("骰子没有正确初始化，无法使用此功能")
-	}
-	if s.dm.ContainerMode {
-		return nil, huma.Error400BadRequest("容器模式下禁止更新，请手动拉取最新镜像")
-	}
-	form, err := extractUpgradeForm(req.RawBody)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = form.File.Close()
-	}()
-
-	filename := "./new_package"
-	if runtime.GOOS == "windows" {
-		filename += ".zip"
-	} else {
-		filename += ".tar.gz"
-	}
-	dst, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o644)
-	if err != nil {
-		return nil, huma.Error500InternalServerError(err.Error())
-	}
-	if _, err = io.Copy(dst, form.File); err != nil {
-		_ = dst.Close()
-		return nil, huma.Error500InternalServerError(err.Error())
-	}
-	_ = dst.Close()
-
-	go func(path string) {
-		if !s.dm.UpdateSealdiceByFile(path) {
-			s.dice.Logger.Error("更新骰子失败")
-		}
-	}(filename)
-
 	return response.NewItemResponse(BaseSettingActionResp{Success: true}), nil
 }
 
@@ -458,28 +412,4 @@ func cloneBoolMap(source map[string]bool) map[string]bool {
 		out[key] = value
 	}
 	return out
-}
-
-func extractUpgradeForm(raw huma.MultipartFormFiles[BaseSettingUpgradeForm]) (*BaseSettingUpgradeForm, error) {
-	data := raw.Data()
-	if data != nil && data.File.IsSet {
-		return data, nil
-	}
-	if raw.Form == nil || len(raw.Form.File["file"]) == 0 {
-		return nil, huma.Error400BadRequest("missing file")
-	}
-	fh := raw.Form.File["file"][0]
-	file, err := fh.Open()
-	if err != nil {
-		return nil, huma.Error400BadRequest("failed to open file")
-	}
-	return &BaseSettingUpgradeForm{
-		File: huma.FormFile{
-			File:        file,
-			ContentType: fh.Header.Get("Content-Type"),
-			IsSet:       true,
-			Size:        fh.Size,
-			Filename:    fh.Filename,
-		},
-	}, nil
 }

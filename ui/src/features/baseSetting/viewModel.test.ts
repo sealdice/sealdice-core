@@ -58,7 +58,6 @@ it('规范化设置描述并按字段与分类搜索', () => {
 
 it('设置字段按类型派生布局与提示', () => {
   expect(isBaseSettingGroupWide('ext-default-settings')).toBe(true);
-  expect(isBaseSettingGroupWide('upgrade')).toBe(true);
   expect(isBaseSettingGroupWide('mail')).toBe(false);
   expect(
     getBaseSettingFieldLayout({ kind: 'boolean' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
@@ -71,9 +70,6 @@ it('设置字段按类型派生布局与提示', () => {
       BaseSettingFieldSchema,
       'kind'
     >)
-  ).toBe('stacked');
-  expect(
-    getBaseSettingFieldLayout({ kind: 'upload' } satisfies Pick<BaseSettingFieldSchema, 'kind'>)
   ).toBe('stacked');
   expect(
     getBaseSettingFieldLayout({ kind: 'master-list' } satisfies Pick<

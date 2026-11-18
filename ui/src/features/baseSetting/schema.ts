@@ -542,24 +542,6 @@ export const baseSettingSchema = normalizeBaseSettingSchema({
             ),
           ],
         },
-        {
-          id: 'upgrade',
-          title: '固件升级',
-          collapsible: true,
-          notes: [
-            {
-              tone: 'info',
-              lines: [
-                '使用指定的压缩包对当前海豹进行覆盖，上传完成后会自动重启海豹。',
-                '容器模式下禁止直接更新，请手动拉取最新镜像。',
-                '尽量不要从高版本降低到低版本，数据库有可能不兼容。',
-              ],
-            },
-          ],
-          fields: [
-            field('upgrade-package', '', '固件升级', 'upload', ['升级', '固件包', '上传压缩包']),
-          ],
-        },
       ],
     },
   ],
