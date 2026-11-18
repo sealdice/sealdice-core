@@ -89,7 +89,15 @@ func stripOfficialQQNameCard(line, text string) string {
 	if line == "" {
 		return text
 	}
-	return strings.Replace(text, line, "", 1)
+	if stripped := strings.Replace(text, line, "", 1); stripped != text {
+		return stripped
+	}
+
+	trimmedLine := strings.TrimRight(line, "\r\n")
+	if trimmedLine == "" || trimmedLine == line {
+		return text
+	}
+	return strings.Replace(text, trimmedLine, "", 1)
 }
 
 // stripOfficialQQNameCardFromPages 返回去掉首页名片前缀的分页副本，用于翻页缓存。

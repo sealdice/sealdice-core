@@ -49,6 +49,15 @@ func TestOfficialQQLogNicknameDoesNotAdvanceSharedRandomSource(t *testing.T) {
 	}
 }
 
+func TestStripOfficialQQNameCardHandlesSplitTrailingNewlines(t *testing.T) {
+	line := DefaultOfficialQQNameCardTemplate
+	text := strings.TrimRight(line, "\r\n") + "D100=50"
+
+	if got, want := stripOfficialQQNameCard(line, text), "D100=50"; got != want {
+		t.Fatalf("stripOfficialQQNameCard = %q, want %q", got, want)
+	}
+}
+
 func TestOfficialQQNameCardQuoteTemplateUsesConfiguredNewlines(t *testing.T) {
 	ctx, _ := newNameCardTestContext(t)
 	ctx.Player.AutoSetNameTemplate = "茶叶 HP10/10"
