@@ -152,14 +152,21 @@
           <DynamicForm
             :model-value="formModel"
             :schema="visibleSchema"
+            :custom-field-keys="customFieldKeys"
             :disabled="createMutation.isPending.value || isTestMode"
             :label-placement="isMobile ? 'top' : 'left'"
             :label-width="isMobile ? undefined : 108"
             @update:model-value="formModel = $event"
           >
             <template #field="{ fieldKey, value, setValue }">
+              <OfficialQQEventSubscriptionField
+                v-if="wizardProtocol?.key === 'officialqq' && fieldKey === 'useWebhook'"
+                :value="value"
+                :disabled="createMutation.isPending.value || isTestMode"
+                @update:value="setValue"
+              />
               <LagrangeSignInfoField
-                v-if="
+                v-else-if="
                   wizardProtocol?.key === 'lagrange' &&
                   (fieldKey === 'signServerVersion' || fieldKey === 'signServerName')
                 "
@@ -225,6 +232,7 @@ import {
 import DynamicForm from '@/components/shared/DynamicForm.vue';
 import { fieldKeyOf } from '@/components/shared/dynamicFormModel';
 import LagrangeSignInfoField from './protocol/LagrangeSignInfoField.vue';
+import OfficialQQEventSubscriptionField from './OfficialQQEventSubscriptionField.vue';
 import TipBox from '@/components/shared/TipBox.vue';
 import { useAuthStore } from '@/features/auth/store';
 import { getErrorMessage } from '@/features/auth/error';
@@ -274,6 +282,11 @@ const visibleSchema = computed(() => {
       return false;
     return officialQQMode.value !== 'qrcode' || (key !== 'appID' && key !== 'appSecret');
   });
+});
+const customFieldKeys = computed(() => {
+  if (wizardProtocol.value?.key === 'officialqq') return ['useWebhook'];
+  if (wizardProtocol.value?.key === 'lagrange') return ['signServerVersion', 'signServerName'];
+  return [];
 });
 const signEnabled = computed(
   () => enabled.value && wizardProtocol.value?.key === 'lagrange' && wizardStep.value === 4

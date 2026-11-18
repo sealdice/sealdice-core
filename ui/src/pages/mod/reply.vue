@@ -73,7 +73,7 @@
                         :value="editor.currentFileDraft.value.vmVersion"
                         :options="vmVersionOptions"
                         :consistent-menu-width="false"
-                        @update:value="editor.setCurrentVMVersion($event as ReplyVMVersion)"
+                        @update:value="requestVMVersionChange($event as ReplyVMVersion)"
                       />
                       <n-button
                         size="small"
@@ -258,10 +258,33 @@
         </n-modal>
       </n-spin>
     </div>
+    <n-modal
+      v-model:show="vmVersionDialogVisible"
+      preset="dialog"
+      title="切换回复 VM 版本"
+      :show-icon="false"
+      :mask-closable="false"
+    >
+      <n-space vertical>
+        <n-text>
+          切换只会修改当前文件的 VM 声明，不会自动改写已有表达式；旧语法在新 VM 下可能不兼容。
+        </n-text>
+        <n-checkbox v-model:checked="vmVersionAcknowledged">
+          我已了解保存后需要自行处理不兼容的旧语法
+        </n-checkbox>
+      </n-space>
+      <template #action>
+        <n-button @click="cancelVMVersionChange">取消</n-button>
+        <n-button type="warning" :disabled="!vmVersionAcknowledged" @click="confirmVMVersionChange">
+          确认切换
+        </n-button>
+      </template>
+    </n-modal>
   </main>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import FeatureDisabledState from '@/components/shared/FeatureDisabledState.vue';
 import ConditionBuilder from '@/components/custom-reply/ConditionBuilder.vue';
 import NestedRuleEditor from '@/components/custom-reply/NestedRuleEditor.vue';
@@ -279,6 +302,27 @@ const vmVersionOptions = [
   { label: 'VM V2', value: 'v2' },
   { label: 'VM V1', value: 'v1' },
 ] satisfies Array<{ label: string; value: ReplyVMVersion }>;
+const vmVersionDialogVisible = ref(false);
+const vmVersionAcknowledged = ref(false);
+const pendingVMVersion = ref<ReplyVMVersion | null>(null);
+
+function requestVMVersionChange(value: ReplyVMVersion) {
+  if (!editor.currentFileDraft.value || editor.currentFileDraft.value.vmVersion === value) return;
+  pendingVMVersion.value = value;
+  vmVersionAcknowledged.value = false;
+  vmVersionDialogVisible.value = true;
+}
+
+function cancelVMVersionChange() {
+  pendingVMVersion.value = null;
+  vmVersionDialogVisible.value = false;
+}
+
+function confirmVMVersionChange() {
+  if (!pendingVMVersion.value || !vmVersionAcknowledged.value) return;
+  editor.setCurrentVMVersion(pendingVMVersion.value);
+  cancelVMVersionChange();
+}
 </script>
 
 <style scoped>

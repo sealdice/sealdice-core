@@ -18,9 +18,16 @@ export function joinApiBasePath(baseUrl: string, path: string): string {
   return `${normalizedBase}/${normalizedPath}`;
 }
 
-// 切换到旧版 UI：走 /?ui=old，服务端会记住偏好并跳到 /old-ui/。
+// 切换到旧版 UI：保留反向代理部署的路径前缀，服务端会记住偏好并跳到 /old-ui/。
 export function resolveSwitchToOldUIUrl(location: ApiLocationLike): string {
-  return `${trimTrailingSlash(location.origin)}/?ui=old`;
+  const v2UIPathIndex = location.pathname.lastIndexOf('/v2ui');
+  const deploymentPrefix =
+    v2UIPathIndex >= 0 &&
+    (location.pathname.length === v2UIPathIndex + '/v2ui'.length ||
+      location.pathname[v2UIPathIndex + '/v2ui'.length] === '/')
+      ? location.pathname.slice(0, v2UIPathIndex)
+      : '';
+  return `${trimTrailingSlash(location.origin)}${deploymentPrefix || ''}/?ui=old`;
 }
 
 /**
