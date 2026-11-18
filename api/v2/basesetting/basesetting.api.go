@@ -219,7 +219,7 @@ func (s *Service) applyPatch(patch BaseSettingPatch) error {
 	setIfProvided(&config.OfficialQQUseMarkdown, patch.OfficialQQUseMarkdown)
 	setIfProvided(&config.OfficialQQUseNameCard, patch.OfficialQQUseNameCard)
 	if patch.OfficialQQNameCardTmpl != nil {
-		value := strings.TrimSpace(*patch.OfficialQQNameCardTmpl)
+		value := dice.NormalizeOfficialQQNameCardTemplate(*patch.OfficialQQNameCardTmpl)
 		if utf8.RuneCountInString(value) > dice.MaxOfficialQQNameCardTemplateRunes {
 			return huma.Error400BadRequest("名片渲染模板不能超过" + strconv.Itoa(dice.MaxOfficialQQNameCardTemplateRunes) + "个字符")
 		}

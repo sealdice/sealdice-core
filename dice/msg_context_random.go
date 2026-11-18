@@ -16,6 +16,19 @@ func (ctx *MsgContext) getDiceSource() ds.DiceSource {
 	return globalRandSource
 }
 
+// ShallowCopyWithIsolatedRandomSource 返回浅拷贝，并换用独立初始化的 PCG 随机源。
+// 求值会推进随机源状态：diceRandSrc 为 nil 时共享的是全局源，非 nil 时共享的是
+// 原上下文的源，两者都会改变后续骰点结果。旁路求值（如跑团日志昵称）必须用本方法。
+func (ctx *MsgContext) ShallowCopyWithIsolatedRandomSource() *MsgContext {
+	copied := ctx.ShallowCopy()
+	copied.vm = nil
+	copied._v1Rand = nil
+	copied.diceRandSrc = newPCGDiceSource(randv2.Uint64())
+	copied.chooserRand = nil
+	copied.chooserSrc = nil
+	return copied
+}
+
 func (ctx *MsgContext) getChooserRand() *randv2.Rand {
 	src := normalizeDiceSource(ctx.getDiceSource())
 	if ctx.chooserRand == nil || ctx.chooserSrc != src {
