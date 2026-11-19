@@ -34,11 +34,21 @@
         <DynamicForm
           :model-value="formModel"
           :schema="schema"
+          :custom-field-keys="customFieldKeys"
           :disabled="saving || disabled"
           :label-placement="isMobile ? 'top' : 'left'"
           :label-width="isMobile ? undefined : 108"
           @update:model-value="formModel = $event"
-        />
+        >
+          <template #field="{ fieldKey, value, setValue }">
+            <OfficialQQEventSubscriptionField
+              v-if="fieldKey === 'useWebhook'"
+              :value="value"
+              :disabled="saving || disabled"
+              @update:value="setValue"
+            />
+          </template>
+        </DynamicForm>
       </n-space>
     </n-spin>
 
@@ -72,6 +82,7 @@ import {
   type EndPointInfo,
 } from '@/api';
 import DynamicForm from '@/components/shared/DynamicForm.vue';
+import OfficialQQEventSubscriptionField from './OfficialQQEventSubscriptionField.vue';
 import {
   buildDynamicFormInitialModel,
   fieldKeyOf,
@@ -107,6 +118,9 @@ const schema = computed(() => {
   if (config.value?.protocolKey !== 'officialqq' || formModel.value.useWebhook) return fields;
   return fields.filter(item => !['webhookPath', 'webhookPort'].includes(fieldKeyOf(item)));
 });
+const customFieldKeys = computed(() =>
+  config.value?.protocolKey === 'officialqq' ? ['useWebhook'] : []
+);
 const canSubmit = computed(() => validateDynamicFormModel(schema.value, formModel.value).valid);
 const errorMessage = computed(() =>
   configQuery.error.value ? getErrorMessage(configQuery.error.value, '账号配置读取失败') : ''

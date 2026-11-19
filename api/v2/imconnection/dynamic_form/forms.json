@@ -48,7 +48,7 @@
   "officialqq": [
     { "name": "机器人 ID", "input_type": 0, "is_required": 0, "field_name": "appID", "check_type": 0, "default": "", "placeholder": "QQ 官方机器人 AppID" },
     { "name": "机器人密钥", "input_type": 0, "is_required": 0, "field_name": "appSecret", "check_type": 0, "default": "", "placeholder": "QQ 官方机器人 AppSecret", "sensitive": true },
-    { "name": "Webhook 模式", "input_type": 10, "is_required": 0, "field_name": "useWebhook", "check_type": 0, "default": "false", "placeholder": "开启后改为接收官方 QQ Webhook 回调" },
+    { "name": "事件订阅模式", "input_type": 10, "is_required": 0, "field_name": "useWebhook", "check_type": 0, "default": "false", "placeholder": "选择 WebSocket 或 Webhook 接入方式" },
     { "name": "Webhook 路径", "input_type": 0, "is_required": 0, "field_name": "webhookPath", "check_type": 0, "default": "/webhook", "placeholder": "例如 /webhook" },
     { "name": "Webhook 端口", "input_type": 1, "minimum": 1, "maximum": 65535, "is_required": 0, "field_name": "webhookPort", "check_type": 1, "default": "8099", "placeholder": "默认 8099" }
   ],

@@ -13,12 +13,14 @@
       :path="fieldKeyOf(item)"
     >
       <slot
+        v-if="customFieldKeys.includes(fieldKeyOf(item))"
         name="field"
         :item="item"
         :field-key="fieldKeyOf(item)"
         :value="valueOf(fieldKeyOf(item))"
         :set-value="(value: unknown) => setValue(fieldKeyOf(item), value)"
-      >
+      />
+      <template v-else>
         <n-input-number
           v-if="item.input_type === 1"
           :value="numberValueOf(item)"
@@ -52,7 +54,7 @@
           show-password-on="click"
           @update:value="(value: string) => setValue(fieldKeyOf(item), value)"
         />
-      </slot>
+      </template>
     </n-form-item>
   </n-form>
 </template>
@@ -74,6 +76,7 @@ const props = defineProps<{
   schema: FormConfigItem[];
   modelValue: DynamicFormModel;
   disabled?: boolean;
+  customFieldKeys?: string[];
   labelPlacement?: FormProps['labelPlacement'];
   labelWidth?: number | string;
 }>();
@@ -81,6 +84,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: DynamicFormModel];
 }>();
+
+const customFieldKeys = computed(() => props.customFieldKeys ?? []);
 
 defineSlots<{
   field?: (props: FieldSlotProps) => unknown;

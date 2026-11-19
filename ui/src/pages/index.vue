@@ -50,7 +50,7 @@
           <span class="status-card__icon">
             <n-icon><i-tabler-world /></n-icon>
           </span>
-          <span>网络质量</span>
+          <span>接口连通性</span>
           <div class="network-card__actions">
             <n-tooltip v-if="networkHealth.timestamp !== 0">
               <template #trigger>
@@ -66,7 +66,7 @@
                   quaternary
                   circle
                   size="tiny"
-                  aria-label="重新检测网络质量"
+                  aria-label="重新检测机器人接口连通性"
                   :loading="networkHealthRefreshing"
                   :disabled="networkHealthRefreshing"
                   @click="refreshNetworkHealth"
@@ -82,23 +82,27 @@
         </div>
 
         <div class="network-result">
-          <template v-if="networkHealth.timestamp === 0">
+          <template v-if="networkHealthError">
+            <strong class="network-result__value is-error">检测失败</strong>
+            <span>{{ networkHealthError }}</span>
+          </template>
+          <template v-else-if="networkHealth.timestamp === 0">
             <strong class="network-result__value is-primary">检测中</strong>
-            <span>正在检查外部服务连通性</span>
+            <span>正在检查机器人平台接口</span>
           </template>
           <template
             v-else-if="networkHealth.total !== 0 && networkHealth.total === networkHealth.ok.length"
           >
             <strong class="network-result__value is-success">良好</strong>
-            <span>所有服务均可正常访问</span>
+            <span>所有机器人平台接口均可访问</span>
           </template>
           <template v-else-if="networkHealth.total !== 0 && networkHealth.ok.length === 0">
             <strong class="network-result__value is-error">中断</strong>
-            <span>外部服务暂时不可访问</span>
+            <span>机器人平台接口暂时不可访问</span>
           </template>
           <template v-else>
             <strong class="network-result__value is-warning">较差</strong>
-            <span>部分服务连接异常</span>
+            <span>部分机器人平台接口连接异常</span>
           </template>
         </div>
 
@@ -201,6 +205,7 @@ import TipBox from '@/components/shared/TipBox.vue';
 import ListEmptyState from '@/components/shared/ListEmptyState.vue';
 import { storeToRefs } from 'pinia';
 import { useAuthStore } from '@/features/auth/store';
+import { getErrorMessage } from '@/features/auth/error';
 const { hasAccessToken } = storeToRefs(useAuthStore());
 
 const breakpoints = useBreakpoints(breakpointsTailwind);
@@ -255,6 +260,11 @@ const networkHealth = computed(() =>
   normalizeNetworkHealthData(networkHealthQuery.data.value?.item)
 );
 const networkHealthRefreshing = computed(() => networkHealthQuery.isFetching.value);
+const networkHealthError = computed(() =>
+  networkHealthQuery.isError.value
+    ? getErrorMessage(networkHealthQuery.error.value, '读取接口连通性失败，请点击重新检测')
+    : ''
+);
 
 watch(
   [() => logStream.logs, autoRefresh],
