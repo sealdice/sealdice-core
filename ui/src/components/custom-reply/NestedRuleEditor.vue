@@ -192,12 +192,10 @@
                         })
                       "
                     >
-                      <n-input
-                        :value="msg[0]"
-                        type="textarea"
-                        class="reply-text sd-code-text"
-                        :autosize="{ minRows: 1 }"
-                        @update:value="updateMessage(index, rIdx, mIdx, $event)"
+                      <CustomTextCodeEditor
+                        :model-value="msg[0]"
+                        class="reply-text"
+                        @update:model-value="updateMessage(index, rIdx, mIdx, $event)"
                       />
                     </RepeatableItem>
                   </RepeatableList>
@@ -212,12 +210,16 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { defineAsyncComponent, reactive } from 'vue';
 import { VueDraggableNext } from 'vue-draggable-next';
 import ConditionBuilder from './ConditionBuilder.vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
 import type { ReplyCondition, ReplyResult, ReplyTask } from '@/features/customReply/model';
+
+const CustomTextCodeEditor = defineAsyncComponent(
+  () => import('@/components/custom-text/CustomTextCodeEditor.vue')
+);
 
 const props = withDefaults(
   defineProps<{
