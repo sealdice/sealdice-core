@@ -1,8 +1,11 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import type { TextItemCompatibleInfo } from '@/api';
+import * as markdown from '@/features/customText/markdown';
 import CustomTextPreview from './CustomTextPreview.vue';
+
+afterEach(() => vi.restoreAllMocks());
 const sample: TextItemCompatibleInfo = {
   version: 'v2',
   textV1: '**V1 结果**',
@@ -81,6 +84,7 @@ it('普通文本不额外展示 Markdown 行，按版本独立判断', async () 
 });
 
 it.each(['v1', 'v2'])('%s 格式化报错时不渲染错误信息中包含的 Markdown', version => {
+  const render = vi.spyOn(markdown, 'renderMarkdownIfFormatted');
   const info = { ...sample };
   if (version === 'v1') {
     info.textV1 = '格式化错误V1:"**文案中的语法**"';
@@ -98,7 +102,71 @@ it.each(['v1', 'v2'])('%s 格式化报错时不渲染错误信息中包含的 Ma
     expect(wrapper.get(`[aria-label="${other} Markdown 预览"] strong`).text()).toBe(
       `${other} 结果`
     );
+    expect(render).not.toHaveBeenCalledWith(version === 'v1' ? info.textV1 : info.textV2);
   } finally {
     wrapper.unmount();
   }
 });
+
+it('格式化成功时保留原文并渲染有效的盒装公式', () => {
+  const text = '$$\\boxed{42/60}$$';
+  const wrapper = mount(CustomTextPreview, {
+    props: { info: { ...sample, textV2: text } },
+  });
+  try {
+    expect(wrapper.get('[aria-label="V2 原文预览"]').text()).toBe(text);
+    expect(wrapper.find('[aria-label="V2 Markdown 预览"] .katex-display').exists()).toBe(true);
+    expect(wrapper.find('.katex-error').exists()).toBe(false);
+  } finally {
+    wrapper.unmount();
+  }
+});
+
+it('格式化成功但公式语法无效时显示公式错误并保留原文与其他 Markdown', () => {
+  const text = '**示例**\n\n$$\\frac{1}$$';
+  const wrapper = mount(CustomTextPreview, {
+    props: { info: { ...sample, textV2: text } },
+  });
+  try {
+    expect(wrapper.get('[aria-label="V2 原文预览"]').text()).toBe(text);
+    expect(wrapper.get('[aria-label="V2 Markdown 预览"] .katex-error').text()).toContain(
+      '\\frac{1}'
+    );
+    expect(wrapper.get('[aria-label="V2 Markdown 预览"] strong').text()).toBe('示例');
+    expect(wrapper.get('[aria-label="V1 Markdown 预览"] strong').text()).toBe('V1 结果');
+  } finally {
+    wrapper.unmount();
+  }
+});
+
+it.each(['v1', 'v2'])(
+  '%s Markdown 渲染器异常不影响原文和另一版预览，更新后可恢复',
+  async version => {
+    const failingText = '**示例渲染异常**';
+    const render = markdown.renderMarkdownIfFormatted;
+    vi.spyOn(markdown, 'renderMarkdownIfFormatted').mockImplementation(text => {
+      if (text === failingText) throw new Error('Synthetic rendering failure');
+      return render(text);
+    });
+    const info = { ...sample, [version === 'v1' ? 'textV1' : 'textV2']: failingText };
+    const wrapper = mount(CustomTextPreview, { props: { info } });
+    try {
+      const label = version === 'v1' ? 'V1' : 'V2';
+      const other = version === 'v1' ? 'V2' : 'V1';
+      expect(wrapper.get(`[aria-label="${label} 原文预览"]`).text()).toBe(failingText);
+      expect(wrapper.get(`[aria-label="${label} Markdown 预览"] [role="status"]`).text()).toContain(
+        'Markdown 渲染失败'
+      );
+      expect(wrapper.get(`[aria-label="${other} Markdown 预览"] strong`).text()).toBe(
+        `${other} 结果`
+      );
+      await wrapper.setProps({ info: sample });
+      expect(wrapper.get(`[aria-label="${label} Markdown 预览"] strong`).text()).toBe(
+        `${label} 结果`
+      );
+      expect(wrapper.find('[role="status"]').exists()).toBe(false);
+    } finally {
+      wrapper.unmount();
+    }
+  }
+);

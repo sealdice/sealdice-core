@@ -29,10 +29,18 @@ export function templateHighlights(source: string): TemplateHighlight[] {
 
   function expressions(text: string, offset: number, nested: boolean, depth: number) {
     for (const span of scriptSpans(text)) {
-      add(offset + span.from, offset + span.to, nested ? 'interpolation' : 'expression');
-      add(offset + span.from, offset + span.from + 1, 'delimiter');
-      const end = span.closed ? span.to - 1 : span.to;
-      code(text.slice(span.from + 1, end), offset + span.from + 1, depth);
+      const block = text.startsWith('{%', span.from);
+      const start = span.from + (block ? 2 : 1);
+      const blockClosed = block && span.closed && text.slice(span.to - 2, span.to) === '%}';
+      const end = span.closed ? span.to - (blockClosed ? 2 : 1) : span.to;
+      if (block) {
+        add(offset + span.from, offset + start, 'expression');
+        if (blockClosed) add(offset + end, offset + span.to, 'expression');
+      } else {
+        add(offset + span.from, offset + span.to, nested ? 'interpolation' : 'expression');
+      }
+      add(offset + span.from, offset + start, 'delimiter');
+      code(text.slice(start, end), offset + start, depth);
       if (span.closed) add(offset + end, offset + span.to, 'delimiter');
     }
   }

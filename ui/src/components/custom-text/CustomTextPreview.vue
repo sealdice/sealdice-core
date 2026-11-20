@@ -1,14 +1,20 @@
 <template>
   <div class="text-preview" role="region" aria-label="文案效果预览" aria-live="polite">
     <CustomTextPreviewInfo v-if="info" :info="info">
-      <template v-if="htmlV2 !== undefined" #v2-markdown>
+      <template v-if="previewV2.html !== undefined || previewV2.failed" #v2-markdown>
         <div role="region" aria-label="V2 Markdown 预览">
-          <div class="markdown-output" v-html="htmlV2" />
+          <n-text v-if="previewV2.failed" type="warning" role="status">
+            Markdown 渲染失败，请查看上方原文。
+          </n-text>
+          <div v-else class="markdown-output" v-html="previewV2.html" />
         </div>
       </template>
-      <template v-if="htmlV1 !== undefined" #v1-markdown>
+      <template v-if="previewV1.html !== undefined || previewV1.failed" #v1-markdown>
         <div role="region" aria-label="V1 Markdown 预览">
-          <div class="markdown-output" v-html="htmlV1" />
+          <n-text v-if="previewV1.failed" type="warning" role="status">
+            Markdown 渲染失败，请查看上方原文。
+          </n-text>
+          <div v-else class="markdown-output" v-html="previewV1.html" />
         </div>
       </template>
     </CustomTextPreviewInfo>
@@ -23,11 +29,23 @@ import type { TextItemCompatibleInfo } from '@/api';
 import { renderMarkdownIfFormatted } from '@/features/customText/markdown';
 import 'katex/dist/katex.min.css';
 const props = defineProps<{ info?: TextItemCompatibleInfo }>();
-const htmlV2 = computed(() =>
-  props.info?.errV2 ? undefined : renderMarkdownIfFormatted(props.info?.textV2 ?? '')
+interface MarkdownPreview {
+  html?: string;
+  failed?: boolean;
+}
+function markdownPreview(text: string, evaluationError: boolean): MarkdownPreview {
+  if (evaluationError) return {};
+  try {
+    return { html: renderMarkdownIfFormatted(text) };
+  } catch {
+    return { failed: true };
+  }
+}
+const previewV2 = computed(() =>
+  markdownPreview(props.info?.textV2 ?? '', Boolean(props.info?.errV2))
 );
-const htmlV1 = computed(() =>
-  props.info?.errV1 ? undefined : renderMarkdownIfFormatted(props.info?.textV1 ?? '')
+const previewV1 = computed(() =>
+  markdownPreview(props.info?.textV1 ?? '', Boolean(props.info?.errV1))
 );
 </script>
 
@@ -35,6 +53,12 @@ const htmlV1 = computed(() =>
 .text-preview {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.text-preview :deep(.n-descriptions-table) {
+  table-layout: fixed;
+}
+.text-preview :deep(.n-descriptions-table-content__content) {
+  max-width: 100%;
 }
 .markdown-output {
   white-space: normal;
@@ -63,5 +87,10 @@ const htmlV1 = computed(() =>
 .markdown-output :deep(.katex-display) {
   overflow-x: auto;
   overflow-y: hidden;
+  padding: 0.5em 0.3em;
+}
+.markdown-output :deep(.katex-display > .katex) {
+  width: max-content;
+  min-width: 100%;
 }
 </style>

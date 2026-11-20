@@ -1,7 +1,12 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { templateHighlights } from './highlight';
 import { scriptSpans, scriptTokens } from './syntax';
+
+const formulaTemplate = [
+  '{% $tColor = "green";',
+  '$tText = `\\n$$\\boxed\\{\\overset\\{\\color\\{{$tColor}\\} {$tValue}\\}\\{{$tResult}\\}\\}$$`;',
+  '$tText %}',
+].join('\n');
 
 const parts = (source: string, kind: string) =>
   templateHighlights(source)
@@ -9,6 +14,22 @@ const parts = (source: string, kind: string) =>
     .map(span => source.slice(span.from, span.to));
 
 describe('nested DiceScript template highlighting', () => {
+  it('limits script block backgrounds to both markers while retaining expression backgrounds', () => {
+    const source =
+      '{% $tText = `结果 {$tValue}`; if true { $tText = "示例"; }; $tText %} {$tOther}';
+    expect(parts(source, 'expression')).toEqual(['{%', '%}', '{$tOther}']);
+    expect(parts(source, 'interpolation')).toEqual(['{$tValue}']);
+    expect(parts(source, 'delimiter')).toEqual(['{%', '{', '}', '%}', '{', '}']);
+    expect(parts(source, 'variable')).toContain('$tText');
+    expect(parts(source, 'keyword')).toContain('if');
+  });
+  it('keeps adjacent and unfinished script blocks free of whole-body backgrounds', () => {
+    expect(parts('{% 1 %}{% 2 %}', 'expression')).toEqual(['{%', '%}', '{%', '%}']);
+    for (const source of ['{%', '{% $tValue = 1', '{% $tText = `{$tValue']) {
+      expect(parts(source, 'expression')).toEqual(['{%']);
+      expect(parts(source, 'delimiter')[0]).toBe('{%');
+    }
+  });
   it('highlights escapes in regular and backtick strings without overlapping string colours', () => {
     const quoteEscape = String.fromCharCode(92, 34);
     const source =
@@ -41,7 +62,7 @@ describe('nested DiceScript template highlighting', () => {
     expect(parts(source, 'string').join('')).toContain('\\overset');
   });
   it('highlights escaped braces and newlines in a synthetic QQ formula template', () => {
-    const source = readFileSync(new URL('./qq-template.fixture.txt', import.meta.url), 'utf8');
+    const source = formulaTemplate;
     expect(parts(source, 'escape')).toContain('\\n');
     expect(parts(source, 'escape')).toContain('\\{');
     expect(parts(source, 'escape')).toContain('\\}');
@@ -63,7 +84,7 @@ describe('nested DiceScript template highlighting', () => {
     ).toBe(false);
   });
   it('distinguishes escaped TeX braces from actual template delimiters in a synthetic template', () => {
-    const source = readFileSync(new URL('./qq-template.fixture.txt', import.meta.url), 'utf8');
+    const source = formulaTemplate;
     const nested = parts(source, 'interpolation');
     expect(nested).toContain('{$tColor}');
     expect(nested).toContain('{$tValue}');
