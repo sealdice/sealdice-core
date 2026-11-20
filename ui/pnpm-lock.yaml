@@ -19,10 +19,10 @@ importers:
         specifier: ^6.2.5
         version: 6.2.5
       '@codemirror/lang-markdown':
-        specifier: 6.5.2
+        specifier: ^6.5.2
         version: 6.5.2
       '@codemirror/language':
-        specifier: 6.13.1
+        specifier: ^6.13.1
         version: 6.13.1
       '@codemirror/state':
         specifier: ^6.6.0
@@ -103,13 +103,13 @@ importers:
         specifier: ^0.11.1
         version: 0.11.1
       katex:
-        specifier: 0.19.1
+        specifier: ^0.19.1
         version: 0.19.1
       markdown-it:
         specifier: ^14.3.3
         version: 14.3.3
       markdown-it-texmath:
-        specifier: 1.0.0
+        specifier: ^1.0.0
         version: 1.0.0
       naive-ui:
         specifier: ^2.43.1
