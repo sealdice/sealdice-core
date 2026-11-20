@@ -542,27 +542,27 @@ func (pa *PlatformAdapterGocq) SetGroupAddRequest(flag string, subType string, a
 }
 
 func (pa *PlatformAdapterGocq) getCustomEcho() string {
-	if pa.customEcho > -10 {
-		pa.customEcho = -10
-	}
-	pa.customEcho--
-	return strconv.FormatInt(pa.customEcho, 10)
+	return strconv.FormatInt(pa.customEcho.Add(-1)-10, 10)
 }
 
 func (pa *PlatformAdapterGocq) waitEcho(echo any, beforeWait func()) *MessageQQ {
 	// pa.echoList = append(pa.echoList, )
 	ch := make(chan *MessageQQ, 1)
 
-	if pa.echoMap == nil {
-		pa.echoMap = new(SyncMap[any, chan *MessageQQ])
-	}
-
 	// 注: 之所以这样是因为echo是json.RawMessage
 	e := lo.Must(json.Marshal(echo))
 	pa.echoMap.Store(string(e), ch)
+	defer pa.echoMap.Delete(string(e))
 
 	beforeWait()
-	return <-ch
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	select {
+	case msg := <-ch:
+		return msg
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait func(emi *echoMapInfo)) error {
@@ -584,10 +584,17 @@ func (pa *PlatformAdapterGocq) waitEcho2(echo any, value interface{}, beforeWait
 
 // GetGroupMemberInfo 获取群成员信息
 func (pa *PlatformAdapterGocq) GetGroupMemberInfo(groupID string, userID string) *OnebotUserInfo {
-	return pa.getGroupMemberInfo(groupID, userID, false)
+	info := pa.getGroupMemberInfo(groupID, userID, false)
+	if info == nil {
+		return &OnebotUserInfo{}
+	}
+	return info
 }
 
 func (pa *PlatformAdapterGocq) getGroupMemberInfo(groupID string, userID string, noCache bool) *OnebotUserInfo {
+	if pa == nil || pa.Socket == nil {
+		return nil
+	}
 	type DetailParams struct {
 		GroupID string `json:"group_id"`
 		UserID  string `json:"user_id"`
@@ -610,10 +617,10 @@ func (pa *PlatformAdapterGocq) getGroupMemberInfo(groupID string, userID string,
 		socketSendText(pa.Socket, string(a))
 	})
 
-	d := msg.Data
-	if msg.Data == nil {
-		return &OnebotUserInfo{}
+	if msg == nil || msg.Data == nil || msg.Retcode != 0 || strings.EqualFold(msg.Status, "failed") {
+		return nil
 	}
+	d := msg.Data
 
 	return &OnebotUserInfo{
 		Nickname: d.Nickname,
@@ -645,6 +652,9 @@ func (pa *PlatformAdapterGocq) GetStrangerInfo(userID string) *OnebotUserInfo {
 	msg := pa.waitEcho(echo, func() {
 		socketSendText(pa.Socket, string(a))
 	})
+	if msg == nil {
+		return &OnebotUserInfo{}
+	}
 
 	d := msg.Data
 	if msg.Data == nil {

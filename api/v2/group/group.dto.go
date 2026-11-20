@@ -1,6 +1,9 @@
 package group
 
-import "sealdice-core/model/common/request"
+import (
+	"sealdice-core/dice"
+	"sealdice-core/model/common/request"
+)
 
 type GroupFilter struct {
 	Platform        []string `json:"platforms" form:"platforms" required:"false"`
@@ -20,16 +23,18 @@ type GroupModifyRequest struct {
 }
 
 type QuitGroupRequest struct {
-	GroupID   string `json:"groupId"`
-	DiceID    string `json:"diceId,omitempty"`
-	Silence   bool   `json:"silence"`
-	ExtraText string `json:"extraText"`
+	GroupID     string `json:"groupId"`
+	DiceID      string `json:"diceId,omitempty"`
+	Silence     bool   `json:"silence"`
+	ExtraText   string `json:"extraText"`
+	ConfirmCode string `json:"confirmCode,omitempty" required:"false"`
 }
 
 type BatchQuitGroupRequest struct {
-	GroupIDs  []string `json:"groupIds"`
-	Silence   bool     `json:"silence"`
-	ExtraText string   `json:"extraText"`
+	GroupIDs     []string          `json:"groupIds"`
+	Silence      bool              `json:"silence"`
+	ExtraText    string            `json:"extraText"`
+	ConfirmCodes map[string]string `json:"confirmCodes,omitempty" required:"false"`
 }
 
 type BatchNotifyGroupRequest struct {
@@ -47,6 +52,20 @@ type ModifyGroupReq struct {
 
 type QuitGroupReq struct {
 	Body QuitGroupRequest
+}
+
+type QuitGroupResponse struct {
+	Body dice.GroupQuitConfirmation
+}
+
+type BatchQuitGroupResult struct {
+	Item          int                          `json:"item"`
+	Confirmations []dice.GroupQuitConfirmation `json:"confirmations,omitempty"`
+	Skipped       []dice.GroupQuitConfirmation `json:"skipped,omitempty"`
+}
+
+type BatchQuitGroupResponse struct {
+	Body BatchQuitGroupResult
 }
 
 type BatchQuitGroupReq struct {

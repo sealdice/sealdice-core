@@ -138,16 +138,16 @@ func TestQuitGroupUsesExplicitDiceID(t *testing.T) {
 	adapter1 := &fakePlatformAdapter{}
 	adapter2 := &fakePlatformAdapter{}
 	ep1 := &dice.EndPointInfo{
-		EndPointInfoBase: dice.EndPointInfoBase{ID: "ep-1", UserID: "QQ:1001", Platform: "QQ", Enable: true},
+		EndPointInfoBase: dice.EndPointInfoBase{ID: "ep-1", UserID: "TG:1001", Platform: "TG", Enable: true},
 		Adapter:          adapter1,
 	}
 	ep2 := &dice.EndPointInfo{
-		EndPointInfoBase: dice.EndPointInfoBase{ID: "ep-2", UserID: "QQ:1002", Platform: "QQ", Enable: true},
+		EndPointInfoBase: dice.EndPointInfoBase{ID: "ep-2", UserID: "TG:1002", Platform: "TG", Enable: true},
 		Adapter:          adapter2,
 	}
 	svc.Dice().ImSession.EndPoints = []*dice.EndPointInfo{ep1, ep2}
 
-	group := newTestGroup("QQ-Group:1001", "Alpha", ep1.UserID, ep2.UserID)
+	group := newTestGroup("TG-Group:1001", "Alpha", ep1.UserID, ep2.UserID)
 	svc.Dice().ImSession.ServiceAtNew.Store(group.GroupID, group)
 
 	resp, err := svc.QuitGroup(t.Context(), &QuitGroupReq{

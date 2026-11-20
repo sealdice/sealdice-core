@@ -278,48 +278,65 @@ func (b *GroupService) GetPlatforms(_ context.Context, _ *request.Empty) (*respo
 // - 记录后台操作与告别文案（非静默时在群内发送）
 // - 更新群内Dice存在映射并落库脏标记
 // - 调用平台适配器执行退群
-func (b *GroupService) QuitGroup(_ context.Context, ol *QuitGroupReq) (*response.MessageResponse, error) {
+func (b *GroupService) QuitGroup(_ context.Context, ol *QuitGroupReq) (*QuitGroupResponse, error) {
 	v := ol.Body
 	group, exists := b.dice.ImSession.ServiceAtNew.Load(v.GroupID)
 	if !exists {
-		return &response.MessageResponse{Body: struct {
-			Message string `json:"message"`
-		}{Message: "group not found"}}, nil
+		return &QuitGroupResponse{Body: dice.GroupQuitConfirmation{Message: "group not found"}}, nil
 	}
 	chosen, errMsg := b.chooseGroupEndpoint(group, v.DiceID)
 	if chosen == nil {
-		return &response.MessageResponse{Body: struct {
-			Message string `json:"message"`
-		}{Message: errMsg}}, nil
+		return &QuitGroupResponse{Body: dice.GroupQuitConfirmation{Message: errMsg}}, nil
 	}
-	txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupID)
 	ctx := &dice.MsgContext{Dice: b.dice, EndPoint: chosen, Session: b.dice.ImSession}
-	b.dice.Logger.Info(txt)
-	ctx.Notice(txt)
-	if !v.Silence {
-		txtPost := dice.DiceFormatTmpl(ctx, "核心:提示_手动退群前缀")
-		if v.ExtraText != "" {
-			txtPost += "\n骰主留言: " + v.ExtraText
-		}
-		dice.ReplyGroup(ctx, &dice.Message{GroupID: v.GroupID}, txtPost)
+	permit, confirmation := dice.PrepareGroupQuit(ctx, v.GroupID, "web", v.ConfirmCode)
+	if confirmation != nil {
+		return &QuitGroupResponse{Body: *confirmation}, nil
 	}
-	// 先发起平台退群，再更新内存状态；即使平台侧失败，
-	// 至少不会让 UI 误以为该骰已不在群内。
-	chosen.Adapter.QuitGroup(ctx, v.GroupID)
-	group.DiceIDExistsMap.Delete(chosen.UserID)
+	result := dice.GroupQuitConfirmation{GroupID: v.GroupID, DiceID: chosen.UserID, Message: "ok"}
+	if !b.quitGroup(ctx, group, v.Silence, v.ExtraText, permit) {
+		result.Message = "身份检查未通过或身份发生变化，已取消退群，请重新发起操作。"
+	}
+	return &QuitGroupResponse{Body: result}, nil
+}
+
+func (b *GroupService) quitGroup(ctx *dice.MsgContext, group *dice.GroupInfo, silence bool, extraText string, permit *dice.GroupQuitPermit) bool {
+	txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupID)
+	b.dice.Logger.Info(txt)
+	ctx.Notice(txt, dice.NoticeTypeGroup)
+	if !silence {
+		txtPost := dice.DiceFormatTmpl(ctx, "核心:提示_手动退群前缀")
+		if extraText != "" {
+			txtPost += "\n骰主留言: " + extraText
+		}
+		dice.ReplyGroup(ctx, &dice.Message{GroupID: group.GroupID}, txtPost)
+	}
 	b.sleepBeforeQuit()
+	if !dice.QuitGroupSafely(ctx, group.GroupID, permit) {
+		return false
+	}
+	group.DiceIDExistsMap.Delete(ctx.EndPoint.UserID)
 	group.MarkDirty(b.dice)
-	return &response.MessageResponse{Body: struct {
-		Message string `json:"message"`
-	}{Message: "ok"}}, nil
+	return true
 }
 
 // BatchQuitGroup
 // 基于 QuitGroup 逻辑进行批量处理，返回成功退群数量
-func (b *GroupService) BatchQuitGroup(_ context.Context, ol *BatchQuitGroupReq) (*response.ItemResponse[int], error) {
+func (b *GroupService) BatchQuitGroup(_ context.Context, ol *BatchQuitGroupReq) (*BatchQuitGroupResponse, error) {
 	v := ol.Body
-	updated := 0
+	result := BatchQuitGroupResult{}
+	type quitTarget struct {
+		group  *dice.GroupInfo
+		ctx    *dice.MsgContext
+		permit *dice.GroupQuitPermit
+	}
+	targets := make([]quitTarget, 0, len(v.GroupIDs))
+	seen := make(map[string]bool, len(v.GroupIDs))
 	for _, gid := range v.GroupIDs {
+		if seen[gid] {
+			continue
+		}
+		seen[gid] = true
 		group, exists := b.dice.ImSession.ServiceAtNew.Load(gid)
 		if !exists {
 			continue
@@ -329,23 +346,44 @@ func (b *GroupService) BatchQuitGroup(_ context.Context, ol *BatchQuitGroupReq) 
 			continue
 		}
 		ctx := &dice.MsgContext{Dice: b.dice, EndPoint: chosen, Session: b.dice.ImSession}
-		txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupID)
-		b.dice.Logger.Info(txt)
-		ctx.Notice(txt)
-		if !v.Silence {
-			txtPost := dice.DiceFormatTmpl(ctx, "核心:提示_手动退群前缀")
-			if v.ExtraText != "" {
-				txtPost += "\n骰主留言: " + v.ExtraText
+		permit, confirmation := dice.PrepareGroupQuit(ctx, gid, "web", v.ConfirmCodes[gid])
+		if confirmation != nil {
+			if confirmation.ConfirmCode != "" {
+				result.Confirmations = append(result.Confirmations, *confirmation)
+			} else {
+				result.Skipped = append(result.Skipped, *confirmation)
 			}
-			dice.ReplyGroup(ctx, &dice.Message{GroupID: gid}, txtPost)
+			continue
 		}
-		chosen.Adapter.QuitGroup(ctx, gid)
-		group.DiceIDExistsMap.Delete(chosen.UserID)
-		b.sleepBeforeQuit()
-		group.MarkDirty(b.dice)
-		updated++
+		targets = append(targets, quitTarget{group: group, ctx: ctx, permit: permit})
 	}
-	return response.NewItemResponse[int](updated), nil
+	// Do not partially execute a batch while waiting for owner confirmations.
+	if len(result.Confirmations) != 0 {
+		for _, target := range targets {
+			if target.permit != nil {
+				// Preserve valid codes when another group has just become owned.
+				result.Confirmations = append(result.Confirmations, dice.GroupQuitConfirmation{
+					GroupID:     target.group.GroupID,
+					DiceID:      target.ctx.EndPoint.UserID,
+					Message:     "骰子账号是群主，继续退出将直接解散群聊，请再次确认。",
+					ConfirmCode: v.ConfirmCodes[target.group.GroupID],
+				})
+			}
+		}
+		return &BatchQuitGroupResponse{Body: result}, nil
+	}
+	for _, target := range targets {
+		if b.quitGroup(target.ctx, target.group, v.Silence, v.ExtraText, target.permit) {
+			result.Item++
+		} else {
+			result.Skipped = append(result.Skipped, dice.GroupQuitConfirmation{
+				GroupID: target.group.GroupID,
+				DiceID:  target.ctx.EndPoint.UserID,
+				Message: "身份检查未通过或身份发生变化，已取消退群。",
+			})
+		}
+	}
+	return &BatchQuitGroupResponse{Body: result}, nil
 }
 
 // BatchNotifyGroup

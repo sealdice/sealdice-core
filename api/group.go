@@ -89,10 +89,11 @@ func groupQuit(c echo.Context) error {
 		})
 	}
 	v := struct {
-		GroupID   string `json:"groupId"   yaml:"groupId"`
-		DiceID    string `json:"diceId"    yaml:"diceId"`
-		Silence   bool   `json:"silence"   yaml:"silence"`
-		ExtraText string `json:"extraText" yaml:"extraText"`
+		GroupID     string `json:"groupId"   yaml:"groupId"`
+		DiceID      string `json:"diceId"    yaml:"diceId"`
+		Silence     bool   `json:"silence"   yaml:"silence"`
+		ExtraText   string `json:"extraText" yaml:"extraText"`
+		ConfirmCode string `json:"confirmCode" yaml:"confirmCode"`
 	}{}
 	err := c.Bind(&v)
 	if err != nil {
@@ -109,11 +110,15 @@ func groupQuit(c echo.Context) error {
 		if ep.UserID != v.DiceID {
 			continue
 		}
+		ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
+		permit, confirmation := dice.PrepareGroupQuit(ctx, v.GroupID, "web", v.ConfirmCode)
+		if confirmation != nil {
+			return c.JSON(http.StatusConflict, confirmation)
+		}
 		// 就是这个
 		_txt := fmt.Sprintf("Master后台操作退群: 于群组<%s>(%s)中告别", group.GroupName, group.GroupID)
 		myDice.Logger.Info(_txt)
 
-		ctx := &dice.MsgContext{Dice: myDice, EndPoint: ep, Session: myDice.ImSession}
 		ctx.Notice(_txt, dice.NoticeTypeGroup)
 		// dice.SetBotOffAtGroup(ctx, group.GroupId)
 
@@ -125,11 +130,15 @@ func groupQuit(c echo.Context) error {
 			dice.ReplyGroup(ctx, &dice.Message{GroupID: v.GroupID}, txtPost)
 		}
 
-		group.DiceIDExistsMap.Delete(v.DiceID)
 		time.Sleep(6 * time.Second)
+		if !dice.QuitGroupSafely(ctx, v.GroupID, permit) {
+			return c.JSON(http.StatusConflict, dice.GroupQuitConfirmation{
+				GroupID: v.GroupID, DiceID: ep.UserID,
+				Message: "身份检查未通过或身份发生变化，已取消退群，请重新发起操作。",
+			})
+		}
+		group.DiceIDExistsMap.Delete(v.DiceID)
 		group.MarkDirty(myDice)
-
-		ep.Adapter.QuitGroup(ctx, v.GroupID)
 		return c.String(http.StatusOK, "")
 	}
 	return c.String(430, "")
