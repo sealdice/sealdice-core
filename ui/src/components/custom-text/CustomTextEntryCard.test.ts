@@ -11,6 +11,16 @@ it('条目编辑只发出操作事件，不修改父级传入的文案数组', a
   ];
   const wrapper = mount(CustomTextEntryCard, {
     props: { category: 'core', keyName: 'reply', items },
+    global: {
+      stubs: {
+        CustomTextCodeEditor: {
+          props: ['modelValue'],
+          emits: ['update:modelValue'],
+          template:
+            '<textarea :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+        },
+      },
+    },
   });
   try {
     await wrapper.findAll('textarea')[0]!.setValue('edited');

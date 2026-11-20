@@ -1,0 +1,15 @@
+{%
+$tText = `{$tValue}/{$tLimit} {$tResult}`;
+if $tPlatform == 'QQ-official' {
+    $tColor = $tValue <= 10 ? 'green' : ($tValue >= 90 ? 'red' : 'black');
+    $tText = `\n$$\boxed\{\overset\{\color\{{$tColor}\} {$tValue}/{$tLimit}\}\{{$tResult}\}\}$$\n>示例结果`;
+};
+$tText
+%}{%
+// Exercise adjacent script blocks and scoped variables with synthetic data.
+$mCount = $mCount + 1;
+$gCount = $gCount + 1;
+$uCount = $uCount + 1;
+$tSummary = `计数 {$uCount}，状态：{$tValue < $tLimit ? `通过 {$tResult}` : "未通过"}`;
+$tSummary
+%}

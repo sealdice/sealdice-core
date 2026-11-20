@@ -73,26 +73,34 @@
             @remove="emit('removeItem', keyName, index)"
           >
             <div class="relative">
-              <n-input
-                :value="item[0]"
-                class="w-full sd-code-text"
-                type="textarea"
-                :autosize="{ minRows: 1, maxRows: 4 }"
-                @update:value="emit('updateItem', keyName, index, $event)"
+              <CustomTextCodeEditor
+                :model-value="item[0]"
+                @update:model-value="emit('updateItem', keyName, index, $event)"
               />
 
-              <div v-if="preview(item[0])" class="absolute bottom-0 right-1">
-                <n-popover placement="bottom-start">
+              <div v-if="preview(item[0])" class="absolute bottom-3 right-2">
+                <n-popover
+                  placement="bottom-start"
+                  :style="{
+                    width: 'min(760px, calc(100vw - 32px))',
+                    maxHeight: 'min(600px, 80dvh)',
+                    overflow: 'auto',
+                  }"
+                >
                   <template #trigger>
-                    <span v-if="previewHasError(item[0])" class="text-red-500 preview-icon">
+                    <span
+                      v-if="previewHasError(item[0])"
+                      class="text-red-500 preview-icon"
+                      aria-label="预览错误"
+                    >
                       <n-icon><i-tabler-circle-x-filled /></n-icon>
                     </span>
-                    <span v-else class="preview-icon preview-icon--success">
+                    <span v-else class="preview-icon preview-icon--success" aria-label="预览正常">
                       <n-icon><i-tabler-circle-check-filled /></n-icon>
                     </span>
                   </template>
 
-                  <CustomTextPreviewInfo v-if="preview(item[0])" :info="preview(item[0])!" />
+                  <CustomTextPreview :info="preview(item[0])!" />
                 </n-popover>
               </div>
             </div>
@@ -130,15 +138,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, defineAsyncComponent } from 'vue';
 import type { TextItemCompatibleInfo, Value } from '@/api';
-import CustomTextPreviewInfo from './CustomTextPreviewInfo.vue';
 import RepeatableItem from '@/components/shared/RepeatableItem.vue';
 import RepeatableList from '@/components/shared/RepeatableList.vue';
 import type { TextTemplateItem } from '@/features/customText/types';
 import { createTextItemKeyStore } from '@/features/customText/viewModel';
 
 const textItemKeys = createTextItemKeyStore();
+const CustomTextCodeEditor = defineAsyncComponent(() => import('./CustomTextCodeEditor.vue'));
+const CustomTextPreview = defineAsyncComponent(() => import('./CustomTextPreview.vue'));
 const collapsed = ref(true);
 const isLongList = computed(() => props.items.length > 3);
 const visibleItems = computed(() =>
@@ -167,9 +176,7 @@ function preview(text: string) {
 
 function previewHasError(text: string) {
   const info = preview(text);
-  return info?.version === 'v2'
-    ? Boolean(info.errV2)
-    : info?.version === 'v1' && Boolean(info.errV1);
+  return info?.version === 'v1' ? Boolean(info.errV1) : Boolean(info?.errV2);
 }
 
 function handleAddItem() {
@@ -192,7 +199,6 @@ function handleAddItem() {
   margin-left: 0.1rem;
   margin-top: 0.1rem;
 }
-
 .preview-icon--success {
   color: var(--sd-success);
 }
