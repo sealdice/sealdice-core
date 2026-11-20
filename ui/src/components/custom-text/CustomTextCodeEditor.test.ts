@@ -130,8 +130,10 @@ it('resizes by pointer or keyboard and retains the chosen height across focus ch
     element.hasPointerCapture = () => true;
     element.releasePointerCapture = vi.fn();
     await handle.trigger('pointerdown', { pointerId: 1, button: 0, clientY: 100 });
+    expect(element.setPointerCapture).toHaveBeenCalledWith(1);
     await handle.trigger('pointermove', { pointerId: 1, clientY: 230 });
     await handle.trigger('pointerup', { pointerId: 1 });
+    expect(element.releasePointerCapture).toHaveBeenCalledWith(1);
     expect(handle.attributes('aria-valuenow')).toBe('226');
     wrapper.get('textarea').element.focus();
     await flushPromises();
@@ -140,6 +142,45 @@ it('resizes by pointer or keyboard and retains the chosen height across focus ch
     expect(handle.attributes('aria-valuenow')).toBe('226');
     await handle.trigger('keydown', { key: 'ArrowDown' });
     expect(handle.attributes('aria-valuenow')).toBe('246');
+  } finally {
+    wrapper.unmount();
+  }
+});
+
+it('reports editor creation failure, preserves editable text and selection, and retries on refocus', async () => {
+  editorFixture();
+  create.mockImplementationOnce((host: HTMLElement) => {
+    const partialEditor = document.createElement('input');
+    host.append(partialEditor);
+    partialEditor.focus();
+    throw new Error('Synthetic editor failure');
+  });
+  const wrapper = mount(CustomTextCodeEditor, {
+    props: { modelValue: '{$tValue}' },
+    attachTo: document.body,
+  });
+  try {
+    const input = wrapper.get('textarea');
+    input.element.setSelectionRange(2, 5);
+    input.element.focus();
+    await flushPromises();
+    expect(wrapper.get('[role="status"]').text()).toContain('加载失败');
+    expect(input.isVisible()).toBe(true);
+    expect(input.element.value).toBe('{$tValue}');
+    expect(document.activeElement).toBe(input.element);
+    expect(input.element.selectionStart).toBe(2);
+    expect(input.element.selectionEnd).toBe(5);
+    expect(wrapper.findAll('.active-editor input')).toHaveLength(0);
+    expect(wrapper.find('.passive-highlight .seal-variable').exists()).toBe(true);
+    await input.setValue('示例输入');
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['示例输入']);
+    await wrapper.setProps({ modelValue: '示例输入' });
+    input.element.blur();
+    input.element.focus();
+    await flushPromises();
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[1]![1]).toBe('示例输入');
+    expect(wrapper.find('[role="status"]').exists()).toBe(false);
   } finally {
     wrapper.unmount();
   }

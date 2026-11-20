@@ -28,6 +28,9 @@
       </div>
       <div v-show="active" ref="host" class="active-editor" />
     </div>
+    <div v-if="loadFailed" class="editor-notice" role="status">
+      编辑增强功能加载失败，可继续输入；重新聚焦可重试。
+    </div>
     <div
       class="resize-handle"
       role="separator"
@@ -60,6 +63,7 @@ const input = ref<HTMLTextAreaElement>();
 const highlightLayer = ref<HTMLPreElement>();
 const height = ref(96);
 const active = ref(false);
+const loadFailed = ref(false);
 const composing = ref(false);
 const parts = computed(() => (active.value ? [] : passiveHighlights(props.modelValue)));
 let editor: ActiveTextEditor | undefined;
@@ -84,7 +88,7 @@ function onCompositionEnd() {
 }
 async function activate() {
   clearTimeout(blurTimer);
-  if (editor || disposed) return;
+  if (editor || disposed || switching) return;
   const id = ++generation;
   try {
     const { createTextEditor } = await import('@/features/customText/codeEditor');
@@ -108,12 +112,33 @@ async function activate() {
     editor = createTextEditor(host.value, field.value, savedSelection, value => {
       if (value !== props.modelValue) emit('update:modelValue', value);
     });
+    loadFailed.value = false;
   } catch {
-    // Keep the native textarea usable when the optional editor chunk fails to load.
+    if (disposed || id !== generation) return;
+    const restoreFocus =
+      switching &&
+      (document.activeElement === document.body || root.value?.contains(document.activeElement));
+    host.value?.replaceChildren();
     active.value = false;
+    loadFailed.value = true;
+    await nextTick();
+    if (restoreFocus && !disposed && id === generation && input.value) {
+      input.value.focus();
+      restoreNativeSelection();
+    }
   } finally {
     switching = false;
   }
+}
+function restoreNativeSelection() {
+  if (disposed || !input.value) return;
+  input.value.setSelectionRange(
+    Math.min(savedSelection.anchor, savedSelection.head),
+    Math.max(savedSelection.anchor, savedSelection.head),
+    savedSelection.anchor > savedSelection.head ? 'backward' : 'forward'
+  );
+  input.value.scrollTop = savedSelection.scrollTop;
+  syncScroll();
 }
 function onFocusOut(event: FocusEvent) {
   if (switching) return;
@@ -126,16 +151,7 @@ function onFocusOut(event: FocusEvent) {
     editor?.destroy();
     editor = undefined;
     active.value = false;
-    void nextTick(() => {
-      if (disposed || !input.value) return;
-      input.value.setSelectionRange(
-        Math.min(savedSelection.anchor, savedSelection.head),
-        Math.max(savedSelection.anchor, savedSelection.head),
-        savedSelection.anchor > savedSelection.head ? 'backward' : 'forward'
-      );
-      input.value.scrollTop = savedSelection.scrollTop;
-      syncScroll();
-    });
+    void nextTick(restoreNativeSelection);
   }, 0);
 }
 function startResize(event: PointerEvent) {
@@ -195,6 +211,13 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+.editor-notice {
+  flex: none;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--sd-text-secondary);
+  background: var(--sd-bg-control);
 }
 .passive-editor,
 .active-editor {

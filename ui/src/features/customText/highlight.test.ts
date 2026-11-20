@@ -14,6 +14,12 @@ const parts = (source: string, kind: string) =>
     .map(span => source.slice(span.from, span.to));
 
 describe('nested DiceScript template highlighting', () => {
+  it('keeps evaluating braces inside math consistent with DiceScript template semantics', () => {
+    expect(parts('$$\\boxed{42/60}$$', 'expression')).toEqual(['{42/60}']);
+    expect(parts('$$x+{1+2}$$', 'expression')).toEqual(['{1+2}']);
+    expect(parts('$$\\boxed\\{42/60\\}$$', 'expression')).toEqual([]);
+    expect(parts('$$\\boxed\\{值 {$tValue}\\}$$', 'expression')).toEqual(['{$tValue}']);
+  });
   it('limits script block backgrounds to both markers while retaining expression backgrounds', () => {
     const source =
       '{% $tText = `结果 {$tValue}`; if true { $tText = "示例"; }; $tText %} {$tOther}';

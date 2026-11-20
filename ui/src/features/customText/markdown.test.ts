@@ -27,23 +27,25 @@ it.each([
 });
 
 it.each([
-  '**加粗**',
-  '__下划线__',
-  '*斜体*',
-  '~~删除线~~',
-  '# 标题',
-  '> 引用',
-  '- 列表',
-  '1. 列表',
-  '[链接](https://example.com)',
-  'https://example.com',
-  '![图片 #320px #200px](https://example.com/a.png)',
-  '`行内代码`',
-  '```\n代码\n```',
-  '$$x^2$$',
-  '---',
-])('detects formatting using the actual preview grammar: %s', source => {
-  expect(renderMarkdownIfFormatted(source)).toBeDefined();
+  ['**加粗**', 'strong'],
+  ['__下划线__', 'strong.qq-underline-bold'],
+  ['*斜体*', 'em'],
+  ['~~删除线~~', 's'],
+  ['# 标题', 'h1'],
+  ['> 引用', 'blockquote'],
+  ['- 列表', 'ul > li'],
+  ['1. 列表', 'ol > li'],
+  ['[链接](https://example.com)', 'a[href="https://example.com"]'],
+  ['https://example.com', 'a[href="https://example.com"]'],
+  ['![图片 #320px #200px](https://example.com/a.png)', 'img[width="320"][height="200"]'],
+  ['`行内代码`', 'code'],
+  ['```\n代码\n```', 'pre > code'],
+  ['$$x^2$$', '.katex-display'],
+  ['---', 'hr'],
+])('renders the expected formatting using the actual preview grammar: %s', (source, selector) => {
+  const output = document.createElement('div');
+  output.innerHTML = renderMarkdownIfFormatted(source) ?? '';
+  expect(output.querySelector(selector)).not.toBeNull();
 });
 
 it('preserves QQ image dimensions and responsive aspect ratio', () => {
