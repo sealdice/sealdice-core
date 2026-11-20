@@ -27,19 +27,20 @@ markdown.renderer.rules['image'] = (tokens, index, options, environment, rendere
   const token = tokens[index];
   const description = renderer.renderInlineAsText(token.children ?? [], options, environment);
   const dimensions = /^(.*?)\s*#([1-9]\d*)px\s+#([1-9]\d*)px\s*$/is.exec(description);
-  token.attrSet('alt', description);
+  const source = token.attrGet('src') ?? '';
+  const escape = markdown.utils.escapeHtml;
+  let alt = description;
+  let sizing = '';
   if (dimensions) {
     const width = Number(dimensions[2]);
     const height = Number(dimensions[3]);
     if (Number.isSafeInteger(width) && Number.isSafeInteger(height)) {
-      token.attrSet('alt', dimensions[1].trimEnd());
-      token.attrSet('width', String(width));
-      token.attrSet('height', String(height));
-      // Keep QQ's requested aspect ratio when the preview is narrower than the image.
-      token.attrSet('style', `width:${width}px;aspect-ratio:${width}/${height}`);
+      alt = dimensions[1].trimEnd();
+      sizing = ` data-image-width="${width}" data-image-height="${height}" style="width:${width}px;aspect-ratio:${width}/${height}"`;
     }
   }
-  return renderer.renderToken(tokens, index, options);
+  // An inert URL in data-* cannot start a request when the preview is inserted.
+  return `<button type="button" class="image-placeholder" data-image-src="${escape(source)}" data-image-alt="${escape(alt)}" aria-label="${escape(alt ? `加载图片：${alt}` : '加载图片')}" title="${escape(`点击后将请求图片地址：${source}`)}"${sizing}><span>图片占位 · 点击加载</span>${alt ? `<span>${escape(alt)}</span>` : ''}</button>`;
 };
 const defaultLink = markdown.renderer.rules['link_open'];
 markdown.renderer.rules['link_open'] = (tokens, index, options, environment, renderer) => {

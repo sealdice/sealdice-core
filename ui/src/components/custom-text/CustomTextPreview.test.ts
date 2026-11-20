@@ -6,6 +6,17 @@ import * as markdown from '@/features/customText/markdown';
 import CustomTextPreview from './CustomTextPreview.vue';
 
 afterEach(() => vi.restoreAllMocks());
+
+function observeImages() {
+  const images: HTMLImageElement[] = [];
+  const createElement = document.createElement.bind(document);
+  vi.spyOn(document, 'createElement').mockImplementation((tagName, options) => {
+    const element = createElement(tagName, options);
+    if (tagName === 'img') images.push(element as HTMLImageElement);
+    return element;
+  });
+  return images;
+}
 const sample: TextItemCompatibleInfo = {
   version: 'v2',
   textV1: '**V1 结果**',
@@ -14,6 +25,76 @@ const sample: TextItemCompatibleInfo = {
   errV2: '',
   presetExists: true,
 };
+
+it.each(['V1', 'V2'])('%s 图片默认占位，仅点击该图片时请求并保留尺寸', async version => {
+  const images = observeImages();
+  const text = '![示例 #320px #200px](https://example.com/test.png)';
+  const wrapper = mount(CustomTextPreview, {
+    props: { info: { ...sample, textV1: text, textV2: text } },
+  });
+  try {
+    expect(wrapper.find('img').exists()).toBe(false);
+    expect(images).toHaveLength(0);
+    const region = wrapper.get(`[aria-label="${version} Markdown 预览"]`);
+    const button = region.get('button');
+    expect(button.attributes('aria-label')).toBe('加载图片：示例');
+    await button.get('span').trigger('click');
+    expect(images).toHaveLength(1);
+    expect(images[0]!.src).toBe('https://example.com/test.png');
+    expect(images[0]!.referrerPolicy).toBe('no-referrer');
+    expect(button.attributes('disabled')).toBeDefined();
+    await button.trigger('click');
+    expect(images).toHaveLength(1);
+    images[0]!.dispatchEvent(new Event('load'));
+    expect(region.get('img').attributes()).toMatchObject({
+      alt: '示例',
+      width: '320',
+      height: '200',
+    });
+    const other = version === 'V1' ? 'V2' : 'V1';
+    expect(wrapper.get(`[aria-label="${other} Markdown 预览"]`).find('img').exists()).toBe(false);
+    await wrapper.setProps({
+      info: {
+        ...sample,
+        textV1: text,
+        textV2: text,
+        [version === 'V1' ? 'textV1' : 'textV2']: '![新图片](https://example.com/new.png)',
+      },
+    });
+    expect(region.find('img').exists()).toBe(false);
+    expect(region.get('button').attributes('data-image-src')).toBe('https://example.com/new.png');
+    expect(images).toHaveLength(1);
+  } finally {
+    wrapper.unmount();
+  }
+});
+
+it('图片请求失败后保留占位并允许重试，点击链接中的图片不会跳转', async () => {
+  const images = observeImages();
+  const wrapper = mount(CustomTextPreview, {
+    props: {
+      info: { ...sample, textV2: '[![示例](https://example.com/a.png)](https://example.com)' },
+    },
+  });
+  try {
+    const button = wrapper.get('[aria-label="V2 Markdown 预览"] button');
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+    button.element.dispatchEvent(click);
+    expect(click.defaultPrevented).toBe(true);
+    expect(images).toHaveLength(1);
+    images[0]!.dispatchEvent(new Event('error'));
+    expect(button.text()).toBe('图片加载失败，点击重试');
+    expect(button.attributes('disabled')).toBeUndefined();
+    await button.trigger('click');
+    expect(images).toHaveLength(2);
+    images[1]!.dispatchEvent(new Event('load'));
+    expect(wrapper.get('[aria-label="V2 Markdown 预览"] img').attributes('src')).toBe(
+      'https://example.com/a.png'
+    );
+  } finally {
+    wrapper.unmount();
+  }
+});
 
 it.each(['v1', 'v2'])(
   '选用 %s 时仍按 V2 原文、V2 Markdown、V1 原文、V1 Markdown 的顺序显示两版效果',

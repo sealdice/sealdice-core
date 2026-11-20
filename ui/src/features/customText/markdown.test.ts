@@ -37,7 +37,10 @@ it.each([
   ['1. 列表', 'ol > li'],
   ['[链接](https://example.com)', 'a[href="https://example.com"]'],
   ['https://example.com', 'a[href="https://example.com"]'],
-  ['![图片 #320px #200px](https://example.com/a.png)', 'img[width="320"][height="200"]'],
+  [
+    '![图片 #320px #200px](https://example.com/a.png)',
+    'button[data-image-width="320"][data-image-height="200"]',
+  ],
   ['`行内代码`', 'code'],
   ['```\n代码\n```', 'pre > code'],
   ['$$x^2$$', '.katex-display'],
@@ -50,11 +53,25 @@ it.each([
 
 it('preserves QQ image dimensions and responsive aspect ratio', () => {
   const html = renderMarkdown('![壁纸 #320px #200px](https://example.com/test.png)');
-  expect(html).toContain('alt="壁纸"');
-  expect(html).toContain('width="320"');
-  expect(html).toContain('height="200"');
+  expect(html).toContain('data-image-alt="壁纸"');
+  expect(html).toContain('data-image-width="320"');
+  expect(html).toContain('data-image-height="200"');
   expect(html).toContain('aspect-ratio:320/200');
 });
+
+it.each([renderMarkdown, renderMarkdownIfFormatted])(
+  'renders inert, escaped image placeholders',
+  render => {
+    const output = document.createElement('div');
+    output.innerHTML =
+      render('![<img src=x onerror=alert(1)>](https://example.com/a.png?a=1&b=2)') ?? '';
+    expect(output.querySelector('img, [src], [srcset], [onerror]')).toBeNull();
+    const placeholder = output.querySelector<HTMLButtonElement>('button.image-placeholder')!;
+    expect(placeholder.type).toBe('button');
+    expect(placeholder.dataset.imageSrc).toBe('https://example.com/a.png?a=1&b=2');
+    expect(placeholder.textContent).toContain('<img src=x onerror=alert(1)>');
+  }
+);
 
 it('escapes HTML and rejects active links and untrusted TeX commands', () => {
   const html = renderMarkdown(

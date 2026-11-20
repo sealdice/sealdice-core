@@ -6,7 +6,7 @@
           <n-text v-if="previewV2.failed" type="warning" role="status">
             Markdown 渲染失败，请查看上方原文。
           </n-text>
-          <div v-else class="markdown-output" v-html="previewV2.html" />
+          <div v-else class="markdown-output" @click="loadPreviewImage" v-html="previewV2.html" />
         </div>
       </template>
       <template v-if="previewV1.html !== undefined || previewV1.failed" #v1-markdown>
@@ -14,7 +14,7 @@
           <n-text v-if="previewV1.failed" type="warning" role="status">
             Markdown 渲染失败，请查看上方原文。
           </n-text>
-          <div v-else class="markdown-output" v-html="previewV1.html" />
+          <div v-else class="markdown-output" @click="loadPreviewImage" v-html="previewV1.html" />
         </div>
       </template>
     </CustomTextPreviewInfo>
@@ -47,6 +47,46 @@ const previewV2 = computed(() =>
 const previewV1 = computed(() =>
   markdownPreview(props.info?.textV1 ?? '', Boolean(props.info?.errV1))
 );
+
+function loadPreviewImage(event: MouseEvent) {
+  if (!(event.target instanceof Element) || !(event.currentTarget instanceof Element)) return;
+  const placeholder = event.target.closest<HTMLButtonElement>('button.image-placeholder');
+  if (!placeholder || !event.currentTarget.contains(placeholder) || placeholder.disabled) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const source = placeholder.dataset.imageSrc;
+  let url: URL;
+  try {
+    if (!source) throw new Error('Empty image URL');
+    url = new URL(source, window.location.href);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:')
+      throw new Error('Unsupported image URL');
+  } catch {
+    placeholder.disabled = true;
+    placeholder.textContent = '此图片地址不支持预览';
+    return;
+  }
+  const image = document.createElement('img');
+  image.alt = placeholder.dataset.imageAlt ?? '';
+  image.referrerPolicy = 'no-referrer';
+  image.decoding = 'async';
+  const width = Number(placeholder.dataset.imageWidth);
+  const height = Number(placeholder.dataset.imageHeight);
+  if (Number.isSafeInteger(width) && width > 0 && Number.isSafeInteger(height) && height > 0) {
+    image.width = width;
+    image.height = height;
+    image.style.width = `${width}px`;
+    image.style.aspectRatio = `${width}/${height}`;
+  }
+  placeholder.disabled = true;
+  placeholder.textContent = '正在加载图片…';
+  image.onload = () => placeholder.replaceWith(image);
+  image.onerror = () => {
+    placeholder.disabled = false;
+    placeholder.textContent = '图片加载失败，点击重试';
+  };
+  image.src = url.href;
+}
 </script>
 
 <style scoped>
@@ -83,6 +123,32 @@ const previewV1 = computed(() =>
 .markdown-output :deep(img) {
   max-width: 100%;
   height: auto;
+}
+.markdown-output :deep(.image-placeholder) {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 240px;
+  min-height: 64px;
+  max-width: 100%;
+  padding: 8px;
+  border: 1px dashed var(--sd-border);
+  border-radius: 4px;
+  background: var(--sd-bg-control);
+  color: var(--sd-text-secondary);
+  font: inherit;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.markdown-output :deep(.image-placeholder:focus-visible) {
+  outline: 2px solid var(--sd-primary);
+  outline-offset: 2px;
+}
+.markdown-output :deep(.image-placeholder:disabled) {
+  cursor: progress;
 }
 .markdown-output :deep(.katex-display) {
   overflow-x: auto;
