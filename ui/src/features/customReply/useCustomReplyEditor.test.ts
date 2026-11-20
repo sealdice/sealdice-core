@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, it, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { useCustomReplyEditor } from './useCustomReplyEditor';
 import { createPinia, disposePinia, type Pinia } from 'pinia';
@@ -76,28 +76,53 @@ afterEach(() => {
   if (pinia) disposePinia(pinia);
 });
 
-it('条件和规则输入只发编辑事件，排序不直接修改传入数组', async () => {
-  const tasks: ReplyTask[] = [
-    {
-      enable: true,
-      conditions: [{ condType: 'textMatch', matchType: 'matchExact', value: 'before' }],
-      results: [{ resultType: 'replyToSender', delay: 0, message: [['reply', 2]] }],
-    },
-  ];
-  const before = structuredClone(tasks);
-  wrapper = mount(NestedRuleEditor, { props: { tasks } });
-  await wrapper.get('.condition-value input').setValue('edited condition');
-  await wrapper.get('.reply-text textarea').setValue('edited reply');
-  expect(wrapper.emitted('updateCondition')?.at(-1)).toEqual([0, 0, { value: 'edited condition' }]);
-  expect(wrapper.emitted('updateResult')?.at(-1)).toEqual([
-    0,
-    0,
-    { message: [['edited reply', 2]] },
-  ]);
-  wrapper.getComponent(VueDraggableNext).vm.$emit('update:modelValue', [...tasks]);
-  expect(wrapper.emitted('reorder')?.at(-1)).toEqual([tasks]);
-  expect(tasks).toEqual(before);
-});
+it.each(['replyToSender', 'replyPrivate', 'replyGroup'])(
+  '%s 回复文本支持高亮且不展示预览，编辑与排序不直接修改传入数组',
+  async resultType => {
+    const tasks: ReplyTask[] = [
+      {
+        enable: true,
+        conditions: [{ condType: 'textMatch', matchType: 'matchExact', value: 'before' }],
+        results: [
+          {
+            resultType,
+            delay: 0,
+            message: [
+              ['{$tValue}', 2],
+              ['备用回复', 3],
+            ],
+          },
+        ],
+      },
+    ];
+    const before = structuredClone(tasks);
+    wrapper = mount(NestedRuleEditor, { props: { tasks } });
+    await vi.dynamicImportSettled();
+    await flushPromises();
+    expect(wrapper.get('.reply-text .seal-variable').text()).toBe('$tValue');
+    expect(wrapper.find('[aria-label="文案效果预览"]').exists()).toBe(false);
+    await wrapper.get('.condition-value input').setValue('edited condition');
+    await wrapper.get('.reply-text textarea').setValue('edited reply');
+    expect(wrapper.emitted('updateCondition')?.at(-1)).toEqual([
+      0,
+      0,
+      { value: 'edited condition' },
+    ]);
+    expect(wrapper.emitted('updateResult')?.at(-1)).toEqual([
+      0,
+      0,
+      {
+        message: [
+          ['edited reply', 2],
+          ['备用回复', 3],
+        ],
+      },
+    ]);
+    wrapper.getComponent(VueDraggableNext).vm.$emit('update:modelValue', [...tasks]);
+    expect(wrapper.emitted('reorder')?.at(-1)).toEqual([tasks]);
+    expect(tasks).toEqual(before);
+  }
+);
 
 it('分页只派生视图，编辑和排序写入整份草稿且不会影响其他页', async () => {
   let editor!: ReturnType<typeof useCustomReplyEditor>;
@@ -133,6 +158,8 @@ it('分页只派生视图，编辑和排序写入整份草稿且不会影响其�
   editor.addCommonCondition();
   for (let i = 0; i < 4; i++) editor.addReplyItem();
   await nextTick();
+  await vi.dynamicImportSettled();
+  await flushPromises();
   const draft = editor.currentFileDraft.value!;
   const firstPage = draft.items.slice(0, 2);
   const secondPage = draft.items.slice(2);

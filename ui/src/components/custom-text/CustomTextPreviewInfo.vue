@@ -4,7 +4,7 @@
     label-align="left"
     separator=" "
     :column="1"
-    content-class="whitespace-nowrap break-words"
+    content-class="whitespace-pre-wrap break-words"
   >
     <n-descriptions-item>
       <template #label>
@@ -16,13 +16,21 @@
       <template #label>
         <n-tag size="small" :bordered="false">V2 预览</n-tag>
       </template>
-      {{ info.textV2 || info.errV2 }}
+      <div role="region" aria-label="V2 原文预览">{{ info.textV2 || info.errV2 }}</div>
+    </n-descriptions-item>
+    <n-descriptions-item v-if="$slots['v2-markdown']">
+      <template #label><n-tag size="small" :bordered="false">V2 Markdown</n-tag></template>
+      <slot name="v2-markdown" />
     </n-descriptions-item>
     <n-descriptions-item>
       <template #label>
         <n-tag size="small" :bordered="false">V1 预览</n-tag>
       </template>
-      {{ info.textV1 || info.errV1 }}
+      <div role="region" aria-label="V1 原文预览">{{ info.textV1 || info.errV1 }}</div>
+    </n-descriptions-item>
+    <n-descriptions-item v-if="$slots['v1-markdown']">
+      <template #label><n-tag size="small" :bordered="false">V1 Markdown</n-tag></template>
+      <slot name="v1-markdown" />
     </n-descriptions-item>
     <n-descriptions-item>
       <template #label>
