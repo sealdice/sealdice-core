@@ -27,7 +27,6 @@ function renderField(field: Partial<BaseSettingFieldModel>, model: Partial<BaseS
             ...field,
           },
           model: model as BaseSettingValueModel,
-          isContainerMode: false,
           runAction: vi.fn(),
         }),
     },

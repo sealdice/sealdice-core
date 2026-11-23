@@ -20,7 +20,6 @@ vi.mock('@/api', () => ({
   getSdApiV2BaseLoginSalt: api.salt,
   putSdApiV2BaseSettingValue: api.save,
   postSdApiV2BaseSettingMailTest: vi.fn(),
-  postSdApiV2BaseSettingUpgrade: vi.fn(),
 }));
 vi.mock('naive-ui', async importOriginal => ({
   ...(await importOriginal<typeof import('naive-ui')>()),
