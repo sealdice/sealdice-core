@@ -28,6 +28,7 @@ temp/
 
 .goreleaser.yaml
 dist/
+api/v2/deck/cache/
 ui/openapi.json
 ui/src/api/generated/
 static/v2ui/dist/
