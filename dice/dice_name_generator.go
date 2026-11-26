@@ -90,7 +90,8 @@ func (ng *NamesGenerator) NameGenerate(rule string) string {
 		var result []int
 		for _, i := range lst {
 			weight, err := strconv.Atoi(i)
-			if err != nil {
+			// 负数转换为 uint 时会回绕成极大的权重，按非整数处理
+			if err != nil || weight < 0 {
 				_ = fmt.Errorf("权重转换出错，并非整数: %s, 来自 %s", i, rule)
 				weight = 1
 			}
